@@ -9,7 +9,7 @@ datasource db {
 }
 
 model organizations {
-  id         String     @id
+  id         String     @id @default(uuid())
   name       String
   address    String
   phone      String
@@ -21,14 +21,14 @@ model organizations {
 }
 
 model permissions {
-  id               String             @id
+  id               String             @id @default(uuid())
   name             String             @unique
   description      String?
   role_permissions role_permissions[]
 }
 
 model reports {
-  id              String        @id
+  id              String        @id @default(uuid())
   generated_by    String
   organization_id String
   report_type     String
@@ -40,7 +40,7 @@ model reports {
 }
 
 model requests {
-  id                                 String    @id
+  id                                 String    @id @default(uuid())
   vehicle_id                         String?
   requested_at                       DateTime  @default(now())
   trip_purpose                       String
@@ -60,7 +60,7 @@ model requests {
 }
 
 model role_permissions {
-  id            String      @id
+  id            String      @id @default(uuid())
   role_id       String
   permission_id String
   permissions   permissions @relation(fields: [permission_id], references: [id])
@@ -70,7 +70,7 @@ model role_permissions {
 }
 
 model roles {
-  id               String             @id
+  id               String             @id @default(uuid())
   name             String             @unique
   description      String?
   role_permissions role_permissions[]
@@ -78,7 +78,7 @@ model roles {
 }
 
 model sessions {
-  id         String   @id
+  id         String   @id @default(uuid())
   user_id    String
   token      String   @unique
   created_at DateTime @default(now())
@@ -88,7 +88,7 @@ model sessions {
 }
 
 model trips {
-  id             String    @id
+  id             String    @id @default(uuid())
   request_id     String?
   vehicle_id     String
   start_odometer Int
@@ -105,7 +105,7 @@ model trips {
 }
 
 model users {
-  id                                    String        @id
+  id                                    String        @id @default(uuid())
   organization_id                       String
   username                              String        @unique
   password_hash                         String
@@ -126,7 +126,7 @@ model users {
 }
 
 model vehicles {
-  id                String        @id
+  id                String        @id @default(uuid())
   plate_number      String        @unique
   model             String
   manufacturer      String
