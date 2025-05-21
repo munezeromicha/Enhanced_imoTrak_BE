@@ -1,0 +1,30 @@
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+dist/
+.env
+
+# Prisma
+/prisma/dev.db
+/prisma/migrations/
+.prisma/
+*.db-journal
+
+# Logs
+logs/
+*.log
+log.txt
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDEs
+.vscode/
+.idea/
+
+# Optional: production build or uploads
+/build/
+uploads/
