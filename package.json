@@ -1,29 +1,21 @@
 {
-  "name": "imotrak-backside",
-  "version": "1.0.0",
-  "description": "Backend for the Imotarak Fleet Management System built with Node.js, Prisma, and PostgreSQL. Handles authentication, role-based access, vehicle requests, trip tracking, and reporting. Designed for organizational fleet operations with secure and scalable APIs.",
-  "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev": "ts-node index.ts"
   },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/binaryhubrw/Imotrak-Backside.git"
+  "devDependencies": {
+    "@types/cors": "^2.8.18",
+    "@types/express": "^5.0.2",
+    "@types/jsonwebtoken": "^9.0.9",
+    "@types/node": "^22.15.21",
+    "express": "^5.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.8.3"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "bugs": {
-    "url": "https://github.com/binaryhubrw/Imotrak-Backside/issues"
-  },
-  "homepage": "https://github.com/binaryhubrw/Imotrak-Backside#readme",
   "dependencies": {
     "@prisma/client": "^6.8.2",
     "argon2": "^0.43.0",
     "cors": "^2.8.5",
-    "dotenv": "^16.5.0",
-    "express": "^5.1.0",
-    "jsonwebtoken": "^9.0.2",
-    "prisma": "^6.8.2"
+    "dotenv": "^16.5.0"
   }
 }
