@@ -14376,7 +14376,7 @@ export namespace Prisma {
   }
 
   export type organizationsCreateInput = {
-    id: string
+    id?: string
     name: string
     address: string
     phone: string
@@ -14388,7 +14388,7 @@ export namespace Prisma {
   }
 
   export type organizationsUncheckedCreateInput = {
-    id: string
+    id?: string
     name: string
     address: string
     phone: string
@@ -14424,7 +14424,7 @@ export namespace Prisma {
   }
 
   export type organizationsCreateManyInput = {
-    id: string
+    id?: string
     name: string
     address: string
     phone: string
@@ -14451,14 +14451,14 @@ export namespace Prisma {
   }
 
   export type permissionsCreateInput = {
-    id: string
+    id?: string
     name: string
     description?: string | null
     role_permissions?: role_permissionsCreateNestedManyWithoutPermissionsInput
   }
 
   export type permissionsUncheckedCreateInput = {
-    id: string
+    id?: string
     name: string
     description?: string | null
     role_permissions?: role_permissionsUncheckedCreateNestedManyWithoutPermissionsInput
@@ -14479,7 +14479,7 @@ export namespace Prisma {
   }
 
   export type permissionsCreateManyInput = {
-    id: string
+    id?: string
     name: string
     description?: string | null
   }
@@ -14497,7 +14497,7 @@ export namespace Prisma {
   }
 
   export type reportsCreateInput = {
-    id: string
+    id?: string
     report_type: string
     generated_at?: Date | string
     file_url?: string | null
@@ -14507,7 +14507,7 @@ export namespace Prisma {
   }
 
   export type reportsUncheckedCreateInput = {
-    id: string
+    id?: string
     generated_by: string
     organization_id: string
     report_type: string
@@ -14537,7 +14537,7 @@ export namespace Prisma {
   }
 
   export type reportsCreateManyInput = {
-    id: string
+    id?: string
     generated_by: string
     organization_id: string
     report_type: string
@@ -14565,7 +14565,7 @@ export namespace Prisma {
   }
 
   export type requestsCreateInput = {
-    id: string
+    id?: string
     requested_at?: Date | string
     trip_purpose: string
     start_location: string
@@ -14582,7 +14582,7 @@ export namespace Prisma {
   }
 
   export type requestsUncheckedCreateInput = {
-    id: string
+    id?: string
     vehicle_id?: string | null
     requested_at?: Date | string
     trip_purpose: string
@@ -14633,7 +14633,7 @@ export namespace Prisma {
   }
 
   export type requestsCreateManyInput = {
-    id: string
+    id?: string
     vehicle_id?: string | null
     requested_at?: Date | string
     trip_purpose: string
@@ -14678,13 +14678,13 @@ export namespace Prisma {
   }
 
   export type role_permissionsCreateInput = {
-    id: string
+    id?: string
     permissions: permissionsCreateNestedOneWithoutRole_permissionsInput
     roles: rolesCreateNestedOneWithoutRole_permissionsInput
   }
 
   export type role_permissionsUncheckedCreateInput = {
-    id: string
+    id?: string
     role_id: string
     permission_id: string
   }
@@ -14702,7 +14702,7 @@ export namespace Prisma {
   }
 
   export type role_permissionsCreateManyInput = {
-    id: string
+    id?: string
     role_id: string
     permission_id: string
   }
@@ -14718,7 +14718,7 @@ export namespace Prisma {
   }
 
   export type rolesCreateInput = {
-    id: string
+    id?: string
     name: string
     description?: string | null
     role_permissions?: role_permissionsCreateNestedManyWithoutRolesInput
@@ -14726,7 +14726,7 @@ export namespace Prisma {
   }
 
   export type rolesUncheckedCreateInput = {
-    id: string
+    id?: string
     name: string
     description?: string | null
     role_permissions?: role_permissionsUncheckedCreateNestedManyWithoutRolesInput
@@ -14750,7 +14750,7 @@ export namespace Prisma {
   }
 
   export type rolesCreateManyInput = {
-    id: string
+    id?: string
     name: string
     description?: string | null
   }
@@ -14768,7 +14768,7 @@ export namespace Prisma {
   }
 
   export type sessionsCreateInput = {
-    id: string
+    id?: string
     token: string
     created_at?: Date | string
     expires_at: Date | string
@@ -14777,7 +14777,7 @@ export namespace Prisma {
   }
 
   export type sessionsUncheckedCreateInput = {
-    id: string
+    id?: string
     user_id: string
     token: string
     created_at?: Date | string
@@ -14804,7 +14804,7 @@ export namespace Prisma {
   }
 
   export type sessionsCreateManyInput = {
-    id: string
+    id?: string
     user_id: string
     token: string
     created_at?: Date | string
@@ -14830,7 +14830,7 @@ export namespace Prisma {
   }
 
   export type tripsCreateInput = {
-    id: string
+    id?: string
     start_odometer: number
     end_odometer?: number | null
     start_time: Date | string
@@ -14844,7 +14844,7 @@ export namespace Prisma {
   }
 
   export type tripsUncheckedCreateInput = {
-    id: string
+    id?: string
     request_id?: string | null
     vehicle_id: string
     start_odometer: number
@@ -14886,7 +14886,7 @@ export namespace Prisma {
   }
 
   export type tripsCreateManyInput = {
-    id: string
+    id?: string
     request_id?: string | null
     vehicle_id: string
     start_odometer: number
@@ -14925,7 +14925,7 @@ export namespace Prisma {
   }
 
   export type usersCreateInput = {
-    id: string
+    id?: string
     username: string
     password_hash: string
     email: string
@@ -14944,7 +14944,7 @@ export namespace Prisma {
   }
 
   export type usersUncheckedCreateInput = {
-    id: string
+    id?: string
     organization_id: string
     username: string
     password_hash: string
@@ -15001,7 +15001,7 @@ export namespace Prisma {
   }
 
   export type usersCreateManyInput = {
-    id: string
+    id?: string
     organization_id: string
     username: string
     password_hash: string
@@ -15041,7 +15041,7 @@ export namespace Prisma {
   }
 
   export type vehiclesCreateInput = {
-    id: string
+    id?: string
     plate_number: string
     model: string
     manufacturer: string
@@ -15058,7 +15058,7 @@ export namespace Prisma {
   }
 
   export type vehiclesUncheckedCreateInput = {
-    id: string
+    id?: string
     plate_number: string
     model: string
     manufacturer: string
@@ -15109,7 +15109,7 @@ export namespace Prisma {
   }
 
   export type vehiclesCreateManyInput = {
-    id: string
+    id?: string
     plate_number: string
     model: string
     manufacturer: string
@@ -16873,7 +16873,7 @@ export namespace Prisma {
   }
 
   export type reportsCreateWithoutOrganizationsInput = {
-    id: string
+    id?: string
     report_type: string
     generated_at?: Date | string
     file_url?: string | null
@@ -16882,7 +16882,7 @@ export namespace Prisma {
   }
 
   export type reportsUncheckedCreateWithoutOrganizationsInput = {
-    id: string
+    id?: string
     generated_by: string
     report_type: string
     generated_at?: Date | string
@@ -16901,7 +16901,7 @@ export namespace Prisma {
   }
 
   export type usersCreateWithoutOrganizationsInput = {
-    id: string
+    id?: string
     username: string
     password_hash: string
     email: string
@@ -16919,7 +16919,7 @@ export namespace Prisma {
   }
 
   export type usersUncheckedCreateWithoutOrganizationsInput = {
-    id: string
+    id?: string
     username: string
     password_hash: string
     email: string
@@ -16947,7 +16947,7 @@ export namespace Prisma {
   }
 
   export type vehiclesCreateWithoutOrganizationsInput = {
-    id: string
+    id?: string
     plate_number: string
     model: string
     manufacturer: string
@@ -16963,7 +16963,7 @@ export namespace Prisma {
   }
 
   export type vehiclesUncheckedCreateWithoutOrganizationsInput = {
-    id: string
+    id?: string
     plate_number: string
     model: string
     manufacturer: string
@@ -17085,12 +17085,12 @@ export namespace Prisma {
   }
 
   export type role_permissionsCreateWithoutPermissionsInput = {
-    id: string
+    id?: string
     roles: rolesCreateNestedOneWithoutRole_permissionsInput
   }
 
   export type role_permissionsUncheckedCreateWithoutPermissionsInput = {
-    id: string
+    id?: string
     role_id: string
   }
 
@@ -17130,7 +17130,7 @@ export namespace Prisma {
   }
 
   export type usersCreateWithoutReportsInput = {
-    id: string
+    id?: string
     username: string
     password_hash: string
     email: string
@@ -17148,7 +17148,7 @@ export namespace Prisma {
   }
 
   export type usersUncheckedCreateWithoutReportsInput = {
-    id: string
+    id?: string
     organization_id: string
     username: string
     password_hash: string
@@ -17171,7 +17171,7 @@ export namespace Prisma {
   }
 
   export type organizationsCreateWithoutReportsInput = {
-    id: string
+    id?: string
     name: string
     address: string
     phone: string
@@ -17182,7 +17182,7 @@ export namespace Prisma {
   }
 
   export type organizationsUncheckedCreateWithoutReportsInput = {
-    id: string
+    id?: string
     name: string
     address: string
     phone: string
@@ -17278,7 +17278,7 @@ export namespace Prisma {
   }
 
   export type usersCreateWithoutRequests_requests_requester_idTousersInput = {
-    id: string
+    id?: string
     username: string
     password_hash: string
     email: string
@@ -17296,7 +17296,7 @@ export namespace Prisma {
   }
 
   export type usersUncheckedCreateWithoutRequests_requests_requester_idTousersInput = {
-    id: string
+    id?: string
     organization_id: string
     username: string
     password_hash: string
@@ -17319,7 +17319,7 @@ export namespace Prisma {
   }
 
   export type usersCreateWithoutRequests_requests_reviewed_byTousersInput = {
-    id: string
+    id?: string
     username: string
     password_hash: string
     email: string
@@ -17337,7 +17337,7 @@ export namespace Prisma {
   }
 
   export type usersUncheckedCreateWithoutRequests_requests_reviewed_byTousersInput = {
-    id: string
+    id?: string
     organization_id: string
     username: string
     password_hash: string
@@ -17360,7 +17360,7 @@ export namespace Prisma {
   }
 
   export type vehiclesCreateWithoutRequestsInput = {
-    id: string
+    id?: string
     plate_number: string
     model: string
     manufacturer: string
@@ -17376,7 +17376,7 @@ export namespace Prisma {
   }
 
   export type vehiclesUncheckedCreateWithoutRequestsInput = {
-    id: string
+    id?: string
     plate_number: string
     model: string
     manufacturer: string
@@ -17397,7 +17397,7 @@ export namespace Prisma {
   }
 
   export type tripsCreateWithoutRequestsInput = {
-    id: string
+    id?: string
     start_odometer: number
     end_odometer?: number | null
     start_time: Date | string
@@ -17410,7 +17410,7 @@ export namespace Prisma {
   }
 
   export type tripsUncheckedCreateWithoutRequestsInput = {
-    id: string
+    id?: string
     vehicle_id: string
     start_odometer: number
     end_odometer?: number | null
@@ -17603,13 +17603,13 @@ export namespace Prisma {
   }
 
   export type permissionsCreateWithoutRole_permissionsInput = {
-    id: string
+    id?: string
     name: string
     description?: string | null
   }
 
   export type permissionsUncheckedCreateWithoutRole_permissionsInput = {
-    id: string
+    id?: string
     name: string
     description?: string | null
   }
@@ -17620,14 +17620,14 @@ export namespace Prisma {
   }
 
   export type rolesCreateWithoutRole_permissionsInput = {
-    id: string
+    id?: string
     name: string
     description?: string | null
     users?: usersCreateNestedManyWithoutRolesInput
   }
 
   export type rolesUncheckedCreateWithoutRole_permissionsInput = {
-    id: string
+    id?: string
     name: string
     description?: string | null
     users?: usersUncheckedCreateNestedManyWithoutRolesInput
@@ -17687,12 +17687,12 @@ export namespace Prisma {
   }
 
   export type role_permissionsCreateWithoutRolesInput = {
-    id: string
+    id?: string
     permissions: permissionsCreateNestedOneWithoutRole_permissionsInput
   }
 
   export type role_permissionsUncheckedCreateWithoutRolesInput = {
-    id: string
+    id?: string
     permission_id: string
   }
 
@@ -17707,7 +17707,7 @@ export namespace Prisma {
   }
 
   export type usersCreateWithoutRolesInput = {
-    id: string
+    id?: string
     username: string
     password_hash: string
     email: string
@@ -17725,7 +17725,7 @@ export namespace Prisma {
   }
 
   export type usersUncheckedCreateWithoutRolesInput = {
-    id: string
+    id?: string
     organization_id: string
     username: string
     password_hash: string
@@ -17785,7 +17785,7 @@ export namespace Prisma {
   }
 
   export type usersCreateWithoutSessionsInput = {
-    id: string
+    id?: string
     username: string
     password_hash: string
     email: string
@@ -17803,7 +17803,7 @@ export namespace Prisma {
   }
 
   export type usersUncheckedCreateWithoutSessionsInput = {
-    id: string
+    id?: string
     organization_id: string
     username: string
     password_hash: string
@@ -17873,7 +17873,7 @@ export namespace Prisma {
   }
 
   export type usersCreateWithoutTripsInput = {
-    id: string
+    id?: string
     username: string
     password_hash: string
     email: string
@@ -17891,7 +17891,7 @@ export namespace Prisma {
   }
 
   export type usersUncheckedCreateWithoutTripsInput = {
-    id: string
+    id?: string
     organization_id: string
     username: string
     password_hash: string
@@ -17914,7 +17914,7 @@ export namespace Prisma {
   }
 
   export type requestsCreateWithoutTripsInput = {
-    id: string
+    id?: string
     requested_at?: Date | string
     trip_purpose: string
     start_location: string
@@ -17930,7 +17930,7 @@ export namespace Prisma {
   }
 
   export type requestsUncheckedCreateWithoutTripsInput = {
-    id: string
+    id?: string
     vehicle_id?: string | null
     requested_at?: Date | string
     trip_purpose: string
@@ -17951,7 +17951,7 @@ export namespace Prisma {
   }
 
   export type vehiclesCreateWithoutTripsInput = {
-    id: string
+    id?: string
     plate_number: string
     model: string
     manufacturer: string
@@ -17967,7 +17967,7 @@ export namespace Prisma {
   }
 
   export type vehiclesUncheckedCreateWithoutTripsInput = {
-    id: string
+    id?: string
     plate_number: string
     model: string
     manufacturer: string
@@ -18121,7 +18121,7 @@ export namespace Prisma {
   }
 
   export type reportsCreateWithoutUsersInput = {
-    id: string
+    id?: string
     report_type: string
     generated_at?: Date | string
     file_url?: string | null
@@ -18130,7 +18130,7 @@ export namespace Prisma {
   }
 
   export type reportsUncheckedCreateWithoutUsersInput = {
-    id: string
+    id?: string
     organization_id: string
     report_type: string
     generated_at?: Date | string
@@ -18149,7 +18149,7 @@ export namespace Prisma {
   }
 
   export type requestsCreateWithoutUsers_requests_requester_idTousersInput = {
-    id: string
+    id?: string
     requested_at?: Date | string
     trip_purpose: string
     start_location: string
@@ -18165,7 +18165,7 @@ export namespace Prisma {
   }
 
   export type requestsUncheckedCreateWithoutUsers_requests_requester_idTousersInput = {
-    id: string
+    id?: string
     vehicle_id?: string | null
     requested_at?: Date | string
     trip_purpose: string
@@ -18191,7 +18191,7 @@ export namespace Prisma {
   }
 
   export type requestsCreateWithoutUsers_requests_reviewed_byTousersInput = {
-    id: string
+    id?: string
     requested_at?: Date | string
     trip_purpose: string
     start_location: string
@@ -18207,7 +18207,7 @@ export namespace Prisma {
   }
 
   export type requestsUncheckedCreateWithoutUsers_requests_reviewed_byTousersInput = {
-    id: string
+    id?: string
     vehicle_id?: string | null
     requested_at?: Date | string
     trip_purpose: string
@@ -18233,7 +18233,7 @@ export namespace Prisma {
   }
 
   export type sessionsCreateWithoutUsersInput = {
-    id: string
+    id?: string
     token: string
     created_at?: Date | string
     expires_at: Date | string
@@ -18241,7 +18241,7 @@ export namespace Prisma {
   }
 
   export type sessionsUncheckedCreateWithoutUsersInput = {
-    id: string
+    id?: string
     token: string
     created_at?: Date | string
     expires_at: Date | string
@@ -18259,7 +18259,7 @@ export namespace Prisma {
   }
 
   export type tripsCreateWithoutUsersInput = {
-    id: string
+    id?: string
     start_odometer: number
     end_odometer?: number | null
     start_time: Date | string
@@ -18272,7 +18272,7 @@ export namespace Prisma {
   }
 
   export type tripsUncheckedCreateWithoutUsersInput = {
-    id: string
+    id?: string
     request_id?: string | null
     vehicle_id: string
     start_odometer: number
@@ -18295,7 +18295,7 @@ export namespace Prisma {
   }
 
   export type organizationsCreateWithoutUsersInput = {
-    id: string
+    id?: string
     name: string
     address: string
     phone: string
@@ -18306,7 +18306,7 @@ export namespace Prisma {
   }
 
   export type organizationsUncheckedCreateWithoutUsersInput = {
-    id: string
+    id?: string
     name: string
     address: string
     phone: string
@@ -18322,14 +18322,14 @@ export namespace Prisma {
   }
 
   export type rolesCreateWithoutUsersInput = {
-    id: string
+    id?: string
     name: string
     description?: string | null
     role_permissions?: role_permissionsCreateNestedManyWithoutRolesInput
   }
 
   export type rolesUncheckedCreateWithoutUsersInput = {
-    id: string
+    id?: string
     name: string
     description?: string | null
     role_permissions?: role_permissionsUncheckedCreateNestedManyWithoutRolesInput
@@ -18510,7 +18510,7 @@ export namespace Prisma {
   }
 
   export type requestsCreateWithoutVehiclesInput = {
-    id: string
+    id?: string
     requested_at?: Date | string
     trip_purpose: string
     start_location: string
@@ -18526,7 +18526,7 @@ export namespace Prisma {
   }
 
   export type requestsUncheckedCreateWithoutVehiclesInput = {
-    id: string
+    id?: string
     requested_at?: Date | string
     trip_purpose: string
     start_location: string
@@ -18552,7 +18552,7 @@ export namespace Prisma {
   }
 
   export type tripsCreateWithoutVehiclesInput = {
-    id: string
+    id?: string
     start_odometer: number
     end_odometer?: number | null
     start_time: Date | string
@@ -18565,7 +18565,7 @@ export namespace Prisma {
   }
 
   export type tripsUncheckedCreateWithoutVehiclesInput = {
-    id: string
+    id?: string
     request_id?: string | null
     start_odometer: number
     end_odometer?: number | null
@@ -18588,7 +18588,7 @@ export namespace Prisma {
   }
 
   export type organizationsCreateWithoutVehiclesInput = {
-    id: string
+    id?: string
     name: string
     address: string
     phone: string
@@ -18599,7 +18599,7 @@ export namespace Prisma {
   }
 
   export type organizationsUncheckedCreateWithoutVehiclesInput = {
-    id: string
+    id?: string
     name: string
     address: string
     phone: string
@@ -18680,7 +18680,7 @@ export namespace Prisma {
   }
 
   export type reportsCreateManyOrganizationsInput = {
-    id: string
+    id?: string
     generated_by: string
     report_type: string
     generated_at?: Date | string
@@ -18689,7 +18689,7 @@ export namespace Prisma {
   }
 
   export type usersCreateManyOrganizationsInput = {
-    id: string
+    id?: string
     username: string
     password_hash: string
     email: string
@@ -18702,7 +18702,7 @@ export namespace Prisma {
   }
 
   export type vehiclesCreateManyOrganizationsInput = {
-    id: string
+    id?: string
     plate_number: string
     model: string
     manufacturer: string
@@ -18838,7 +18838,7 @@ export namespace Prisma {
   }
 
   export type role_permissionsCreateManyPermissionsInput = {
-    id: string
+    id?: string
     role_id: string
   }
 
@@ -18858,7 +18858,7 @@ export namespace Prisma {
   }
 
   export type tripsCreateManyRequestsInput = {
-    id: string
+    id?: string
     vehicle_id: string
     start_odometer: number
     end_odometer?: number | null
@@ -18910,12 +18910,12 @@ export namespace Prisma {
   }
 
   export type role_permissionsCreateManyRolesInput = {
-    id: string
+    id?: string
     permission_id: string
   }
 
   export type usersCreateManyRolesInput = {
-    id: string
+    id?: string
     organization_id: string
     username: string
     password_hash: string
@@ -18992,7 +18992,7 @@ export namespace Prisma {
   }
 
   export type reportsCreateManyUsersInput = {
-    id: string
+    id?: string
     organization_id: string
     report_type: string
     generated_at?: Date | string
@@ -19001,7 +19001,7 @@ export namespace Prisma {
   }
 
   export type requestsCreateManyUsers_requests_requester_idTousersInput = {
-    id: string
+    id?: string
     vehicle_id?: string | null
     requested_at?: Date | string
     trip_purpose: string
@@ -19016,7 +19016,7 @@ export namespace Prisma {
   }
 
   export type requestsCreateManyUsers_requests_reviewed_byTousersInput = {
-    id: string
+    id?: string
     vehicle_id?: string | null
     requested_at?: Date | string
     trip_purpose: string
@@ -19031,7 +19031,7 @@ export namespace Prisma {
   }
 
   export type sessionsCreateManyUsersInput = {
-    id: string
+    id?: string
     token: string
     created_at?: Date | string
     expires_at: Date | string
@@ -19039,7 +19039,7 @@ export namespace Prisma {
   }
 
   export type tripsCreateManyUsersInput = {
-    id: string
+    id?: string
     request_id?: string | null
     vehicle_id: string
     start_odometer: number
@@ -19236,7 +19236,7 @@ export namespace Prisma {
   }
 
   export type requestsCreateManyVehiclesInput = {
-    id: string
+    id?: string
     requested_at?: Date | string
     trip_purpose: string
     start_location: string
@@ -19251,7 +19251,7 @@ export namespace Prisma {
   }
 
   export type tripsCreateManyVehiclesInput = {
-    id: string
+    id?: string
     request_id?: string | null
     start_odometer: number
     end_odometer?: number | null
