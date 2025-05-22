@@ -26,12 +26,16 @@ const router = express.Router();
  *             properties:
  *               name:
  *                 type: string
+ *                 example: University of Rwanda
  *               address:
  *                 type: string
+ *                 example: KN 7 Ave, Kigali
  *               phone:
  *                 type: string
+ *                 example: +250 798 234 675
  *               email:
  *                 type: string
+ *                 example: universityofrwanda@ur.ac.rw
  *     responses:
  *       201:
  *         description: Organization created successfully

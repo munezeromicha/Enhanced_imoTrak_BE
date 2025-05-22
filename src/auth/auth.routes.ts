@@ -28,10 +28,10 @@ const Authrouter = express.Router();
  *             properties:
  *               email:
  *                 type: string
- *                 example: user@example.com
+ *                 example: admin@imotarak.rw
  *               password:
  *                 type: string
- *                 example: yourPassword123
+ *                 example: SuperSecure123!
  *     responses:
  *       200:
  *         description: Logged in successfully
