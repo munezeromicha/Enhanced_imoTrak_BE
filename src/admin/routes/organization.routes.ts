@@ -1,9 +1,10 @@
+// routes/organization.routes.ts
 import express from 'express';
 import { registerOrganization } from '../controllers/organization.controller';
-import { authenticate } from '../../middleware/auth.middleware';
+import { authenticateAdmin } from '../../middleware/auth.middleware';
 
 const router = express.Router();
 
-router.post('/organizations', authenticate, registerOrganization);
+router.post('/organizations', authenticateAdmin, registerOrganization);
 
 export default router;

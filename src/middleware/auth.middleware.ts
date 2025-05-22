@@ -1,12 +1,17 @@
-// middleware/auth.middleware.ts
 import { Request, Response, NextFunction } from 'express';
-import { verifyToken } from '../../utils/jwt'; 
+import { verifyToken } from '../../utils/jwt';
+import { JwtPayload } from 'jsonwebtoken';
 
-export const authenticateAdmin = (req: Request, res: Response, next: NextFunction) => {
+export const authenticateAdmin = (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): void => {
   const authHeader = req.headers.authorization;
 
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({ error: 'Unauthorized. No token provided.' });
+    res.status(401).json({ error: 'Unauthorized. No token provided.' });
+    return;
   }
 
   const token = authHeader.split(' ')[1];
@@ -14,14 +19,14 @@ export const authenticateAdmin = (req: Request, res: Response, next: NextFunctio
   try {
     const decoded = verifyToken(token);
 
-    // Check role === 'admin'
     if (typeof decoded === 'object' && decoded.role !== 'admin') {
-      return res.status(403).json({ error: 'Forbidden. Admin access required.' });
+      res.status(403).json({ error: 'Forbidden. Admin access required.' });
+      return;
     }
 
     req.user = decoded;
     next();
   } catch (err) {
-    return res.status(401).json({ error: 'Invalid token' });
+    res.status(401).json({ error: 'Invalid token' });
   }
 };
