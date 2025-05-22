@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { Request, Response } from 'express';
+import { swaggerUi, swaggerSpec } from './utils/swagger';
 
 
 import authRoutes from './src/auth/auth.routes';
@@ -13,6 +14,7 @@ app.use(express.json());
 dotenv.config();
 
 app.use('/api/auth', authRoutes);
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 
 app.get('/', (req: Request, res: Response) => {

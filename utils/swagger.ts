@@ -1,15 +1,25 @@
 import swaggerJSDoc from 'swagger-jsdoc';
+import swaggerUi from 'swagger-ui-express';
 
+
+const PORT = process.env.PORT || 4000;
 const options: swaggerJSDoc.Options = {
   definition: {
     openapi: '3.0.0',
     info: {
-      title: 'Imotarak API',
+      title: 'Imotrak API',
       version: '1.0.0',
+      description: 'API documentation for Imotrak Backend',
     },
+    servers: [
+      {
+        url: `http://localhost:${ PORT }/api`,
+      },
+    ],
   },
   apis: ['src/**/*.routes.ts'],
 };
 
-export const swaggerSpec = swaggerJSDoc(options);
+const swaggerSpec = swaggerJSDoc(options);
 
+export { swaggerUi, swaggerSpec };

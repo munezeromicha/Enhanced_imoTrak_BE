@@ -1,6 +1,5 @@
 generator client {
   provider = "prisma-client-js"
-  // output   = "../generated/prisma"
 }
 
 datasource db {
@@ -70,7 +69,7 @@ model role_permissions {
 }
 
 model roles {
-  id               String             @id @default(uuid())
+  id               String             @id @default(dbgenerated("gen_random_uuid()"))
   name             String             @unique
   description      String?
   role_permissions role_permissions[]
