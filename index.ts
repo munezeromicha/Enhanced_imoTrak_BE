@@ -21,4 +21,8 @@ app.get('/', (req: Request, res: Response) => {
   res.send('Imotarak Backend API is live!');
 });
 const PORT = process.env.PORT || 4000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+app.listen(PORT, () => {
+  const baseUrl = process.env.BASE_URL || `http://localhost:${PORT}`;
+  console.log(`🚀 Server running on ${baseUrl}`);
+  console.log(`📚 Swagger docs available at ${baseUrl}/api-docs`);
+});
