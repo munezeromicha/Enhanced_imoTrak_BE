@@ -29,3 +29,5 @@ Thumbs.db
 /build/
 uploads/
 #
+.dockerignore
+scripts/
