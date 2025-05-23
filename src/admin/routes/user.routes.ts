@@ -1,5 +1,11 @@
 import express from 'express';
-import { UserController } from '../controllers/user.controller';
+import {
+  registerOrganization,
+  getOrganizations,
+  getOrganization,
+  editOrganization,
+  removeOrganization,
+} from '../controllers/organization.controller';
 import { authenticateAdmin } from '../../middleware/auth.middleware';
 
 const router = express.Router();
@@ -7,55 +13,55 @@ const router = express.Router();
 /**
  * @swagger
  * tags:
- *   name: Users
- *   description: Admin-only user management
+ *   name: Organizations
+ *   description: Admin-only organization management
  */
 
 /**
  * @swagger
- * /users:
+ * /organizations:
  *   get:
- *     summary: Get all users (Admin only)
- *     tags: [Users]
+ *     summary: Get all organizations (Admin only)
+ *     tags: [Organizations]
  *     security:
  *       - bearerAuth: []
  *     responses:
  *       200:
- *         description: List of users
+ *         description: List of organizations
  *       403:
  *         description: Forbidden
  */
-router.get('/', authenticateAdmin, UserController.getAll);
+router.get('/organizations', authenticateAdmin, getOrganizations);
 
 /**
  * @swagger
- * /users/{id}:
+ * /organizations/{id}:
  *   get:
- *     summary: Get a user by ID (Admin only)
- *     tags: [Users]
+ *     summary: Get an organization by ID (Admin only)
+ *     tags: [Organizations]
  *     security:
  *       - bearerAuth: []
  *     parameters:
  *       - name: id
  *         in: path
  *         required: true
- *         description: User ID
+ *         description: Organization ID
  *         schema:
  *           type: string
  *     responses:
  *       200:
- *         description: User found
+ *         description: Organization found
  *       404:
- *         description: User not found
+ *         description: Organization not found
  */
-router.get('/:id', authenticateAdmin, UserController.getById);
+router.get('/organizations/:id', authenticateAdmin, getOrganization);
 
 /**
  * @swagger
- * /users:
+ * /organizations:
  *   post:
- *     summary: Create a new user (Admin only)
- *     tags: [Users]
+ *     summary: Register a new organization (Admin only)
+ *     tags: [Organizations]
  *     security:
  *       - bearerAuth: []
  *     requestBody:
@@ -65,41 +71,37 @@ router.get('/:id', authenticateAdmin, UserController.getById);
  *           schema:
  *             type: object
  *             required:
- *               - username
- *               - password_hash
+ *               - name
+ *               - address
+ *               - phone
  *               - email
- *               - full_name
- *               - organization_id
- *               - role_id
  *             properties:
- *               username:
+ *               name:
  *                 type: string
- *               password_hash:
+ *                 example: University of Rwanda
+ *               address:
  *                 type: string
- *               email:
- *                 type: string
- *               full_name:
- *                 type: string
+ *                 example: KN 7 Ave, Kigali
  *               phone:
  *                 type: string
- *               organization_id:
+ *                 example: +250-790-323-567
+ *               email:
  *                 type: string
- *               role_id:
- *                 type: string
+ *                 example: ur@ur.ac.rw
  *     responses:
  *       201:
- *         description: User created
+ *         description: Organization created successfully
  *       403:
  *         description: Forbidden
  */
-router.post('/', authenticateAdmin, UserController.create);
+router.post('/organizations', authenticateAdmin, registerOrganization);
 
 /**
  * @swagger
- * /users/{id}:
+ * /organizations/{id}:
  *   put:
- *     summary: Update a user by ID (Admin only)
- *     tags: [Users]
+ *     summary: Update an organization by ID (Admin only)
+ *     tags: [Organizations]
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -108,7 +110,7 @@ router.post('/', authenticateAdmin, UserController.create);
  *         required: true
  *         schema:
  *           type: string
- *         description: The user ID
+ *         description: Organization ID
  *     requestBody:
  *       required: true
  *       content:
@@ -116,47 +118,46 @@ router.post('/', authenticateAdmin, UserController.create);
  *           schema:
  *             type: object
  *             properties:
- *               username:
+ *               name:
  *                 type: string
- *               email:
- *                 type: string
- *               full_name:
+ *               address:
  *                 type: string
  *               phone:
  *                 type: string
+ *               email:
+ *                 type: string
  *               status:
  *                 type: string
- *               role_id:
- *                 type: string
+ *                 example: Active
  *     responses:
  *       200:
- *         description: User updated
+ *         description: Organization updated successfully
  *       404:
- *         description: User not found
+ *         description: Organization not found
  */
-router.put('/:id', authenticateAdmin, UserController.update);
+router.put('/organizations/:id', authenticateAdmin, editOrganization);
 
 /**
  * @swagger
- * /users/{id}:
+ * /organizations/{id}:
  *   delete:
- *     summary: Delete a user by ID (Admin only)
- *     tags: [Users]
+ *     summary: Delete an organization by ID (Admin only)
+ *     tags: [Organizations]
  *     security:
  *       - bearerAuth: []
  *     parameters:
  *       - name: id
  *         in: path
  *         required: true
- *         description: The user ID
+ *         description: Organization ID
  *         schema:
  *           type: string
  *     responses:
  *       204:
- *         description: User deleted successfully
+ *         description: Organization deleted successfully
  *       404:
- *         description: User not found
+ *         description: Organization not found
  */
-router.delete('/:id', authenticateAdmin, UserController.delete);
+router.delete('/organizations/:id', authenticateAdmin, removeOrganization);
 
 export default router;

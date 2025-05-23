@@ -27,13 +27,12 @@ export const getOrganizations = async (_req: Request, res: Response) => {
     res.status(500).json({ error: 'Failed to fetch organizations' });
   }
 };
-
-export const getOrganization = async (req: Request, res: Response) => {
+export const getOrganization = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
     const organization = await getOrganizationById(id);
     if (!organization) {
-      return res.status(404).json({ error: 'Organization not found' });
+      res.status(404).json({ error: 'Organization not found' });
     }
     res.json(organization);
   } catch (error) {
@@ -41,6 +40,7 @@ export const getOrganization = async (req: Request, res: Response) => {
     res.status(500).json({ error: 'Failed to fetch organization' });
   }
 };
+
 
 export const editOrganization = async (req: Request, res: Response) => {
   try {
