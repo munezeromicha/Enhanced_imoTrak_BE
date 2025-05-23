@@ -5,7 +5,7 @@ import { Request, Response } from 'express';
 import { swaggerUi, swaggerSpec } from './utils/swagger';
 
 
-import authRoutes from './src/auth/auth.routes';
+import routes from './src/index.routes';
 dotenv.config();
 
 const app = express();
@@ -13,7 +13,7 @@ app.use(cors());
 app.use(express.json());
 dotenv.config();
 
-app.use('/api/auth', authRoutes);
+app.use('/api', routes);
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 

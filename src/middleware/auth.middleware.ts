@@ -2,8 +2,12 @@ import { Request, Response, NextFunction } from 'express';
 import { verifyToken } from '../../utils/jwt';
 import { JwtPayload } from 'jsonwebtoken';
 
+interface AuthenticatedRequest extends Request {
+  user?: JwtPayload;
+}
+
 export const authenticateAdmin = (
-  req: Request,
+  req: AuthenticatedRequest,
   res: Response,
   next: NextFunction
 ): void => {
