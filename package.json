@@ -4,7 +4,8 @@
   "description": "Backend for the Imotarak Fleet Management System built with Node.js, Prisma, and PostgreSQL. Handles authentication, role-based access, vehicle requests, trip tracking, and reporting. Designed for organizational fleet operations with secure and scalable APIs.",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "ts-node index.ts"
   },
   "repository": {
     "type": "git",
