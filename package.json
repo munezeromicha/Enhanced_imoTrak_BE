@@ -1,16 +1,30 @@
 {
+  "name": "imotrak-backside",
+  "version": "1.0.0",
+  "description": "Backend for the Imotarak Fleet Management System built with Node.js, Prisma, and PostgreSQL. Handles authentication, role-based access, vehicle requests, trip tracking, and reporting. Designed for organizational fleet operations with secure and scalable APIs.",
+  "main": "index.js",
   "scripts": {
-    "dev": "ts-node index.ts",
-    "tsoa:gen": "tsoa routes && tsoa spec"
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/binaryhubrw/Imotrak-Backside.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/binaryhubrw/Imotrak-Backside/issues"
+  },
+  "homepage": "https://github.com/binaryhubrw/Imotrak-Backside#readme",
   "devDependencies": {
+    "@types/argon2": "^0.14.1",
     "@types/cors": "^2.8.18",
+    "@types/dotenv": "^6.1.1",
+    "@types/express": "^5.0.2",
     "@types/jsonwebtoken": "^9.0.9",
-    "@types/node": "^22.15.21",
     "@types/swagger-jsdoc": "^6.0.4",
     "@types/swagger-ui-express": "^4.1.8",
-    "express": "^5.1.0",
-    "jsonwebtoken": "^9.0.2",
     "ts-node": "^10.9.2",
     "typescript": "^5.8.3"
   },
@@ -19,9 +33,9 @@
     "argon2": "^0.43.0",
     "cors": "^2.8.5",
     "dotenv": "^16.5.0",
-    "nodemon": "^3.1.10",
+    "express": "^5.1.0",
+    "jsonwebtoken": "^9.0.2",
     "swagger-jsdoc": "^6.2.8",
-    "swagger-ui-express": "^5.0.1",
-    "tsoa": "^6.6.0"
+    "swagger-ui-express": "^5.0.1"
   }
 }
