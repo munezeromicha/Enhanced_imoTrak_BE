@@ -19,7 +19,12 @@ export const login = async ({ email, password }: LoginRequest): Promise<LoginRes
   const { SUPER_ADMIN_EMAIL } = process.env;
 
   // Fetch user by email
-  const user = await prisma.users.findUnique({ where: { email } });
+  const user = await prisma.users.findUnique({
+    where: { email },
+    include: {
+      roles: true,
+  },
+});
   if (!user) throw new Error('User not found');
 
   // Check password
@@ -30,7 +35,7 @@ export const login = async ({ email, password }: LoginRequest): Promise<LoginRes
   const token = generateToken({
     id: user.id,
     email: user.email,
-    role: user.role_id,
+    role: user.roles.name,
   });
 
   return { token };
