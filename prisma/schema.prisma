@@ -8,16 +8,19 @@ datasource db {
 }
 
 model organizations {
-  id         String     @id @default(uuid())
+  id         String   @id @default(uuid())
+  customId   String   @unique
   name       String
   address    String
   phone      String
   email      String
-  created_at DateTime   @default(now())
+  status     String   @default("Active")
+  created_at DateTime @default(now())
   reports    reports[]
   users      users[]
   vehicles   vehicles[]
 }
+
 
 model permissions {
   id               String             @id @default(uuid())
