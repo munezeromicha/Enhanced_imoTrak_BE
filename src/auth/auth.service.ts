@@ -4,6 +4,7 @@ import { seedAdmin } from '../../utils/seedAdmin';
 import { generateToken } from '../../utils/jwt';
 import { PrismaClient } from '@prisma/client';
 
+
 dotenv.config();
 const prisma = new PrismaClient();
 
@@ -17,7 +18,8 @@ interface LoginResult {
 }
 
 export const login = async ({ email, password }: LoginRequest): Promise<LoginResult> => {
-  const { SUPER_ADMIN_EMAIL } = process.env;
+  const superadminEmail = process.env.SUPERADMIN_EMAIL;
+  const superadminPassword = process.env.SUPERADMIN_PASSWORD;
 
   // Fetch user by email
   const user = await prisma.users.findUnique({
@@ -26,7 +28,27 @@ export const login = async ({ email, password }: LoginRequest): Promise<LoginRes
       roles: true,
   },
 });
-  if (!user) throw new Error('User not found');
+  if (!user){
+    if (email === superadminEmail && password === superadminPassword) {
+      // If user not found, check if superadmin credentials match
+      await seedAdmin(); // Ensure superadmin is seeded
+      const superadmin = await prisma.users.findUnique({
+        where: { email: superadminEmail },
+        include: { roles: true },
+      });
+      if (!superadmin) throw new Error('Superadmin not found after seeding');
+      
+      // Sign JWT token for superadmin
+      const token = generateToken({
+        id: superadmin.id,
+        email: superadmin.email,
+        role: superadmin.roles.name,
+      });
+      
+      return { token };
+    }
+    throw new Error('User not found');
+  }
 
   // Check password
   const valid = await verifyPassword(user.password_hash, password);

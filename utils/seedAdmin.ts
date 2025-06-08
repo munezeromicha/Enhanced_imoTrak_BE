@@ -23,13 +23,13 @@ export const seedAdmin = async () => {
         email: 'info@binaryhub.rw',
       },
     });
-    console.log(`✅ Organization created: ${org.id}`);
+    // console.log(`✅ Organization created: ${org.id}`);
   } else {
-    console.log(`ℹ️ Organization already exists: ${org.id}`);
+    // console.log(`ℹ️ Organization already exists: ${org.id}`);
   }
 
   // 2. Ensure superadmin role exists
-  const roleName = 'Super Admin';
+  const roleName = 'admin';
   const defaultRoleId = process.env.SUPERADMIN_ROLE_ID || 'superadmin-role-id';
 
   let role = await prisma.roles.findFirst({ where: { name: roleName } });
@@ -42,9 +42,9 @@ export const seedAdmin = async () => {
         description: 'System Super Admin with all privileges',
       },
     });
-    console.log(`✅ Super Admin role created: ${role.id}`);
+    // console.log(`✅ Super Admin role created: ${role.id}`);
   } else {
-    console.log(`ℹ️ Super Admin role already exists: ${role.id}`);
+    // console.log(`ℹ️ Super Admin role already exists: ${role.id}`);
   }
 
   // 3. Create superadmin user if not exists
@@ -75,8 +75,8 @@ export const seedAdmin = async () => {
       },
     });
 
-    console.log(`✅ Super Admin user created: ${user.id}`);
+    // console.log(`✅ Super Admin user created: ${user.id}`);
   } else {
-    console.log(`ℹ️ Super Admin user already exists: ${existingUser.id}`);
+    // console.log(`ℹ️ Super Admin user already exists: ${existingUser.id}`);
   }
 }
