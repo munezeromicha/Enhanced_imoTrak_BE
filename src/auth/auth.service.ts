@@ -1,5 +1,6 @@
 import dotenv from 'dotenv';
 import { verifyPassword } from '../../utils/hash';
+import { seedAdmin } from '../../utils/seedAdmin';
 import { generateToken } from '../../utils/jwt';
 import { PrismaClient } from '@prisma/client';
 
