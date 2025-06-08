@@ -25,7 +25,7 @@ const router = express.Router();
  *       403:
  *         description: Forbidden
  */
-router.get('/users', authenticateAdmin, UserController.getAll);
+router.get('/', authenticateAdmin, UserController.getAll);
 
 /**
  * @swagger
