@@ -120,12 +120,16 @@ orgRoutes.post('/', authenticateAdmin, registerOrganization);
  *             properties:
  *               name:
  *                 type: string
+ *                 example: University of Rwanda
  *               address:
  *                 type: string
+ *                 example: KN 7 Ave, Kigali
  *               phone:
  *                 type: string
+ *                 example: +250-790-323-567
  *               email:
  *                 type: string
+ *                 example: ur@ur.ac.rw
  *               status:
  *                 type: string
  *                 example: Active
