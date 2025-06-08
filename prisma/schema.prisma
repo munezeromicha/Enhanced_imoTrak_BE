@@ -8,19 +8,18 @@ datasource db {
 }
 
 model organizations {
-  id         String   @id @default(uuid())
-  customId   String   @unique
+  id         String     @id @default(dbgenerated("gen_random_uuid()"))
+  customId   String     @unique
   name       String
   address    String
   phone      String
   email      String
-  status     String   @default("Active")
-  created_at DateTime @default(now())
+  status     String     @default("Active")
+  created_at DateTime   @default(now())
   reports    reports[]
   users      users[]
   vehicles   vehicles[]
 }
-
 
 model permissions {
   id               String             @id @default(uuid())
@@ -107,12 +106,13 @@ model trips {
 }
 
 model users {
-  id                                    String        @id @default(uuid())
+  id                                    String        @id @default(dbgenerated("gen_random_uuid()"))
   organization_id                       String
   username                              String        @unique
   password_hash                         String
   email                                 String        @unique
-  full_name                             String
+  first_name                            String
+  last_name                             String
   phone                                 String?
   status                                String        @default("active")
   created_at                            DateTime      @default(now())

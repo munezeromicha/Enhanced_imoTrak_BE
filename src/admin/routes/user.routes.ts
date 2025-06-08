@@ -78,13 +78,13 @@ router.get('/users/:id', authenticateAdmin, UserController.getById);
  *             properties:
  *               firstName:
  *                 type: string
- *                 example: "Jane"
+ *                 example: "Uwakane"
  *               lastName:
  *                 type: string
- *                 example: "Doe"
+ *                 example: "Dodiye"
  *               email:
  *                 type: string
- *                 example: "jane.doe@example.com"
+ *                 example: "uwakane.dod@example.com"
  *               password:
  *                 type: string
  *                 example: "SecureP@ss123"
