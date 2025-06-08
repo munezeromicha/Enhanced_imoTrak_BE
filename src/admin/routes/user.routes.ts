@@ -15,15 +15,76 @@ const router = express.Router();
  * @swagger
  * /users:
  *   get:
- *     summary: Get all HRs[Human Resources] (Admin only)
- *     tags: [Users ]
+ *     summary: Get all HRs [Human Resources] (Admin only)
+ *     tags: [Users]
  *     security:
  *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *           enum: [active, inactive, All]
+ *         description: Filter users by status
+ *       - in: query
+ *         name: dobYear
+ *         schema:
+ *           type: string
+ *           example: "1990"
+ *         description: Filter users by year of birth (e.g. 1990)
+ *       - in: query
+ *         name: roleId
+ *         schema:
+ *           type: string
+ *         description: Filter users by role ID
+ *       - in: query
+ *         name: name
+ *         schema:
+ *           type: string
+ *         description: Partial match on first or last name
  *     responses:
- *       200:
+ *       '200':
  *         description: List of users
- *       403:
- *         description: Forbidden
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   userId:
+ *                     type: string
+ *                     format: uuid
+ *                     example: "a1b2c3d4-e5f6-7890-1234-56789abcdef0"
+ *                   firstName:
+ *                     type: string
+ *                     example: "Alice"
+ *                   lastName:
+ *                     type: string
+ *                     example: "Johnson"
+ *                   email:
+ *                     type: string
+ *                     format: email
+ *                     example: "alice.johnson@example.com"
+ *                   orgName:
+ *                     type: string
+ *                     example: "Acme Corp"
+ *                   role:
+ *                     type: string
+ *                     example: "Admin"
+ *                   dob:
+ *                     type: string
+ *                     format: date
+ *                     example: "1990-04-15"
+ *                   phone:
+ *                     type: string
+ *                     nullable: true
+ *                     example: "+1234567890"
+ *                   status:
+ *                     type: string
+ *                     example: "active"
+ *       '403':
+ *         description: Forbidden – only admins can access this endpoint
  */
 router.get('/', authenticateAdmin, UserController.getAll);
 
