@@ -8,15 +8,15 @@ const router = express.Router();
  * @swagger
  * tags:
  *   name: Users
- *   description: Admin-only user management
+ *   description: User management
  */
 
 /**
  * @swagger
  * /users:
  *   get:
- *     summary: Get all users (Admin only)
- *     tags: [Users]
+ *     summary: Get all HRs[Human Resources] (Admin only)
+ *     tags: [Users ]
  *     security:
  *       - bearerAuth: []
  *     responses:
@@ -54,7 +54,7 @@ router.get('/users/:id', authenticateAdmin, UserController.getById);
  * @swagger
  * /users:
  *   post:
- *     summary: Create a new user (Admin only)
+ *     summary: Create a new HR (Admin only)
  *     tags: [Users]
  *     security:
  *       - bearerAuth: []
@@ -126,7 +126,7 @@ router.post('/users', authenticateAdmin, UserController.create);
  * @swagger
  * /users/{id}:
  *   put:
- *     summary: Update a user by ID (Admin only)
+ *     summary: Update a HR by ID (Admin only)
  *     tags: [Users]
  *     security:
  *       - bearerAuth: []
@@ -180,7 +180,7 @@ router.put('/users/:id', authenticateAdmin, UserController.update);
  * @swagger
  * /users/{id}:
  *   delete:
- *     summary: Delete a user by ID (Admin only)
+ *     summary: Delete a HR by ID (Admin only)
  *     tags: [Users]
  *     security:
  *       - bearerAuth: []
