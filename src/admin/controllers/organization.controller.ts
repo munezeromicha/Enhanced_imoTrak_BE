@@ -27,6 +27,7 @@ export const getOrganizations = async (_req: Request, res: Response) => {
     res.status(500).json({ error: 'Failed to fetch organizations' });
   }
 };
+
 export const getOrganization = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
@@ -40,7 +41,6 @@ export const getOrganization = async (req: Request, res: Response): Promise<void
     res.status(500).json({ error: 'Failed to fetch organization' });
   }
 };
-
 
 export const editOrganization = async (req: Request, res: Response) => {
   try {
