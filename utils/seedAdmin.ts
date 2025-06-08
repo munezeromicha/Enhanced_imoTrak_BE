@@ -6,7 +6,7 @@ import * as dotenv from 'dotenv';
 dotenv.config();
 const prisma = new PrismaClient();
 
-async function main() {
+export const seedAdmin = async () => {
   const orgName = 'Binary Hub';
   const orgCustomId = generateCustomId(orgName);
 
@@ -48,11 +48,12 @@ async function main() {
   }
 
   // 3. Create superadmin user if not exists
-  const superadminUsername = process.env.SUPERADMIN_USERNAME || 'admin';
-  const superadminEmail = process.env.SUPERADMIN_EMAIL || 'admin@example.com';
-  const superadminPassword = process.env.SUPERADMIN_PASSWORD || 'admin123';
-  const superadminFirstName = process.env.SUPERADMIN_FIRSTNAME || 'Super';
-  const superadminLastName = process.env.SUPERADMIN_LASTNAME || 'Admin';
+  const superadminUsername = process.env.SUPERADMIN_USERNAME || '';
+  const superadminEmail = process.env.SUPERADMIN_EMAIL || '';
+  const superadminPassword = process.env.SUPERADMIN_PASSWORD || '';
+  const superadminFirstName = process.env.SUPERADMIN_FIRSTNAME || '';
+  const superadminLastName = process.env.SUPERADMIN_LASTNAME || '';
+  const superadminDob = process.env.SUPERADMIN_DOB || '';
 
   const existingUser = await prisma.users.findUnique({
     where: { email: superadminEmail },
@@ -68,6 +69,7 @@ async function main() {
         password_hash,
         first_name: superadminFirstName,
         last_name: superadminLastName,
+        dob: new Date(superadminDob),
         organization_id: org.id,
         role_id: role.id,
       },

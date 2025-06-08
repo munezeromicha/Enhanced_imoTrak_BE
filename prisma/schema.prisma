@@ -116,6 +116,7 @@ model users {
   phone                                 String?
   status                                String        @default("active")
   created_at                            DateTime      @default(now())
+  dob                            DateTime
   last_login                            DateTime?
   role_id                               String
   reports                               reports[]
