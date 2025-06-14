@@ -4,7 +4,7 @@ import {
   getOrganizations,
   getOrganization,
   editOrganization,
-  removeOrganization,
+  removeOrganization
 } from '../controllers/organization.controller';
 import { authenticateAdmin } from '../../middleware/auth.middleware';
 

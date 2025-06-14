@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 import {
   createOrganization,
   getAllOrganizations,
@@ -53,13 +54,21 @@ export const editOrganization = async (req: Request, res: Response) => {
   }
 };
 
-export const removeOrganization = async (req: Request, res: Response) => {
+export const removeOrganization = async (req: Request, res: Response): Promise<void> => {
+  const { id } = req.params;
+
   try {
-    const { id } = req.params;
     await deleteOrganization(id);
-    res.status(204).send();
-  } catch (error) {
-    console.error('Error deleting organization:', error);
-    res.status(500).json({ error: 'Failed to delete organization' });
+    res.sendStatus(204);
+  } catch (err: any) {
+    if (
+      err instanceof PrismaClientKnownRequestError &&
+      err.code === 'P2025'
+    ) {
+      res.status(404).json({ message: 'Organization not found' });
+    }
+
+    console.error('Error deleting organization:', err);
+    res.status(500).json({ message: 'Internal server error' });
   }
 };
