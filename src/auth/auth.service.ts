@@ -26,8 +26,9 @@ export const login = async ({ email, password }: LoginRequest): Promise<LoginRes
     where: { email },
     include: {
       roles: true,
-  },
-});
+    },
+  });
+
   if (!user){
     if (email === superadminEmail && password === superadminPassword) {
       // If user not found, check if superadmin credentials match

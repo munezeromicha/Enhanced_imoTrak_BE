@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, users } from '@prisma/client';
 const prisma = new PrismaClient();
 
 export const UserService = {
@@ -15,6 +15,7 @@ export const UserService = {
       email: string;
       orgName: string;
       role: string;
+      roleId: string;
       dob: Date;
       phone: string | null;
       status: string;
@@ -61,6 +62,7 @@ export const UserService = {
       email: user.email,
       orgName: user.organizations.name,
       role: user.roles.name,
+      roleId: user.role_id,
       dob: user.dob,
       phone: user.phone,
       status: user.status
@@ -69,7 +71,26 @@ export const UserService = {
 
   getById: (id: string) => prisma.users.findUnique({ where: { id } }),
 
-  create: (data: any) => prisma.users.create({ data }),
+  create: async (data: any) => {
+    const user = await prisma.users.create({
+      data: {
+        first_name: data.firstName!,
+        last_name: data.lastName!,
+        email: data.email!,
+        password_hash: data.password_hash!,
+        phone: data.phone,
+        nid: data.nid!,
+        gender: data.gender!.toUpperCase(),
+        dob: new Date(data.dob!),
+        role_id: data.role!,
+        street_address: data.streetAddress!,
+        organization_id: data.organizationId!,
+        username: data.username ?? null, // optional field
+      },
+    });
+
+    return user;
+  },
 
   update: (id: string, data: any) => prisma.users.update({
     where: { id },

@@ -72,6 +72,9 @@ export const seedAdmin = async () => {
         dob: new Date(superadminDob),
         organization_id: org.id,
         role_id: role.id,
+        gender: 'MALE',
+        street_address: "KN 7 Ave, Kigali",
+        nid:"1199930098765432"
       },
     });
 

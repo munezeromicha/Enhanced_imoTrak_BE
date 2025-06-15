@@ -109,7 +109,7 @@ router.get('/', authenticateAdmin, UserController.getAll);
  *       404:
  *         description: User not found
  */
-router.get('/users/:id', authenticateAdmin, UserController.getById);
+router.get('/:id', authenticateAdmin, UserController.getById);
 
 /**
  * @swagger
@@ -168,7 +168,8 @@ router.get('/users/:id', authenticateAdmin, UserController.getById);
  *                 example: "2024-01-01"
  *               role:
  *                 type: string
- *                 example: "User"
+ *                 example: "cd550207-eac4-49f7-85dc-7847e29f9416"
+ *                 descripton: This should be role id
  *               organizationId:
  *                 type: string
  *                 example: "60f7b6c95d2c4a1a7a5b1234"
@@ -181,7 +182,7 @@ router.get('/users/:id', authenticateAdmin, UserController.getById);
  *       403:
  *         description: Forbidden
  */
-router.post('/users', authenticateAdmin, UserController.create);
+router.post('/', authenticateAdmin, UserController.create);
 
 /**
  * @swagger
@@ -235,7 +236,7 @@ router.post('/users', authenticateAdmin, UserController.create);
  *       404:
  *         description: User not found
  */
-router.put('/users/:id', authenticateAdmin, UserController.update);
+router.put('/:id', authenticateAdmin, UserController.update);
 
 /**
  * @swagger
@@ -258,6 +259,6 @@ router.put('/users/:id', authenticateAdmin, UserController.update);
  *       404:
  *         description: User not found
  */
-router.delete('/users/:id', authenticateAdmin, UserController.delete);
+router.delete('/:id', authenticateAdmin, UserController.delete);
 
 export default router;

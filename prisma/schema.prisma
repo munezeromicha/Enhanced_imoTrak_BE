@@ -7,6 +7,11 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum Gender {
+  MALE
+  FEMALE
+}
+
 model organizations {
   id         String     @id @default(dbgenerated("gen_random_uuid()"))
   customId   String     @unique
@@ -108,15 +113,18 @@ model trips {
 model users {
   id                                    String        @id @default(dbgenerated("gen_random_uuid()"))
   organization_id                       String
-  username                              String        @unique
+  username                              String?       @unique
   password_hash                         String
+  nid                                   String        @unique
   email                                 String        @unique
   first_name                            String
   last_name                             String
   phone                                 String?
   status                                String        @default("active")
   created_at                            DateTime      @default(now())
-  dob                            DateTime
+  dob                                   DateTime
+  gender                                Gender
+  street_address                        String
   last_login                            DateTime?
   role_id                               String
   reports                               reports[]
