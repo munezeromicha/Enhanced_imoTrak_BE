@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import morgan from 'morgan';
 import { Request, Response } from 'express';
 import { swaggerUi, swaggerSpec } from './utils/swagger';
+import { errorHandler } from './src/middleware/errorHandler'
 
 
 import routes from './src/index.routes';
@@ -23,6 +24,8 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 app.get('/', (req: Request, res: Response) => {
   res.send('Imotarak Backend API is live!');
 });
+
+app.use(errorHandler);
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
   const baseUrl = process.env.BASE_URL || `http://localhost:${PORT}`;
