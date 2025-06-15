@@ -5,14 +5,24 @@ import { hashPassword } from '../../../utils/hash';
 import { AppError } from '../../../utils/Error'
 
 export const UserController = {
-  getAll: async (req: Request, res: Response) => {
-    const users = await UserService.getUsers();
-    res.json(users);
+  getAll: async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const users = await UserService.getUsers();
+      res.json(users);
+    } catch (error: any) {
+      return next();
+    }
   },
 
-  getById: async (req: Request, res: Response) => {
-    const user = await UserService.getById(req.params.id);
-    user ? res.json(user) : res.status(404).json({ error: 'User not found' });
+  getById: async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const user = await UserService.getById(req.params.id);
+      if (!user) 
+        throw new AppError('User not found', 404);
+      res.json(user);
+    } catch (error: any) {
+      return next (error);
+    }
   },
 
   create: async (req: Request, res: Response, next: NextFunction) => {
