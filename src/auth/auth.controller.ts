@@ -1,12 +1,11 @@
 import { login } from './auth.service';
-import { Request, Response } from 'express';
+import { NextFunction, Request, Response } from 'express';
 
-export const handleLogin = async (req: Request, res: Response) => {
-  const { email, password } = req.body;
+export const handleLogin = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const token = await login(req.body);
     res.json( token );
   } catch (err: any) {
-    res.status(401).json({ error: err.message });
+    return next(err)
   }
 };

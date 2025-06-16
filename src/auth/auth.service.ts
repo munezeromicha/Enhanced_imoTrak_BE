@@ -3,6 +3,7 @@ import { verifyPassword } from '../../utils/hash';
 import { seedAdmin } from '../../utils/seedAdmin';
 import { generateToken } from '../../utils/jwt';
 import { PrismaClient } from '@prisma/client';
+import { AppError } from '../../utils/Error';
 
 
 dotenv.config();
@@ -37,7 +38,7 @@ export const login = async ({ email, password }: LoginRequest): Promise<LoginRes
         where: { email: superadminEmail },
         include: { roles: true },
       });
-      if (!superadmin) throw new Error('Superadmin not found after seeding');
+      if (!superadmin) throw new AppError('Superadmin not found after seeding', 400);
       
       // Sign JWT token for superadmin
       const token = generateToken({
@@ -48,12 +49,12 @@ export const login = async ({ email, password }: LoginRequest): Promise<LoginRes
       
       return { token };
     }
-    throw new Error('User not found');
+    throw new AppError('User not found', 400);
   }
 
   // Check password
   const valid = await verifyPassword(user.password_hash, password);
-  if (!valid) throw new Error('Invalid credentials');
+  if (!valid) throw new AppError('Invalid credentials');
 
   // Sign JWT token
   const token = generateToken({
