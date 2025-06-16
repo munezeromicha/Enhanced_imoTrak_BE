@@ -48,7 +48,6 @@ export const seedAdmin = async () => {
   }
 
   // 3. Create superadmin user if not exists
-  const superadminUsername = process.env.SUPERADMIN_USERNAME || '';
   const superadminEmail = process.env.SUPERADMIN_EMAIL || '';
   const superadminPassword = process.env.SUPERADMIN_PASSWORD || '';
   const superadminFirstName = process.env.SUPERADMIN_FIRSTNAME || '';
@@ -64,7 +63,6 @@ export const seedAdmin = async () => {
 
     const user = await prisma.users.create({
       data: {
-        username: superadminUsername,
         email: superadminEmail,
         password_hash,
         first_name: superadminFirstName,
