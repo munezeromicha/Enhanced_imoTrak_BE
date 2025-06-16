@@ -85,7 +85,6 @@ export const UserService = {
         role_id: data.role!,
         street_address: data.streetAddress!,
         organization_id: data.organizationId!,
-        username: data.username ?? null, // optional field
       },
     });
 
