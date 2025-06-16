@@ -129,7 +129,6 @@ router.get('/:id', authenticateAdmin, UserController.getById);
  *               - firstName
  *               - lastName
  *               - email
- *               - password
  *               - phone
  *               - nid
  *               - role
@@ -146,9 +145,6 @@ router.get('/:id', authenticateAdmin, UserController.getById);
  *               email:
  *                 type: string
  *                 example: "uwakane.dod@example.com"
- *               password:
- *                 type: string
- *                 example: "SecureP@ss123"
  *               phone:
  *                 type: string
  *                 example: "+250788123456"
@@ -162,10 +158,6 @@ router.get('/:id', authenticateAdmin, UserController.getById);
  *                 type: string
  *                 format: date
  *                 example: "1990-04-15"
- *               startDate:
- *                 type: string
- *                 format: date
- *                 example: "2024-01-01"
  *               role:
  *                 type: string
  *                 example: "cd550207-eac4-49f7-85dc-7847e29f9416"

@@ -83,7 +83,7 @@ export const UserService = {
         gender: data.gender!.toUpperCase(),
         dob: new Date(data.dob!),
         role_id: data.role!,
-        street_address: data.streetAddress!,
+        street_address: data.streetAddress,
         organization_id: data.organizationId!,
       },
     });
