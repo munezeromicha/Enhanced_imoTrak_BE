@@ -113,7 +113,6 @@ model trips {
 model users {
   id                                    String        @id @default(dbgenerated("gen_random_uuid()"))
   organization_id                       String
-  username                              String?       @unique
   password_hash                         String
   nid                                   String        @unique
   email                                 String        @unique
