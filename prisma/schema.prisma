@@ -73,7 +73,7 @@ model role_permissions {
 model roles {
   id               String             @id @default(dbgenerated("gen_random_uuid()"))
   name             String             @unique
-  description      String?
+  description      String
   role_permissions role_permissions[]
   users            users[]
 }

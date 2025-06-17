@@ -18,6 +18,12 @@ interface LoginResult {
   token: string;
 }
 
+interface SystemRole {
+  id: string;
+  name: string;
+  description: string;
+}
+
 export const login = async ({ email, password }: LoginRequest): Promise<LoginResult> => {
   const superadminEmail = process.env.SUPERADMIN_EMAIL;
   const superadminPassword = process.env.SUPERADMIN_PASSWORD;
@@ -64,4 +70,20 @@ export const login = async ({ email, password }: LoginRequest): Promise<LoginRes
   });
 
   return { token };
+};
+
+export const systemRoles = async (): Promise<SystemRole[]> => {
+  const roles = await prisma.roles.findMany({
+    select: {
+      id: true,
+      name: true,
+      description: true,
+    },
+  });
+
+  return roles.map(role => ({
+    id: role.id,
+    name: role.name,
+    description: role.description,
+  }));
 };

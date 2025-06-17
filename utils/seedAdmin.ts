@@ -7,7 +7,6 @@ dotenv.config();
 const prisma = new PrismaClient();
 
 export const roles = async () => {
-
   const roles = [
     { name: 'admin', description: 'System Super Admin with all privileges' },
     { name: 'hr', description: 'Human Resources Manager' },
@@ -16,22 +15,14 @@ export const roles = async () => {
   ];
 
   for (const role of roles) {
-    let existingRole = await prisma.roles.findFirst({ where: { name: role.name } });
-
-    if (!existingRole) {
-      existingRole = await prisma.roles.create({
-        data: role,
-      });
-      // console.log('-------------------------------------------------------------')
-      // console.log(`Role created: ${existingRole.id} - ${role.name}`);
-      // console.log('-------------------------------------------------------------')
-    } else {
-        // console.log('-------------------------------------------------------------')
-        // console.log(`Role already exists: ${existingRole.id} - ${role.name}`);
-        // console.log('-------------------------------------------------------------')
-    }
+    await prisma.roles.upsert({
+      where: { name: role.name },
+      update: {},                
+      create: role,              
+    });
   }
 };
+
 export const seedAdmin = async () => {
   const orgName = 'Binary Hub';
   const orgCustomId = generateCustomId(orgName);
