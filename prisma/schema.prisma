@@ -18,7 +18,7 @@ model organizations {
   name       String
   address    String
   phone      String
-  email      String
+  email      String     @unique
   status     String     @default("Active")
   created_at DateTime   @default(now())
   reports    reports[]
