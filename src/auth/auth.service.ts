@@ -71,19 +71,12 @@ export const login = async ({ email, password }: LoginRequest): Promise<LoginRes
 
   return { token };
 };
-
-export const systemRoles = async (): Promise<SystemRole[]> => {
-  const roles = await prisma.roles.findMany({
-    select: {
-      id: true,
-      name: true,
-      description: true,
-    },
-  });
-
-  return roles.map(role => ({
-    id: role.id,
-    name: role.name,
-    description: role.description,
-  }));
+export const systemRoles = async (role: string): Promise<SystemRole[]> => {
+  if (role === 'admin') {
+    return await prisma.roles.findMany({ where: { name: 'hr' } });
+  } else if (role === 'hr') {
+    return await prisma.roles.findMany({ where: { name: { in: ['staff', 'fleetmanager'] } } });
+  } else {
+    throw new Error('Forbidden');
+  }
 };

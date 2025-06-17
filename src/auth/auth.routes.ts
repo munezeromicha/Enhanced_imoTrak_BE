@@ -1,5 +1,6 @@
 import express from 'express';
 import { handleLogin, showRoles} from './auth.controller';
+import { authenticateAdmin } from '../middleware/auth.middleware';
 
 const Authrouter = express.Router();
 
@@ -84,5 +85,5 @@ Authrouter.post('/login', handleLogin);
  *       500:
  *         description: Internal server error
  */
-Authrouter.get('/roles', showRoles);
+Authrouter.get('/roles', authenticateAdmin, showRoles);
 export default Authrouter;
