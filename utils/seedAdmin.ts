@@ -37,7 +37,7 @@ export const seedAdmin = async () => {
   if (!role) {
     role = await prisma.roles.create({
       data: {
-        id: defaultRoleId,
+        // id: defaultRoleId,
         name: roleName,
         description: 'System Super Admin with all privileges',
       },

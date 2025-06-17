@@ -7,20 +7,15 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum Gender {
-  MALE
-  FEMALE
-}
-
 model organizations {
   id         String     @id @default(dbgenerated("gen_random_uuid()"))
-  customId   String     @unique
   name       String
   address    String
   phone      String
   email      String     @unique
-  status     String     @default("Active")
   created_at DateTime   @default(now())
+  customId   String     @unique
+  status     String     @default("Active")
   reports    reports[]
   users      users[]
   vehicles   vehicles[]
@@ -114,18 +109,18 @@ model users {
   id                                    String        @id @default(dbgenerated("gen_random_uuid()"))
   organization_id                       String
   password_hash                         String
-  nid                                   String        @unique
   email                                 String        @unique
-  first_name                            String
-  last_name                             String
   phone                                 String?
   status                                String        @default("active")
   created_at                            DateTime      @default(now())
-  dob                                   DateTime
-  gender                                Gender
-  street_address                        String
   last_login                            DateTime?
   role_id                               String
+  dob                                   DateTime
+  first_name                            String
+  last_name                             String
+  nid                                   String        @unique
+  gender                                Gender
+  street_address                        String
   reports                               reports[]
   requests_requests_requester_idTousers requests[]    @relation("requests_requester_idTousers")
   requests_requests_reviewed_byTousers  requests[]    @relation("requests_reviewed_byTousers")
@@ -151,4 +146,9 @@ model vehicles {
   requests          requests[]
   trips             trips[]
   organizations     organizations @relation(fields: [organization_id], references: [id])
+}
+
+enum Gender {
+  MALE
+  FEMALE
 }
