@@ -2,15 +2,15 @@ import { Gender, PrismaClient, users } from '@prisma/client';
 const prisma = new PrismaClient();
 
 interface hrUdates {
-  firstName: string,
-  lastName: string,
-  email: string,
+  firstName?: string,
+  lastName?: string,
+  email?: string,
   phone?: string,
   streetAddress?: string,
-  status: string
-  dob: Date,
-  nid: string,
-  gender: Gender,
+  status?: string
+  dob?: Date,
+  nid?: string,
+  gender?: Gender,
 }
 
 export const UserService = {
@@ -21,7 +21,7 @@ export const UserService = {
     name?: string
   ): Promise<
     {
-      userId: string;
+      id: string;
       firstName: string;
       lastName: string;
       email: string;
@@ -68,7 +68,7 @@ export const UserService = {
     });
 
     return users.map(user => ({
-      userId: user.id,
+      id: user.id,
       firstName: user.first_name,
       lastName: user.last_name,
       email: user.email,
@@ -103,20 +103,29 @@ export const UserService = {
     return user;
   },
 
-  update: (id: string, data: hrUdates) => prisma.users.update({
-  where: { id },
-  data: {
-    dob: new Date(data.dob),
-    first_name: data.firstName,
-    last_name: data.lastName,
-    email: data.email,
-    phone: data.phone,
-    street_address: data.streetAddress,
-    status: data.status,
-    nid:data.nid,
-    gender: data.gender
-  }
-}),
+  update: async (id: string, data: hrUdates) =>  {
+    const updates: any = {
+      first_name: data.firstName,
+      last_name: data.lastName,
+      email: data.email,
+      phone: data.phone,
+      street_address: data.streetAddress,
+      status: data.status,
+      nid:data.nid,
+      gender: data.gender
+    }
+
+    if (data.dob !== undefined) {
+      updates.dob = new Date(data.dob);
+    }
+
+    const updatedUser = await prisma.users.update({
+      where: { id },
+      data: updates
+    })
+
+    return updatedUser;
+  },
 
   delete: (id: string) => prisma.users.delete({ where: { id } }),
 };

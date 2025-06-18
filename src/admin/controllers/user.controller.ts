@@ -19,7 +19,8 @@ export const UserController = {
       const user = await UserService.getById(req.params.id);
       if (!user) 
         throw new AppError('User not found', 404);
-      res.json(user);
+      const {password_hash, last_login, ...resData} = user
+      res.json(resData);
     } catch (error: any) {
       return next (error);
     }
