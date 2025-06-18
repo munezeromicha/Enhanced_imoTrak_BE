@@ -46,10 +46,29 @@ export const UserController = {
     }
   },
 
-  update: async (req: Request, res: Response) => {
-    const updatedUser = await UserService.update(req.params.id, req.body);
-    res.json(updatedUser);
+  update: async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const updatedUser = await UserService.update(req.params.id, req.body);
+      const { password_hash, last_login,  ...resData} = updatedUser
+      res.json(resData);
+    } catch (error: any) {
+      if (error.code === 'P2002') {
+        const fields = error.meta?.target || [];
+        return next(new AppError(`${fields.join(', ')} must be unique`, 409));
+      }
+
+      if (error.code === 'P2025') {
+        return next(new AppError(`User not found`, 404));
+      }
+
+      if (error.code === 'P2003') {
+        return next(new AppError(`Invalid foreign key reference (e.g. organization or role)`, 400));
+      }
+
+      return next(error); // fallback for other unexpected errors
+    }
   },
+
 
   delete: async (req: Request, res: Response) => {
     await UserService.delete(req.params.id);

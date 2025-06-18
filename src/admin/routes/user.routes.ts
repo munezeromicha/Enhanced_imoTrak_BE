@@ -210,12 +210,17 @@ router.post('/', authenticateAdmin, UserController.create);
  *               phone:
  *                 type: string
  *                 example: "+250788000111"
- *               password:
+ *               nid:
  *                 type: string
- *                 example: "NewPass123!"
- *               role:
+ *                 example: "12334567890123456"
+ *               gender:
  *                 type: string
- *                 example: "Admin"
+ *                 enum:
+ *                   - MALE
+ *                   - FEMALE
+ *               dob:
+ *                 type: string
+ *                 format: date
  *               status:
  *                 type: string
  *                 example: "Active"

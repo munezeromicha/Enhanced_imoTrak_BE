@@ -1,5 +1,17 @@
-import { PrismaClient, users } from '@prisma/client';
+import { Gender, PrismaClient, users } from '@prisma/client';
 const prisma = new PrismaClient();
+
+interface hrUdates {
+  firstName: string,
+  lastName: string,
+  email: string,
+  phone?: string,
+  streetAddress?: string,
+  status: string
+  dob: Date,
+  nid: string,
+  gender: Gender,
+}
 
 export const UserService = {
   getUsers: async (
@@ -91,10 +103,20 @@ export const UserService = {
     return user;
   },
 
-  update: (id: string, data: any) => prisma.users.update({
-    where: { id },
-    data
-  }),
+  update: (id: string, data: hrUdates) => prisma.users.update({
+  where: { id },
+  data: {
+    dob: new Date(data.dob),
+    first_name: data.firstName,
+    last_name: data.lastName,
+    email: data.email,
+    phone: data.phone,
+    street_address: data.streetAddress,
+    status: data.status,
+    nid:data.nid,
+    gender: data.gender
+  }
+}),
 
   delete: (id: string) => prisma.users.delete({ where: { id } }),
 };
