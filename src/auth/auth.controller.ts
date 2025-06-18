@@ -11,7 +11,11 @@ export const handleLogin = async (req: Request, res: Response, next: NextFunctio
   }
 };
 
-export const showRoles = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+export const showRoles = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+) => {
   try {
     if (!req.user) {
       res.status(401).json({ error: 'Unauthorized' });

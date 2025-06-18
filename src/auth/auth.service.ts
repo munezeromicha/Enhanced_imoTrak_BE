@@ -72,11 +72,20 @@ export const login = async ({ email, password }: LoginRequest): Promise<LoginRes
   return { token };
 };
 export const systemRoles = async (role: string): Promise<SystemRole[]> => {
-  if (role === 'admin') {
-    return await prisma.roles.findMany({ where: { name: 'hr' } });
-  } else if (role === 'hr') {
-    return await prisma.roles.findMany({ where: { name: { in: ['staff', 'fleetmanager'] } } });
-  } else {
+  const visibilityRules = await prisma.roleVisibility.findMany({
+    where: { role },
+    select: { canSee: true },
+  });
+
+  if (!visibilityRules.length) {
     throw new Error('Forbidden');
   }
+
+  const allowedRoles = visibilityRules.map(rule => rule.canSee);
+
+  const roles = await prisma.roles.findMany({
+    where: { name: { in: allowedRoles } },
+  });
+
+  return roles;
 };
