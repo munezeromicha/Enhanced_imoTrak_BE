@@ -1,6 +1,7 @@
 import { Gender, PrismaClient, users } from '@prisma/client';
 import sendEmail from '../../../utils/mailSender'
 import { mailUser } from '../../config/mailer';
+import { AppError } from '../../../utils/Error';
 const prisma = new PrismaClient();
 
 interface hrUdates {
@@ -103,23 +104,24 @@ export const UserService = {
 },
 
   create: async (data: any, password: string) => {
-    const user = await prisma.users.create({
-      data: {
-        first_name: data.firstName!,
-        last_name: data.lastName!,
-        email: data.email!,
-        password_hash: data.password_hash!,
-        phone: data.phone,
-        nid: data.nid!,
-        gender: data.gender!.toUpperCase(),
-        dob: new Date(data.dob!),
-        role_id: data.role!,
-        street_address: data.streetAddress,
-        organization_id: data.organizationId!,
-      },
-    });
-
-    const mailOptions = {
+    return await prisma.$transaction(async (tx) => {
+      const user = await tx.users.create({
+        data: {
+          first_name: data.firstName!,
+          last_name: data.lastName!,
+          email: data.email!,
+          password_hash: data.password_hash!,
+          phone: data.phone,
+          nid: data.nid!,
+          gender: data.gender!.toUpperCase(),
+          dob: new Date(data.dob!),
+          role_id: data.role!,
+          street_address: data.streetAddress,
+          organization_id: data.organizationId!,
+        },
+      });
+      
+      const mailOptions = {
       from: mailUser,
       to: data.email,
       subject: `Invitation to Imotrak`,
@@ -226,10 +228,15 @@ export const UserService = {
         </body>
         </html>
       `
-    };
+      };
 
-    await sendEmail(mailOptions);
-    return user;
+      console.log('sending email::::::::::::::::::::::::;;;;;;;;')
+      await sendEmail(mailOptions).catch((error) => {
+        throw new AppError("User not registered due to Email sending failure.");
+      });
+
+      return user;
+    });
   },
 
   update: async (id: string, data: hrUdates) =>  {
