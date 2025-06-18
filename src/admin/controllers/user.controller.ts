@@ -3,9 +3,10 @@ import { UserService } from '../services/user.service';
 import generateStrongPassword from '../../../utils/password'
 import { hashPassword } from '../../../utils/hash';
 import { AppError } from '../../../utils/Error'
+import { AuthenticatedRequest } from '../../middleware/auth.middleware';
 
 export const UserController = {
-  getAll: async (req: Request, res: Response, next: NextFunction) => {
+  getAll: async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
       const users = await UserService.getUsers();
       res.json(users);
@@ -14,7 +15,7 @@ export const UserController = {
     }
   },
 
-  getById: async (req: Request, res: Response, next: NextFunction) => {
+  getById: async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
       const user = await UserService.getById(req.params.id);
       if (!user) 
