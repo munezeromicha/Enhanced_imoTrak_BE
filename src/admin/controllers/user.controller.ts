@@ -31,9 +31,7 @@ export const UserController = {
     try {
       const password = generateStrongPassword();
       req.body.password_hash = await hashPassword(password);
-      const newUser = await UserService.create(req.body);
-
-      console.log('NEXT IS TO Send this:', password,' password to email')
+      const newUser = await UserService.create(req.body, password);
       
       res.status(201).json(newUser);
     } catch (error: any) {
