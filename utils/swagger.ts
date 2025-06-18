@@ -1,6 +1,8 @@
 import swaggerJSDoc from 'swagger-jsdoc';
 import swaggerUi from 'swagger-ui-express';
+import dotenv from 'dotenv';
 
+dotenv.config();
 const PORT = process.env.PORT || 4000;
 
 const options: swaggerJSDoc.Options = {
