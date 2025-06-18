@@ -35,6 +35,35 @@ export const authenticateAdmin = (
   }
 };
 
+export const authenticateHR = (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): void => {
+  const authHeader = req.headers.authorization;
+
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    res.status(401).json({ error: 'Unauthorized. No token provided.' });
+    return;
+  }
+
+  const token = authHeader.split(' ')[1];
+
+  try {
+    const decoded = verifyToken(token);
+
+    if (typeof decoded === 'object' && decoded.role !== 'hr') {
+      res.status(403).json({ error: 'Forbidden. HR access required.' });
+      return;
+    }
+
+    req.user = decoded;
+    next();
+  } catch (err) {
+    res.status(401).json({ error: 'Invalid token' });
+  }
+};
+
 export const authenticateToken = (
   req: AuthenticatedRequest,
   res: Response,
