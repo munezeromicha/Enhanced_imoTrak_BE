@@ -106,6 +106,17 @@ export const UserService = {
   create: async (data: any, password: string) => {
     // First, create the user in a transaction
     const user = await prisma.$transaction(async (tx) => {
+    const existingHr = await tx.users.findFirst({
+        where: {
+          organization_id: data.organizationId,
+          role_id: data.roleId,
+        },
+      });
+
+      if (existingHr) {
+        throw new AppError("An HR already exists for this organization.");
+      }
+      
       return await tx.users.create({
         data: {
           first_name: data.firstName!,
