@@ -78,14 +78,10 @@ model roles {
   users            users[]
 }
 
-model sessions {
-  id         String   @id @default(uuid())
-  user_id    String
-  token      String   @unique
-  created_at DateTime @default(now())
-  expires_at DateTime
-  is_active  Boolean  @default(true)
-  users      users    @relation(fields: [user_id], references: [id])
+model RoleVisibility {
+  id      String    @id @default(dbgenerated("gen_random_uuid()"))
+  role    String // the user's current role
+  canSee  String // roles that current user can view
 }
 
 model trips {
@@ -124,7 +120,6 @@ model users {
   reports                               reports[]
   requests_requests_requester_idTousers requests[]    @relation("requests_requester_idTousers")
   requests_requests_reviewed_byTousers  requests[]    @relation("requests_reviewed_byTousers")
-  sessions                              sessions[]
   trips                                 trips[]
   organizations                         organizations @relation(fields: [organization_id], references: [id])
   roles                                 roles         @relation(fields: [role_id], references: [id])

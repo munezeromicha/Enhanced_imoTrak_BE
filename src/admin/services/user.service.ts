@@ -1,4 +1,5 @@
 import { Gender, PrismaClient, users } from '@prisma/client';
+import { roles } from '../../../utils/seedAdmin';
 const prisma = new PrismaClient();
 
 interface hrUdates {
@@ -33,7 +34,11 @@ export const UserService = {
       status: string;
     }[]
   > => {
-    const filters: any = {};
+    const filters: any = {
+      roles: {
+        name: 'hr'
+      }
+    };
 
     if (status && status !== 'All') {
       filters.status = status.toLowerCase();
@@ -81,7 +86,20 @@ export const UserService = {
     }));
   },
 
-  getById: (id: string) => prisma.users.findUnique({ where: { id } }),
+  getById: async (id: string) => {
+  return await prisma.users.findFirst({
+    where: {
+      id,
+      roles: {
+        name: 'hr'
+      }
+    },
+    include: {
+      roles: true,
+      organizations: true
+    }
+  });
+},
 
   create: async (data: any) => {
     const user = await prisma.users.create({

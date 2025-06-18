@@ -22,6 +22,19 @@ export const roles = async () => {
     });
   }
 };
+export const seedVisibility = async () => {
+  // Clean existing entries
+  await prisma.roleVisibility.deleteMany();
+
+  // Seed visibility rules
+  await prisma.roleVisibility.createMany({
+    data: [
+      { role: 'admin', canSee: 'hr' },
+      { role: 'hr', canSee: 'staff' },
+      { role: 'hr', canSee: 'fleetmanager' },
+    ],
+  });
+}
 
 export const seedAdmin = async () => {
   const orgName = 'Binary Hub';
@@ -45,6 +58,7 @@ export const seedAdmin = async () => {
     // console.log(`ℹ️ Organization already exists: ${org.id}`);
   }
   await roles();
+  await seedVisibility();
 
   const roleName = 'admin';
   const defaultRoleId = process.env.SUPERADMIN_ROLE_ID || 'superadmin-role-id';

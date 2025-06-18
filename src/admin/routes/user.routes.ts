@@ -134,7 +134,7 @@ router.get('/:id', authenticateAdmin, UserController.getById);
  *               - role
  *               - gender
  *               - dob
- *               - organizationId
+ *               - id
  *             properties:
  *               firstName:
  *                 type: string
@@ -162,7 +162,7 @@ router.get('/:id', authenticateAdmin, UserController.getById);
  *                 type: string
  *                 example: "cd550207-eac4-49f7-85dc-7847e29f9416"
  *                 descripton: This should be role id
- *               organizationId:
+ *               id:
  *                 type: string
  *                 example: "60f7b6c95d2c4a1a7a5b1234"
  *               streetAddress:
