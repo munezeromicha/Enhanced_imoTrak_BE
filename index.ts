@@ -7,6 +7,7 @@ import { swaggerUi, swaggerSpec } from './utils/swagger';
 import { errorHandler } from './src/middleware/errorHandler';
 import routes from './src/index.routes';
 import { seedAdmin } from './utils/seedAdmin';
+import { checkEnvironmentVariables } from './utils/envChecker';
 dotenv.config();
 
 const app = express();
@@ -27,6 +28,9 @@ const PORT = process.env.PORT || 4000;
 const baseUrl = process.env.BASE_URL || `http://localhost:${PORT}`;
 
 const startServer = async () => {
+  // Check environment variables first
+  checkEnvironmentVariables();
+  
   if (process.env.NODE_ENV === 'development') {
     console.log('🌱 Seeding admin data for development...');
     await seedAdmin();

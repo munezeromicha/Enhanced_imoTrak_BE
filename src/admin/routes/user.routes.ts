@@ -13,6 +13,18 @@ const router = express.Router();
 
 /**
  * @swagger
+ * /users/health:
+ *   get:
+ *     summary: Health check for user service
+ *     tags: [Users]
+ *     responses:
+ *       200:
+ *         description: Service is healthy
+ */
+router.get('/health', UserController.healthCheck);
+
+/**
+ * @swagger
  * /users:
  *   get:
  *     summary: Get all HRs [Human Resources] (Admin only)
@@ -134,7 +146,7 @@ router.get('/:id', authenticateAdmin, UserController.getById);
  *               - role
  *               - gender
  *               - dob
- *               - id
+ *               - organizationId
  *             properties:
  *               firstName:
  *                 type: string
@@ -162,7 +174,7 @@ router.get('/:id', authenticateAdmin, UserController.getById);
  *                 type: string
  *                 example: "cd550207-eac4-49f7-85dc-7847e29f9416"
  *                 descripton: This should be role id
- *               id:
+ *               organizationId:
  *                 type: string
  *                 example: "60f7b6c95d2c4a1a7a5b1234"
  *               streetAddress:

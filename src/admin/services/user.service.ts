@@ -104,8 +104,9 @@ export const UserService = {
 },
 
   create: async (data: any, password: string) => {
-    return await prisma.$transaction(async (tx) => {
-      const user = await tx.users.create({
+    // First, create the user in a transaction
+    const user = await prisma.$transaction(async (tx) => {
+      return await tx.users.create({
         data: {
           first_name: data.firstName!,
           last_name: data.lastName!,
@@ -120,8 +121,10 @@ export const UserService = {
           organization_id: data.organizationId!,
         },
       });
-      
-      const mailOptions = {
+    });
+    
+    // Then, send email outside the transaction to avoid blocking
+    const mailOptions = {
       from: mailUser,
       to: data.email,
       subject: `Invitation to Imotrak`,
@@ -201,7 +204,7 @@ export const UserService = {
         <body>
           <div class="container">
             <div class="header">
-              <img src="${process.env.EMAIL_LOGO_URL}" alt="Imotrak Logo" />
+              <img src="${process.env.EMAIL_LOGO_URL || ''}" alt="Imotrak Logo" />
               <h1>Welcome to Imotrak!</h1>
             </div>
 
@@ -228,15 +231,21 @@ export const UserService = {
         </body>
         </html>
       `
-      };
+    };
 
-      console.log('sending email::::::::::::::::::::::::;;;;;;;;')
-      await sendEmail(mailOptions).catch((error) => {
-        throw new AppError("User not registered due to Email sending failure.");
-      });
+    // Send email asynchronously without blocking the response
+    if (process.env.MAIL_USER && process.env.MAIL_PASS) {
+        sendEmail(mailOptions).catch((error) => {
+            console.error('Email sending failed:', error);
+            // Don't throw error here - just log it
+            // The user is already created successfully
+        });
+    } else {
+        console.warn('⚠️  Email not sent: Missing email credentials (MAIL_USER or MAIL_PASS)');
+        console.warn('User created successfully but email notification was skipped');
+    }
 
-      return user;
-    });
+    return user;
   },
 
   update: async (id: string, data: hrUdates) =>  {
