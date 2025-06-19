@@ -124,114 +124,131 @@ export const UserService = {
     });
     
     // Then, send email outside the transaction to avoid blocking
-    const mailOptions = {
-      from: mailUser,
-      to: data.email,
-      subject: `Invitation to Imotrak`,
-      html: `
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <meta charset="UTF-8" />
-          <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-          <style>
-            body {
-              font-family: 'Segoe UI', sans-serif;
-              background-color: #f4f4f7;
-              margin: 0;
-              padding: 0;
-              color: #333;
-            }
-            .container {
-              max-width: 600px;
-              margin: 30px auto;
-              background-color: #ffffff;
-              border-radius: 8px;
-              overflow: hidden;
-              box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-            }
-            .header {
-              background-color: #1442b7;
-              padding: 20px;
-              text-align: center;
-              color: #ffffff;
-            }
-            .header img {
-              max-height: 60px;
-              margin-bottom: 10px;
-            }
-            .content {
-              padding: 30px;
-            }
-            .content h2 {
-              color: #1442b7;
-              margin-bottom: 15px;
-            }
-            .info-box {
-              background-color: #f0f4ff;
-              border-left: 5px solid #1442b7;
-              padding: 15px;
-              margin: 20px 0;
-              border-radius: 5px;
-            }
-            .info-box p {
-              margin: 8px 0;
-              font-size: 16px;
-            }
-            .button {
-              display: inline-block;
-              padding: 12px 24px;
-              margin-top: 20px;
-              background-color: #1442b7;
-              color: #ffffff;
-              text-decoration: none;
-              border-radius: 6px;
-              font-weight: bold;
-              transition: background-color 0.3s ease;
-            }
-            .button:hover {
-              background-color: #0f3699;
-            }
-            .footer {
-              background-color: #f4f4f7;
-              text-align: center;
-              padding: 20px;
-              font-size: 14px;
-              color: #888;
-            }
-          </style>
-        </head>
-        <body>
-          <div class="container">
-            <div class="header">
-              <img src="${process.env.EMAIL_LOGO_URL || ''}" alt="Imotrak Logo" />
-              <h1>Welcome to Imotrak!</h1>
-            </div>
+const mailOptions = {
+  from: mailUser,
+  to: data.email,
+  subject: `Welcome to Imotrak – Your Login Info`,
+  html: `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <style>
+        body {
+          font-family: 'Segoe UI', sans-serif;
+          background-color: #f4f4f7;
+          margin: 0;
+          padding: 0;
+          color: #333;
+        }
+        .container {
+          max-width: 600px;
+          margin: 30px auto;
+          background-color: #ffffff;
+          border-radius: 8px;
+          overflow: hidden;
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+        .header {
+          background-color: #1442b7;
+          padding: 20px;
+          text-align: center;
+          color: #ffffff;
+        }
+        .header img {
+          max-height: 60px;
+          margin-bottom: 10px;
+        }
+        .content {
+          padding: 30px;
+        }
+        .content h2 {
+          color: #1442b7;
+          margin-bottom: 15px;
+        }
+        .info-box {
+          background-color: #f0f4ff;
+          border-left: 5px solid #1442b7;
+          padding: 15px;
+          margin: 20px 0;
+          border-radius: 5px;
+        }
+        .info-box p {
+          margin: 8px 0;
+          font-size: 16px;
+        }
+        .button {
+          display: inline-block;
+          padding: 12px 24px;
+          margin-top: 20px;
+          background-color: #1442b7;
+          color: #ffffff;
+          text-decoration: none;
+          border-radius: 6px;
+          font-weight: bold;
+          transition: background-color 0.3s ease;
+        }
+        .button:hover {
+          background-color: #0f3699;
+        }
+        .footer {
+          background-color: #f4f4f7;
+          text-align: center;
+          padding: 20px;
+          font-size: 14px;
+          color: #888;
+        }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <img src="${process.env.EMAIL_LOGO_URL || ''}" alt="Imotrak Logo" />
+          <h1>Welcome to Imotrak!</h1>
+        </div>
 
-            <div class="content">
-              <h2>Your account has been created 🎉</h2>
-              <p>Hello,</p>
-              <p>You have been invited to join the Imotrak platform. Please use the following credentials to log in:</p>
+        <div class="content">
+          <h2>Your account is ready 🎉</h2>
+          <p>Hello,</p>
+          <p>Your Imotrak account has been successfully created. You can now log in using the credentials below:</p>
 
-              <div class="info-box">
-                <p><strong>Username (email):</strong> ${data.email}</p>
-                <p><strong>Temporary Password:</strong> ${password}</p>
-              </div>
-
-              <p>We recommend you change your password after logging in.</p>
-
-              <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}" class="button">Login to Imotrak</a>
-            </div>
-
-            <div class="footer">
-              <p>&copy; ${new Date().getFullYear()} Imotrak. All rights reserved.</p>
-              <p>Need help? Contact us at ${process.env.SUPPORT_EMAIL || 'support@imotrak.rw'}</p>
-            </div>
+          <div class="info-box">
+            <p><strong>Username (email):</strong> ${data.email}</p>
+            <p><strong>Temporary Password:</strong> ${password}</p>
           </div>
-        </body>
-        </html>
-      `
-    };
+
+          <p>Please make sure to update your password after logging in for the first time.</p>
+
+          <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}" class="button">Access Your Account</a>
+        </div>
+
+        <div class="footer">
+          <p>&copy; ${new Date().getFullYear()} Imotrak. All rights reserved.</p>
+          <p>Need help? Reach out at <a href="mailto:${process.env.SUPPORT_EMAIL || 'support@imotrak.rw'}">${process.env.SUPPORT_EMAIL || 'support@imotrak.rw'}</a></p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `,
+  text: `
+    Welcome to Imotrak!
+
+    Your account has been created.
+
+    Username (email): ${data.email}
+    Temporary Password: ${password}
+
+    Please update your password after your first login.
+
+    Access your account: ${process.env.FRONTEND_URL || 'http://localhost:3000'}
+
+    Need help? Contact us at ${process.env.SUPPORT_EMAIL || 'support@imotrak.rw'}
+
+    © ${new Date().getFullYear()} Imotrak. All rights reserved.
+  `
+};
+
 
     // Send email asynchronously without blocking the response
     if (process.env.MAIL_USER && process.env.MAIL_PASS) {
