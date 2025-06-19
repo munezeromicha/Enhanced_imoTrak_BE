@@ -68,10 +68,9 @@ export const RequestController = {
 
       const newRequest = await RequestService.createRequest(req.body, req.user!.id);
       
-      res.status(201).json({
-        message: 'Request created successfully',
-        request: newRequest
-      });
+      res.status(201).json(
+        newRequest
+      );
     } catch (error: any) {
       console.error('Request creation error:', error);
 

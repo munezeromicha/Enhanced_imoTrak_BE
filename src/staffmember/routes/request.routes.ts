@@ -343,13 +343,7 @@ router.get('/vehicles/available', authenticateStaff, RequestController.getAvaila
  *         content:
  *           application/json:
  *             schema:
- *               type: object
- *               properties:
- *                 message:
- *                   type: string
- *                   example: "Request created successfully"
- *                 request:
- *                   $ref: '#/components/schemas/RequestResponse'
+ *               $ref: '#/components/schemas/RequestResponse'
  *       400:
  *         description: Bad request - validation error
  *       401:

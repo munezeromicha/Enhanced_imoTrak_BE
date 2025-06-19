@@ -4,7 +4,6 @@ import { AppError } from '../../../utils/Error';
 const prisma = new PrismaClient();
 
 interface CreateRequestData {
-  vehicle_id?: string;
   trip_purpose: string;
   start_location: string;
   end_location: string;
@@ -271,26 +270,6 @@ export const RequestService = {
       throw new AppError('Passengers number must be at least 1', 400);
     }
 
-    // If vehicle_id is provided, validate it exists and is available
-    if (data.vehicle_id) {
-      const vehicle = await prisma.vehicles.findFirst({
-        where: {
-          id: data.vehicle_id,
-          organization_id: staffMember.organization_id,
-          status: 'AVAILABLE'
-        }
-      });
-
-      if (!vehicle) {
-        throw new AppError('Vehicle not found or not available', 400);
-      }
-
-      // Check if vehicle has enough capacity
-      if (vehicle.capacity && data.passengers_number > vehicle.capacity) {
-        throw new AppError(`Vehicle capacity (${vehicle.capacity}) is less than requested passengers (${data.passengers_number})`, 400);
-      }
-    }
-
     const requestData: any = {
       trip_purpose: data.trip_purpose,
       start_location: data.start_location,
@@ -302,10 +281,6 @@ export const RequestService = {
       requester_id: staffMemberId,
       comments: data.comments
     };
-
-    if (data.vehicle_id) {
-      requestData.vehicle_id = data.vehicle_id;
-    }
 
     const request = await prisma.requests.create({
       data: requestData,
