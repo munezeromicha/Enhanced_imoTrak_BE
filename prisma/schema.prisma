@@ -128,12 +128,13 @@ model users {
 model vehicles {
   id                String        @id @default(uuid())
   plate_number      String        @unique
-  model             String
-  manufacturer      String
-  year              Int
+  vehicle_type      String        // Added vehicle type field
+  vehicle_model     String
+  manufacturer      String?
+  year              Int?
   capacity          Int?
   odometer          Int           @default(0)
-  status            String        @default("available")
+  status            VehicleStatus @default(AVAILABLE) // Changed to enum
   fuel_type         String?
   last_service_date DateTime?
   created_at        DateTime      @default(now())
@@ -146,4 +147,11 @@ model vehicles {
 enum Gender {
   MALE
   FEMALE
+}
+
+enum VehicleStatus {
+  AVAILABLE
+  OCCUPIED
+  MAINTENANCE
+  OUT_OF_SERVICE
 }
