@@ -49,14 +49,16 @@ model requests {
   end_location                       String
   start_date                         DateTime
   end_date                           DateTime
-  status                             String    @default("pending")
+  status                             RequestStatus @default(PENDING)
   reviewed_at                        DateTime?
   comments                           String?
   requester_id                       String
   reviewed_by                        String?
-  users_requests_requester_idTousers users     @relation("requests_requester_idTousers", fields: [requester_id], references: [id])
-  users_requests_reviewed_byTousers  users?    @relation("requests_reviewed_byTousers", fields: [reviewed_by], references: [id])
-  vehicles                           vehicles? @relation(fields: [vehicle_id], references: [id])
+  full_name                          String
+  passengers_number                  Int           @default(1)
+  users_requests_requester_idTousers users         @relation("requests_requester_idTousers", fields: [requester_id], references: [id])
+  users_requests_reviewed_byTousers  users?        @relation("requests_reviewed_byTousers", fields: [reviewed_by], references: [id])
+  vehicles                           vehicles?     @relation(fields: [vehicle_id], references: [id])
   trips                              trips[]
 }
 
@@ -79,9 +81,9 @@ model roles {
 }
 
 model RoleVisibility {
-  id      String    @id @default(dbgenerated("gen_random_uuid()"))
-  role    String // the user's current role
-  canSee  String // roles that current user can view
+  id     String @id @default(dbgenerated("gen_random_uuid()"))
+  role   String
+  canSee String
 }
 
 model trips {
@@ -128,12 +130,13 @@ model users {
 model vehicles {
   id                String        @id @default(uuid())
   plate_number      String        @unique
-  model             String
-  manufacturer      String
-  year              Int
+  vehicle_type      String
+  vehicle_model     String
+  manufacturer      String?
+  year              Int?
   capacity          Int?
   odometer          Int           @default(0)
-  status            String        @default("available")
+  status            VehicleStatus @default(AVAILABLE)
   fuel_type         String?
   last_service_date DateTime?
   created_at        DateTime      @default(now())
@@ -146,4 +149,18 @@ model vehicles {
 enum Gender {
   MALE
   FEMALE
+}
+
+enum VehicleStatus {
+  AVAILABLE
+  OCCUPIED
+  MAINTENANCE
+  OUT_OF_SERVICE
+}
+
+enum RequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
 }
