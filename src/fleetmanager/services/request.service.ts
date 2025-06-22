@@ -41,65 +41,129 @@ interface RequestResponse {
 
 export const fleetRequest = {
 
-      // Get all requests for the staff member
-      getRequests: async (managerId: string): Promise<RequestResponse[]> => {
+  // Get all requests for the staff member
+  getRequests: async (managerId: string): Promise<RequestResponse[]> => {
 
-        const manager = await prisma.users.findUnique({
-            where: {id: managerId}
-        });
+    const manager = await prisma.users.findUnique({
+        where: {id: managerId}
+    });
 
-        if(!manager)
-            throw new AppError("This account is no longer available:", 409)
+    if(!manager)
+        throw new AppError("This account is no longer available:", 409)
 
-        const requests = await prisma.requests.findMany({
-            where: {
-            users_requests_requester_idTousers: {
-                organization_id: manager?.organization_id,
+    const requests = await prisma.requests.findMany({
+        where: {
+        users_requests_requester_idTousers: {
+            organization_id: manager?.organization_id,
+        },
+        },
+        include: {
+        vehicles: true,
+        users_requests_requester_idTousers: {
+            select: {
+            id: true,
+            first_name: true,
+            last_name: true,
+            email: true,
             },
-            },
-            include: {
-            vehicles: true,
-            users_requests_requester_idTousers: {
-                select: {
-                id: true,
-                first_name: true,
-                last_name: true,
-                email: true,
-                },
-            },
-            },
-            orderBy: {
-            requested_at: "desc",
-            },
-        });
-    
-        return requests.map(request => ({
-          id: request.id,
-          vehicle_id: request.vehicle_id,
-          requested_at: request.requested_at,
-          trip_purpose: request.trip_purpose,
-          start_location: request.start_location,
-          end_location: request.end_location,
-          start_date: request.start_date,
-          end_date: request.end_date,
-          status: request.status,
-          reviewed_at: request.reviewed_at,
-          comments: request.comments,
-          requester_id: request.requester_id,
-          reviewed_by: request.reviewed_by,
-          full_name: request.full_name,
-          passengers_number: request.passengers_number,
-          vehicle: request.vehicles ? {
-            id: request.vehicles.id,
-            plate_number: request.vehicles.plate_number,
-            vehicle_type: request.vehicles.vehicle_type,
-            vehicle_model: request.vehicles.vehicle_model,
-            manufacturer: request.vehicles.manufacturer,
-            year: request.vehicles.year,
-            capacity: request.vehicles.capacity,
-            status: request.vehicles.status
-          } : undefined,
-          requester: request.users_requests_requester_idTousers
-        }));
-      },
+        },
+        },
+        orderBy: {
+        requested_at: "desc",
+        },
+    });
+
+    return requests.map(request => ({
+      id: request.id,
+      vehicle_id: request.vehicle_id,
+      requested_at: request.requested_at,
+      trip_purpose: request.trip_purpose,
+      start_location: request.start_location,
+      end_location: request.end_location,
+      start_date: request.start_date,
+      end_date: request.end_date,
+      status: request.status,
+      reviewed_at: request.reviewed_at,
+      comments: request.comments,
+      requester_id: request.requester_id,
+      reviewed_by: request.reviewed_by,
+      full_name: request.full_name,
+      passengers_number: request.passengers_number,
+      vehicle: request.vehicles ? {
+        id: request.vehicles.id,
+        plate_number: request.vehicles.plate_number,
+        vehicle_type: request.vehicles.vehicle_type,
+        vehicle_model: request.vehicles.vehicle_model,
+        manufacturer: request.vehicles.manufacturer,
+        year: request.vehicles.year,
+        capacity: request.vehicles.capacity,
+        status: request.vehicles.status
+      } : undefined,
+      requester: request.users_requests_requester_idTousers
+    }));
+  },
+
+  // Approve Request
+
+  approveRequest: async (requestId: string, managerId: string, vehicleId: string): Promise<any> => {
+  const manager = await prisma.users.findUnique({
+    where: { id: managerId },
+  });
+
+  if (!manager) throw new AppError("Fleet manager not found", 404);
+
+  const request = await prisma.requests.findUnique({
+    where: { id: requestId },
+    include: {
+      users_requests_requester_idTousers: true,
+    },
+  });
+
+  if (!request) throw new AppError("Request not found", 404);
+  if (request.status !== "PENDING") {
+    throw new AppError("Only pending requests can be approved", 400);
+  }
+
+  // Ensure same organization
+  if (
+    request.users_requests_requester_idTousers.organization_id !== manager.organization_id
+  ) {
+    throw new AppError("You can only approve requests from your organization", 403);
+  }
+
+  // Validate vehicle
+  const vehicle = await prisma.vehicles.findFirst({
+    where: {
+      id: vehicleId,
+      organization_id: manager.organization_id,
+      status: "AVAILABLE",
+    },
+  });
+
+  if (!vehicle) {
+    throw new AppError("Vehicle not found or not available in your organization", 404);
+  }
+
+  // Approve request
+  const updatedRequest = await prisma.requests.update({
+    where: { id: requestId },
+    data: {
+      vehicle_id: vehicleId,
+      status: "APPROVED",
+      reviewed_by: managerId,
+      reviewed_at: new Date(),
+    },
+  });
+
+  // Optionally, update vehicle status if you track assignment
+  await prisma.vehicles.update({
+    where: { id: vehicleId },
+    data: {
+      status: "OCCUPIED", // Make sure you have this status in VehicleStatus enum
+    },
+  });
+
+  return updatedRequest;
+}
+
 }

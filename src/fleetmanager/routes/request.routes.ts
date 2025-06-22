@@ -106,4 +106,70 @@ const fleetRequestRoutes = Router();
 fleetRequestRoutes.route('/')
     .get(authenticateFleetManager, FleetRequestController.getRequest);
 
+
+/**
+ * @swagger
+ * /fleetmanager/requests/approve:
+ *   post:
+ *     summary: Approve a fleet request
+ *     description: Approves a pending fleet request by assigning an available vehicle from the manager's organization.
+ *     tags:
+ *       - Fleet Requests
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - requestId
+ *               - vehicleId
+ *             properties:
+ *               requestId:
+ *                 type: string
+ *                 example: "dbe11b3e-52f7-49f5-b7e0-267847e89361"
+ *               vehicleId:
+ *                 type: string
+ *                 example: "5b9b5fbd-4b35-4646-bb93-60a4d8120f1e"
+ *     responses:
+ *       200:
+ *         description: Request approved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: string
+ *                     status:
+ *                       type: string
+ *                     vehicle_id:
+ *                       type: string
+ *                     reviewed_at:
+ *                       type: string
+ *                       format: date-time
+ *                     reviewed_by:
+ *                       type: string
+ *       400:
+ *         description: Missing required fields (requestId or vehicleId)
+ *       403:
+ *         description: Unauthorized or invalid role
+ *       404:
+ *         description: Request or vehicle not found
+ *       409:
+ *         description: Request is not pending or vehicle is unavailable
+ *       500:
+ *         description: Internal server error
+ */
+
+fleetRequestRoutes.route('/approve')
+  .post(authenticateFleetManager, FleetRequestController.approveRequest);
+
 export default fleetRequestRoutes;
