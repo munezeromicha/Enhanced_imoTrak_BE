@@ -36,6 +36,21 @@ export const FleetRequestController = {
         } catch (error) {
             next(error);
         }
+    },
+
+    rejectRequest: async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<any> => {
+    try {
+        const { requestId, comment } = req.body;
+
+        if (!requestId || !comment) {
+        return res.status(400).json({ message: "Request ID and rejection comment are required." });
+        }
+
+        const result = await fleetRequest.rejectRequest(requestId, req.user!.id, comment);
+        return res.status(200).json({ message: "Request rejected successfully", data: result });
+    } catch (error) {
+        return next(error);
+    }
     }
 }
 

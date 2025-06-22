@@ -172,4 +172,49 @@ fleetRequestRoutes.route('/')
 fleetRequestRoutes.route('/approve')
   .post(authenticateFleetManager, FleetRequestController.approveRequest);
 
+
+/**
+ * @swagger
+ * /fleetmanager/requests/reject:
+ *   post:
+ *     summary: Reject a fleet request
+ *     description: Fleet managers can reject pending requests in their organization with a comment.
+ *     tags:
+ *       - Fleet Requests
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - requestId
+ *               - comment
+ *             properties:
+ *               requestId:
+ *                 type: string
+ *                 description: ID of the request to reject
+ *               comment:
+ *                 type: string
+ *                 description: Reason for rejection
+ *     responses:
+ *       200:
+ *         description: Request rejected successfully
+ *       400:
+ *         description: Invalid input or business rule violation
+ *       403:
+ *         description: Unauthorized or organization mismatch
+ *       404:
+ *         description: Request or manager not found
+ *       500:
+ *         description: Internal server error
+ */
+
+fleetRequestRoutes
+  .route('/reject')
+  .post(authenticateFleetManager, FleetRequestController.rejectRequest);
+
+
 export default fleetRequestRoutes;

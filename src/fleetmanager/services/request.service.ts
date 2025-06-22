@@ -106,64 +106,99 @@ export const fleetRequest = {
   // Approve Request
 
   approveRequest: async (requestId: string, managerId: string, vehicleId: string): Promise<any> => {
-  const manager = await prisma.users.findUnique({
-    where: { id: managerId },
-  });
+    const manager = await prisma.users.findUnique({
+      where: { id: managerId },
+    });
 
-  if (!manager) throw new AppError("Fleet manager not found", 404);
+    if (!manager) throw new AppError("Fleet manager not found", 404);
 
-  const request = await prisma.requests.findUnique({
-    where: { id: requestId },
-    include: {
-      users_requests_requester_idTousers: true,
-    },
-  });
+    const request = await prisma.requests.findUnique({
+      where: { id: requestId },
+      include: {
+        users_requests_requester_idTousers: true,
+      },
+    });
 
-  if (!request) throw new AppError("Request not found", 404);
-  if (request.status !== "PENDING") {
-    throw new AppError("Only pending requests can be approved", 400);
+    if (!request) throw new AppError("Request not found", 404);
+    if (request.status !== "PENDING") {
+      throw new AppError("Only pending requests can be approved", 400);
+    }
+
+    // Ensure same organization
+    if (
+      request.users_requests_requester_idTousers.organization_id !== manager.organization_id
+    ) {
+      throw new AppError("You can only approve requests from your organization", 403);
+    }
+
+    // Validate vehicle
+    const vehicle = await prisma.vehicles.findFirst({
+      where: {
+        id: vehicleId,
+        organization_id: manager.organization_id,
+        status: "AVAILABLE",
+      },
+    });
+
+    if (!vehicle) {
+      throw new AppError("Vehicle not found or not available in your organization", 404);
+    }
+
+    // Approve request
+    const updatedRequest = await prisma.requests.update({
+      where: { id: requestId },
+      data: {
+        vehicle_id: vehicleId,
+        status: "APPROVED",
+        reviewed_by: managerId,
+        reviewed_at: new Date(),
+      },
+    });
+
+    await prisma.vehicles.update({
+      where: { id: vehicleId },
+      data: {
+        status: "OCCUPIED", // Make sure you have this status in VehicleStatus enum
+      },
+    });
+
+    return updatedRequest;
+  },
+
+  rejectRequest: async (requestId: string, managerId: string, comment: string): Promise<any> => {    const manager = await prisma.users.findUnique({
+      where: { id: managerId },
+      select: { organization_id: true }
+    });
+
+    if (!manager) throw new AppError("Fleet manager not found", 404);
+
+    const request = await prisma.requests.findUnique({
+      where: { id: requestId },
+      include: {
+        users_requests_requester_idTousers: {
+          select: { organization_id: true }
+        }
+      }
+    });
+
+    if (!request) throw new AppError("Request not found", 404);
+
+    if (request.status !== "PENDING") throw new AppError("Only pending requests can be rejected", 400);
+
+    if (request.users_requests_requester_idTousers.organization_id !== manager.organization_id) {
+      throw new AppError("You can only reject requests from your organization", 403);
+    }
+
+    const updated = await prisma.requests.update({
+      where: { id: requestId },
+      data: {
+        status: "REJECTED",
+        comments: comment,
+        reviewed_by: managerId,
+        reviewed_at: new Date()
+      }
+    });
+
+    return updated;
   }
-
-  // Ensure same organization
-  if (
-    request.users_requests_requester_idTousers.organization_id !== manager.organization_id
-  ) {
-    throw new AppError("You can only approve requests from your organization", 403);
-  }
-
-  // Validate vehicle
-  const vehicle = await prisma.vehicles.findFirst({
-    where: {
-      id: vehicleId,
-      organization_id: manager.organization_id,
-      status: "AVAILABLE",
-    },
-  });
-
-  if (!vehicle) {
-    throw new AppError("Vehicle not found or not available in your organization", 404);
-  }
-
-  // Approve request
-  const updatedRequest = await prisma.requests.update({
-    where: { id: requestId },
-    data: {
-      vehicle_id: vehicleId,
-      status: "APPROVED",
-      reviewed_by: managerId,
-      reviewed_at: new Date(),
-    },
-  });
-
-  // Optionally, update vehicle status if you track assignment
-  await prisma.vehicles.update({
-    where: { id: vehicleId },
-    data: {
-      status: "OCCUPIED", // Make sure you have this status in VehicleStatus enum
-    },
-  });
-
-  return updatedRequest;
-}
-
 }
