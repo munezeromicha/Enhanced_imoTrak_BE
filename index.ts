@@ -1,5 +1,5 @@
 import express from 'express';
-import cors from 'cors';
+// import cors from 'cors';
 import dotenv from 'dotenv';
 import morgan from 'morgan';
 import { Request, Response } from 'express';
@@ -14,18 +14,18 @@ const app = express();
 
 const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') || [];
 
-app.use(cors({
-  origin: (origin, callback) => {
-    if(!origin)
-      return callback(null, true);
+// app.use(cors({
+//   origin: (origin, callback) => {
+//     if(!origin)
+//       return callback(null, true);
 
-    if(allowedOrigins.includes(origin)) 
-      return callback(null, true);
-    else
-      return (callback(new Error('Not allowed by CORS')))
-  },
-  credentials: true
-}));
+//     if(allowedOrigins.includes(origin)) 
+//       return callback(null, true);
+//     else
+//       return (callback(new Error('Not allowed by CORS')))
+//   },
+//   credentials: true
+// }));
 app.use(express.json());
 app.use(morgan('short'));
 

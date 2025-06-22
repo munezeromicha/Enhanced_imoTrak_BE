@@ -80,7 +80,7 @@ export const systemRoles = async (role: string): Promise<SystemRole[]> => {
   if (!visibilityRules.length) {
     throw new Error('Forbidden');
   }
-
+  console.log('Visibility Rules:', visibilityRules);
   const allowedRoles = visibilityRules.map(rule => rule.canSee);
 
   const roles = await prisma.roles.findMany({
