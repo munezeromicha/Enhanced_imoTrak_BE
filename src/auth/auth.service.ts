@@ -72,8 +72,7 @@ export const login = async ({ email, password }: LoginRequest): Promise<LoginRes
   return { token };
 };
 export const systemRoles = async (role: string): Promise<SystemRole[]> => {
-  //const visibilityRules = await prisma.roleVisibility.findMany({
-  const allowedRoles = visibilityRules.flatMap((rule: { canSee: string[] }) => rule.canSee);
+  const visibilityRules = await prisma.roleVisibility.findMany({
     where: { role },
     select: { canSee: true },
   });
