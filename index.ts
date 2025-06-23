@@ -12,20 +12,13 @@ dotenv.config();
 
 const app = express();
 
-const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') || [];
 
+// Allow all origins
 app.use(cors({
-  origin: (origin, callback) => {
-    if(!origin)
-      return callback(null, true);
-
-    if(allowedOrigins.includes(origin)) 
-      return callback(null, true);
-    else
-      return (callback(new Error('Not allowed by CORS')))
-  },
+  origin: true,
   credentials: true
 }));
+
 app.use(express.json());
 app.use(morgan('short'));
 
