@@ -41,9 +41,9 @@ model reports {
 }
 
 model requests {
-  id                                 String    @id @default(uuid())
+  id                                 String        @id @default(uuid())
   vehicle_id                         String?
-  requested_at                       DateTime  @default(now())
+  requested_at                       DateTime      @default(now())
   trip_purpose                       String
   start_location                     String
   end_location                       String
@@ -104,27 +104,28 @@ model trips {
 }
 
 model users {
-  id                                    String        @id @default(dbgenerated("gen_random_uuid()"))
+  id                                    String         @id @default(dbgenerated("gen_random_uuid()"))
   organization_id                       String
   password_hash                         String
-  email                                 String        @unique
+  email                                 String         @unique
   phone                                 String?
-  status                                String        @default("active")
-  created_at                            DateTime      @default(now())
+  status                                String         @default("active")
+  created_at                            DateTime       @default(now())
   last_login                            DateTime?
   role_id                               String
   dob                                   DateTime
   first_name                            String
   last_name                             String
-  nid                                   String        @unique
+  nid                                   String         @unique
   gender                                Gender
   street_address                        String
   reports                               reports[]
-  requests_requests_requester_idTousers requests[]    @relation("requests_requester_idTousers")
-  requests_requests_reviewed_byTousers  requests[]    @relation("requests_reviewed_byTousers")
+  requests_requests_requester_idTousers requests[]     @relation("requests_requester_idTousers")
+  requests_requests_reviewed_byTousers  requests[]     @relation("requests_reviewed_byTousers")
   trips                                 trips[]
-  organizations                         organizations @relation(fields: [organization_id], references: [id])
-  roles                                 roles         @relation(fields: [role_id], references: [id])
+  organizations                         organizations  @relation(fields: [organization_id], references: [id])
+  roles                                 roles          @relation(fields: [role_id], references: [id])
+  notifications                         Notification[]
 }
 
 model vehicles {
@@ -163,4 +164,22 @@ enum RequestStatus {
   APPROVED
   REJECTED
   CANCELLED
+}
+
+model Notification {
+  id         String           @id @default(uuid())
+  user_id    String
+  title      String
+  message    String
+  type       NotificationType
+  created_at DateTime         @default(now())
+  read       Boolean          @default(false)
+
+  user users @relation(fields: [user_id], references: [id])
+}
+
+enum NotificationType {
+  SUCCESS
+  INFO
+  ERROR
 }
