@@ -8,10 +8,10 @@ const fleetRequestRoutes = Router();
  * @swagger
  * /fleetmanager/requests:
  *   get:
- *     summary: Get all fleet requests
- *     description: Retrieves all fleet requests made by staff, including related vehicle and requester info.
+ *     summary: Get all requests in organization 
+ *     description: Retrieves all  made by staff, including related vehicle and requester info.
  *     tags:
- *       - Fleet Requests
+ *       - Fleet manager  - request management 
  *     security:
  *       - bearerAuth: []
  *     responses:
@@ -114,7 +114,7 @@ fleetRequestRoutes.route('/')
  *     summary: Approve a fleet request
  *     description: Approves a pending fleet request by assigning an available vehicle from the manager's organization.
  *     tags:
- *       - Fleet Requests
+ *       - Fleet manager  - request management 
  *     security:
  *       - bearerAuth: []
  *     requestBody:
@@ -180,7 +180,7 @@ fleetRequestRoutes.route('/approve')
  *     summary: Reject a fleet request
  *     description: Fleet managers can reject pending requests in their organization with a comment.
  *     tags:
- *       - Fleet Requests
+ *       - Fleet manager  - request management 
  *     security:
  *       - bearerAuth: []
  *     requestBody:
