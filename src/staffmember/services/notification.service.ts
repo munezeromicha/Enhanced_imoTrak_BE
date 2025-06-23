@@ -1,9 +1,18 @@
 import { PrismaClient } from '@prisma/client';
 import { AppError } from '../../../utils/Error';
+import  sendEmail from '../../../utils/mailSender';
 
 const prisma = new PrismaClient();
 
-export const NotificationService = {
+interface mailOptions {
+  from?: string;
+  to: string;
+  subject: string;
+  html: string;
+}
+
+
+export const notificationService = {
   // Create notification in DB and optionally send email
   sendNotification: async ({
     userId,
@@ -35,7 +44,7 @@ export const NotificationService = {
       await sendEmail({
         to: sendEmailTo,
         subject: emailSubject,
-        body: message
+        html: message
       });
     }
   },
@@ -72,7 +81,7 @@ export const NotificationService = {
     if (!fleetManagers.length) throw new AppError('No fleet managers found', 404);
 
     await Promise.all(fleetManagers.map(manager =>
-      NotificationService.sendNotification({
+      notificationService.sendNotification({
         userId: manager.id,
         title: 'New Vehicle Request Submitted',
         message: `A new trip request was submitted by ${request.full_name}.`,
@@ -99,7 +108,7 @@ export const NotificationService = {
     const statusMessage = request.status === 'APPROVED' ? 'approved' : 'rejected';
     const message = `Your trip request has been ${statusMessage}.\n\nComments: ${request.comments || 'No comments.'}`;
 
-    await NotificationService.sendNotification({
+    await notificationService.sendNotification({
       userId: user.id,
       title: `Your Request Was ${statusMessage.toUpperCase()}`,
       message,
@@ -123,7 +132,7 @@ export const NotificationService = {
 
     const user = request.users_requests_requester_idTousers;
 
-    await NotificationService.sendNotification({
+    await notificationService.sendNotification({
       userId: user.id,
       title: 'Your Request Was Cancelled',
       message: `Hi ${user.first_name}, your request has been cancelled.`,

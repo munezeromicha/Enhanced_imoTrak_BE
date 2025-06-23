@@ -1,6 +1,6 @@
 import { PrismaClient, requests, vehicles } from '@prisma/client';
 import { AppError } from '../../../utils/Error';
-import { notificationService } from '../services/notificationService';
+import { notificationService } from '../../staffmember/services/notification.service';
 
 
 const prisma = new PrismaClient();
@@ -105,7 +105,6 @@ export const fleetRequest = {
   },
 
   // Approve Request
-
   approveRequest: async (requestId: string, managerId: string, vehicleId: string): Promise<any> => {
     const manager = await prisma.users.findUnique({ where: { id: managerId } });
     if (!manager) throw new AppError("Fleet manager not found", 404);
@@ -150,19 +149,12 @@ export const fleetRequest = {
       },
     });
 
-    // 🔔 Send notification
-    await notificationService.send(
-      request.requester_id,
-      "SUCCESS",
-      "Trip Request Approved",
-      `Your trip request to **${request.end_location}** has been approved.\n\n` +
-      `**Vehicle Assigned:** ${vehicle.plate_number} (${vehicle.vehicle_model})\n` +
-      `**Start Date:** ${request.start_date.toDateString()} - **End Date:** ${request.end_date.toDateString()}`
-    );
+    // ✅ Use centralized notification
+    await notificationService.notifyRequesterOnReview(requestId);
 
     return updatedRequest;
   },
-
+  // Reject Request
   rejectRequest: async (requestId: string, managerId: string, comment: string): Promise<any> => {
     const manager = await prisma.users.findUnique({ where: { id: managerId } });
     if (!manager) throw new AppError("Fleet manager not found", 404);
@@ -191,14 +183,8 @@ export const fleetRequest = {
       },
     });
 
-    // 🔔 Send rejection notification
-    await notificationService.send(
-      request.requester_id,
-      "ERROR",
-      "Trip Request Rejected",
-      `Your trip request to **${request.end_location}** has been rejected.\n\n` +
-      `**Reason:** ${comment}`
-    );
+    // ✅ Use centralized notification
+    await notificationService.notifyRequesterOnReview(requestId);
 
     return updated;
   }
