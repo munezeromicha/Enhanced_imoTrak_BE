@@ -3,7 +3,6 @@ import { AppError } from '../../../utils/Error';
 import { notificationService } from '../services/notificationService';
 
 
-
 const prisma = new PrismaClient();
 
 
@@ -107,57 +106,100 @@ export const fleetRequest = {
 
   // Approve Request
 
-approveRequest: async (requestId: string, managerId: string, vehicleId: string): Promise<any> => {
-  const manager = await prisma.users.findUnique({ where: { id: managerId } });
-  if (!manager) throw new AppError("Fleet manager not found", 404);
+  approveRequest: async (requestId: string, managerId: string, vehicleId: string): Promise<any> => {
+    const manager = await prisma.users.findUnique({ where: { id: managerId } });
+    if (!manager) throw new AppError("Fleet manager not found", 404);
 
-  const request = await prisma.requests.findUnique({
-    where: { id: requestId },
-    include: {
-      users_requests_requester_idTousers: true,
-    },
-  });
-  if (!request) throw new AppError("Request not found", 404);
-  if (request.status !== "PENDING") throw new AppError("Only pending requests can be approved", 400);
+    const request = await prisma.requests.findUnique({
+      where: { id: requestId },
+      include: {
+        users_requests_requester_idTousers: true,
+      },
+    });
 
-  if (request.users_requests_requester_idTousers.organization_id !== manager.organization_id) {
-    throw new AppError("You can only approve requests from your organization", 403);
+    if (!request) throw new AppError("Request not found", 404);
+    if (request.status !== "PENDING") throw new AppError("Only pending requests can be approved", 400);
+
+    if (request.users_requests_requester_idTousers.organization_id !== manager.organization_id) {
+      throw new AppError("You can only approve requests from your organization", 403);
+    }
+
+    const vehicle = await prisma.vehicles.findFirst({
+      where: {
+        id: vehicleId,
+        organization_id: manager.organization_id,
+        status: "AVAILABLE",
+      },
+    });
+    if (!vehicle) throw new AppError("Vehicle not found or not available in your organization", 404);
+
+    const updatedRequest = await prisma.requests.update({
+      where: { id: requestId },
+      data: {
+        vehicle_id: vehicleId,
+        status: "APPROVED",
+        reviewed_by: managerId,
+        reviewed_at: new Date(),
+      },
+    });
+
+    await prisma.vehicles.update({
+      where: { id: vehicleId },
+      data: {
+        status: "OCCUPIED",
+      },
+    });
+
+    // 🔔 Send notification
+    await notificationService.send(
+      request.requester_id,
+      "SUCCESS",
+      "Trip Request Approved",
+      `Your trip request to **${request.end_location}** has been approved.\n\n` +
+      `**Vehicle Assigned:** ${vehicle.plate_number} (${vehicle.vehicle_model})\n` +
+      `**Start Date:** ${request.start_date.toDateString()} - **End Date:** ${request.end_date.toDateString()}`
+    );
+
+    return updatedRequest;
+  },
+
+  rejectRequest: async (requestId: string, managerId: string, comment: string): Promise<any> => {
+    const manager = await prisma.users.findUnique({ where: { id: managerId } });
+    if (!manager) throw new AppError("Fleet manager not found", 404);
+
+    const request = await prisma.requests.findUnique({
+      where: { id: requestId },
+      include: {
+        users_requests_requester_idTousers: true,
+      },
+    });
+
+    if (!request) throw new AppError("Request not found", 404);
+    if (request.status !== "PENDING") throw new AppError("Only pending requests can be rejected", 400);
+
+    if (request.users_requests_requester_idTousers.organization_id !== manager.organization_id) {
+      throw new AppError("You can only reject requests from your organization", 403);
+    }
+
+    const updated = await prisma.requests.update({
+      where: { id: requestId },
+      data: {
+        status: "REJECTED",
+        comments: comment,
+        reviewed_by: managerId,
+        reviewed_at: new Date(),
+      },
+    });
+
+    // 🔔 Send rejection notification
+    await notificationService.send(
+      request.requester_id,
+      "ERROR",
+      "Trip Request Rejected",
+      `Your trip request to **${request.end_location}** has been rejected.\n\n` +
+      `**Reason:** ${comment}`
+    );
+
+    return updated;
   }
-
-  const vehicle = await prisma.vehicles.findFirst({
-    where: {
-      id: vehicleId,
-      organization_id: manager.organization_id,
-      status: "AVAILABLE",
-    },
-  });
-  if (!vehicle) throw new AppError("Vehicle not found or not available in your organization", 404);
-
-  const updatedRequest = await prisma.requests.update({
-    where: { id: requestId },
-    data: {
-      vehicle_id: vehicleId,
-      status: "APPROVED",
-      reviewed_by: managerId,
-      reviewed_at: new Date(),
-    },
-  });
-
-  await prisma.vehicles.update({
-    where: { id: vehicleId },
-    data: {
-      status: "OCCUPIED",
-    },
-  });
-
-  await notificationService.send(
-    request.requester_id,
-    "SUCCESS",
-    "New Trip Request Approved",
-    `Your trip request for ${request.end_location} has been approved. Vehicle ${vehicle.plate_number} has been assigned.`
-  );
-
-  return updatedRequest;
-}
-
 }
