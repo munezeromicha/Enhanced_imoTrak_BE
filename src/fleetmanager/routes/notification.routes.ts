@@ -3,7 +3,7 @@ import { NotificationController } from '../controllers/notification.controller';
 import { authenticateFleetManager} from '../../middleware/auth.middleware';
 import { authenticateAdmin } from '../../middleware/auth.middleware';
 
-const router = express.Router();
+const notificationRouter = express.Router();
 
 /**
  * @swagger
@@ -32,11 +32,11 @@ const router = express.Router();
  *       403:
  *         description: Forbidden – only fleet managers can access this endpoint
  */
-router.get('/', authenticateAdmin, NotificationController.getAll);
+notificationRouter.get('/', authenticateAdmin, NotificationController.getAll);
 
 /**
  * @swagger
- * /notifications/mark-all-read:
+ * /staff/notification/mark-all-read:
  *   post:
  *     summary: Mark all current user's notifications as read
  *     tags: [Notifications]
@@ -56,11 +56,11 @@ router.get('/', authenticateAdmin, NotificationController.getAll);
  *       403:
  *         description: Forbidden – only authenticated staff can access this endpoint
  */
-router.post('/mark-all-read', authenticateFleetManager, NotificationController.markAllAsRead);
+notificationRouter.post('/mark-all-read', authenticateFleetManager, NotificationController.markAllAsRead);
 
 /**
  * @swagger
- * /notifications/mark:
+ * /staff/notification/mark:
  *   post:
  *     summary: Mark a specific notification as read or unread
  *     tags: [Notifications]
@@ -97,11 +97,11 @@ router.post('/mark-all-read', authenticateFleetManager, NotificationController.m
  *       403:
  *         description: Forbidden – only authenticated staff can access this endpoint
  */
-router.post('/mark', authenticateFleetManager, NotificationController.markAs);
+notificationRouter.post('/mark', authenticateFleetManager, NotificationController.markAs);
 
 /**
  * @swagger
- * /notifications/send:
+ * /staff/notification/send:
  *   post:
  *     summary: Send a new notification (fleet manager only)
  *     tags: [Notifications]
@@ -146,11 +146,11 @@ router.post('/mark', authenticateFleetManager, NotificationController.markAs);
  *       403:
  *         description: Forbidden – only fleet managers can access this endpoint
  */
-router.post('/send', authenticateAdmin, NotificationController.send);
+notificationRouter.post('/send', authenticateAdmin, NotificationController.send);
 
 /**
  * @swagger
- * /notifications/user:
+ * /staff/notification/user:
  *   get:
  *     summary: Get current user's notifications
  *     tags: [Notifications]
@@ -168,6 +168,6 @@ router.post('/send', authenticateAdmin, NotificationController.send);
  *       403:
  *         description: Forbidden – only authenticated staff can access this endpoint
  */
-router.get('/user', authenticateFleetManager, NotificationController.getUserNotifications);
+notificationRouter.get('/user', authenticateFleetManager, NotificationController.getUserNotifications);
 
-export default router;
+export default notificationRouter;
