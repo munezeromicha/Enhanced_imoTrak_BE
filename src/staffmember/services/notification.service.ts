@@ -1,45 +1,40 @@
 import { PrismaClient } from '@prisma/client';
 import { AppError } from '../../../utils/Error';
-import  sendEmail from '../../../utils/mailSender';
+import sendEmail from '../../../utils/mailSender';
 
 const prisma = new PrismaClient();
 
-interface mailOptions {
-  from?: string;
-  to: string;
-  subject: string;
-  html: string;
+export enum NotificationType {
+  SUCCESS = 'SUCCESS',
+  INFO = 'INFO',
+  ERROR = 'ERROR',
+  REQUEST = 'REQUEST',
+  STATUS = 'STATUS',
+  CANCEL = 'CANCEL'
 }
 
+interface SendNotificationOptions {
+  userId: string;
+  title: string;
+  message: string;
+  type?: NotificationType;
+  sendEmailTo?: string;
+  emailSubject?: string;
+}
 
 export const notificationService = {
-  // Create notification in DB and optionally send email
-  sendNotification: async ({
+  async sendNotification({
     userId,
     title,
     message,
-    type = 'INFO',
+    type = NotificationType.INFO,
     sendEmailTo,
     emailSubject
-  }: {
-    userId: string;
-    title: string;
-    message: string;
-    type?: string;
-    sendEmailTo?: string;
-    emailSubject?: string;
-  }) => {
-    // Save notification
+  }: SendNotificationOptions): Promise<void> {
     await prisma.notifications.create({
-      data: {
-        user_id: userId,
-        title,
-        message,
-        type,
-      }
+      data: { user_id: userId, title, message, type }
     });
 
-    // Optionally send email
     if (sendEmailTo && emailSubject) {
       await sendEmail({
         to: sendEmailTo,
@@ -48,8 +43,8 @@ export const notificationService = {
       });
     }
   },
-  
-  notifyFleetManagerOnRequest: async (requestId: string) => {
+
+  async notifyFleetManagerOnRequest(requestId: string) {
     const request = await prisma.requests.findUnique({
       where: { id: requestId },
       include: {
@@ -57,9 +52,7 @@ export const notificationService = {
           include: {
             organizations: {
               include: {
-                users: {
-                  include: { roles: true }
-                }
+                users: { include: { roles: true } }
               }
             }
           }
@@ -68,7 +61,6 @@ export const notificationService = {
     });
 
     if (!request) throw new AppError('Request not found', 404);
-
     const requester = request.users_requests_requester_idTousers;
     const organization = requester.organizations;
 
@@ -78,21 +70,23 @@ export const notificationService = {
       user => user.roles?.name === 'fleetmanager'
     );
 
-    if (!fleetManagers.length) throw new AppError('No fleet managers found', 404);
+    if (fleetManagers.length === 0) {
+      throw new AppError('No fleet managers found', 404);
+    }
 
     await Promise.all(fleetManagers.map(manager =>
-      notificationService.sendNotification({
+      this.sendNotification({
         userId: manager.id,
         title: 'New Vehicle Request Submitted',
         message: `A new trip request was submitted by ${request.full_name}.`,
-        type: 'REQUEST',
+        type: NotificationType.REQUEST,
         sendEmailTo: manager.email,
         emailSubject: 'New Vehicle Request Submitted'
       })
     ));
   },
 
-  notifyRequesterOnReview: async (requestId: string) => {
+  async notifyRequesterOnReview(requestId: string) {
     const request = await prisma.requests.findUnique({
       where: { id: requestId },
       include: {
@@ -105,20 +99,23 @@ export const notificationService = {
     }
 
     const user = request.users_requests_requester_idTousers;
-    const statusMessage = request.status === 'APPROVED' ? 'approved' : 'rejected';
-    const message = `Your trip request has been ${statusMessage}.\n\nComments: ${request.comments || 'No comments.'}`;
+    const status = request.status;
+    const isApproved = status === 'APPROVED';
+    const statusMessage = isApproved ? 'approved' : 'rejected';
 
-    await notificationService.sendNotification({
+    const message = `Your trip request has been ${statusMessage}.<br/><br/>Comments: ${request.comments || 'No comments.'}`;
+
+    await this.sendNotification({
       userId: user.id,
       title: `Your Request Was ${statusMessage.toUpperCase()}`,
       message,
-      type: 'STATUS',
+      type: NotificationType.STATUS,
       sendEmailTo: user.email,
       emailSubject: `Trip Request ${statusMessage.toUpperCase()}`
     });
   },
 
-  notifyRequesterOnCancel: async (requestId: string) => {
+  async notifyRequesterOnCancel(requestId: string) {
     const request = await prisma.requests.findUnique({
       where: { id: requestId },
       include: {
@@ -132,11 +129,11 @@ export const notificationService = {
 
     const user = request.users_requests_requester_idTousers;
 
-    await notificationService.sendNotification({
+    await this.sendNotification({
       userId: user.id,
       title: 'Your Request Was Cancelled',
       message: `Hi ${user.first_name}, your request has been cancelled.`,
-      type: 'CANCEL',
+      type: NotificationType.CANCEL,
       sendEmailTo: user.email,
       emailSubject: 'Trip Request Cancelled'
     });

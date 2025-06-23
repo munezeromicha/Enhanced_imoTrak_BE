@@ -2,7 +2,6 @@ import { PrismaClient, requests, vehicles } from '@prisma/client';
 import { AppError } from '../../../utils/Error';
 import { notificationService } from '../../staffmember/services/notification.service';
 
-
 const prisma = new PrismaClient();
 
 
@@ -130,7 +129,8 @@ export const fleetRequest = {
         status: "AVAILABLE",
       },
     });
-    if (!vehicle) throw new AppError("Vehicle not found or not available in your organization", 404);
+
+    if (!vehicle) throw new AppError("Vehicle not available", 404);
 
     const updatedRequest = await prisma.requests.update({
       where: { id: requestId },
@@ -144,17 +144,14 @@ export const fleetRequest = {
 
     await prisma.vehicles.update({
       where: { id: vehicleId },
-      data: {
-        status: "OCCUPIED",
-      },
+      data: { status: "OCCUPIED" },
     });
 
-    // ✅ Use centralized notification
     await notificationService.notifyRequesterOnReview(requestId);
-
     return updatedRequest;
   },
-  // Reject Request
+
+  // ❌ Reject Request
   rejectRequest: async (requestId: string, managerId: string, comment: string): Promise<any> => {
     const manager = await prisma.users.findUnique({ where: { id: managerId } });
     if (!manager) throw new AppError("Fleet manager not found", 404);
@@ -183,9 +180,7 @@ export const fleetRequest = {
       },
     });
 
-    // ✅ Use centralized notification
     await notificationService.notifyRequesterOnReview(requestId);
-
     return updated;
   }
-}
+};
