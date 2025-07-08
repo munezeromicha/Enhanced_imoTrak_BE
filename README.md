@@ -81,13 +81,14 @@ Each service has its own CI/CD workflow in:
 services/<service>/.github/workflows/deploy.yml
 ```
 These are triggered on push and build Docker images for each service independently.
-
 ---
 
 ## 📚 License
-MIT License
+
+This software is licensed under the **TEKiNOVA Proprietary License**.  
+Unauthorized use, distribution, or modification is strictly prohibited.  
+See [LICENSE.md](./LICENSE.md) for full terms.
 
 ---
-
 ## 📄 Maintainer
 **Imotarak Team** — TEKiNOVA
