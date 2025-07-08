@@ -1,0 +1,25 @@
+name: Deploy organization-service
+
+on:
+  push:
+    paths:
+      - 'services/organization-service/**'
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Build Docker Image
+        run: |
+          docker build -t ghcr.io/<your-org>/organization-service:latest ./services/organization-service
+          echo $GITHUB_TOKEN | docker login ghcr.io -u <your-username> --password-stdin
+          docker push ghcr.io/<your-org>/organization-service:latest
