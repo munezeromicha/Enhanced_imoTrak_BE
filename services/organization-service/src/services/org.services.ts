@@ -19,3 +19,7 @@ export const createOrganization = async (data: CreateOrganizationInput) => {
     },
   });
 };
+
+export const getAllOrganizations = async () => {
+  return await prisma.tbl_organizations.findMany();
+};

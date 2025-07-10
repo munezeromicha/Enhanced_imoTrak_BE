@@ -1,6 +1,9 @@
 import { NextFunction, Request, Response } from 'express';
 import { uploadBufferToCloudinary } from '../utils/cloudinary';
-import { createOrganization } from '../services/org.services';
+import { 
+  createOrganization,
+  getAllOrganizations,
+} from '../services/org.services';
 import { v4 as uuidv4 } from 'uuid';
 
 export const handleCreateOrganization = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -31,6 +34,18 @@ export const handleCreateOrganization = async (req: Request, res: Response, next
     res.status(201).json({
       message: 'Organization created successfully',
       data: organization,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const handleGetAllOrganizations = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const organizations = await getAllOrganizations();
+    res.status(200).json({
+      message: 'Organizations fetched successfully',
+      data: organizations,
     });
   } catch (error) {
     next(error);
