@@ -1,5 +1,9 @@
 import { Request, Response, NextFunction } from 'express';
-import { createUnit, getAllUnits } from '../services/unit.services';
+import {
+  createUnit,
+  getAllUnits,
+  getUnitsByOrganization
+} from '../services/unit.services';
 
 export const handleCreateUnit = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
@@ -31,3 +35,18 @@ export const handleGetAllUnits = async (req: Request, res: Response, next: NextF
     next(error);
   }
 };
+
+export const handleGetUnitsByOrg = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const { organization_id } = req.params;
+
+    const units = await getUnitsByOrganization(organization_id);
+
+    res.status(200).json({
+      message: 'Units fetched successfully for organization',
+      data: units,
+    });
+  } catch (error) {
+    next(error);
+  }
+}

@@ -19,3 +19,12 @@ export const getAllUnits = async () => {
     },
   });
 };
+
+export const getUnitsByOrganization = async (organization_id: string) => {
+  return await prisma.tbl_unit.findMany({
+    where: { organization_id },
+    include: {
+      tbl_organizations: true, // Optional
+    },
+  });
+};
