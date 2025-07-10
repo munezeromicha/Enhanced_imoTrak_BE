@@ -23,13 +23,12 @@ enum OrgStatus {
 model tbl_organizations {
   organization_id       String     @id @default(uuid())
   organization_name     String
-  street_address        String?
-  organization_phone    String?    @unique
-  organization_email    String?    @unique
+  street_address        String
+  organization_phone    String    @unique
+  organization_email    String    @unique
   organization_logo     String?
   created_at            DateTime   @default(now())
-  created_by            String?
-  organization_customId String?    @unique
+  organization_customId String    @unique
   organization_status   OrgStatus  @default(ACTIVE)
   tbl_unit              tbl_unit[]
 }
