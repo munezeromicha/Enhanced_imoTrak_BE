@@ -6,7 +6,7 @@ import { errorHandler } from './src/middlewares/errorHandler';
 
 import { swaggerUi, swaggerSpec } from './src/utils/swagger';
 import helmet from 'helmet';
-import router from './src/routes/org.routes';
+import router from './src/routes/index.routes';
 
 // Load environment variables
 dotenv.config();

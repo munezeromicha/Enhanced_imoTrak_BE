@@ -6,9 +6,9 @@ import {
 import { upload } from '../middlewares/multer';
 import {
     validateCreateOrganization,
-} from '../middlewares/validateCreateOrg';
+} from '../middlewares/validationMiddlewares';
 
-const router = Router();
+const organisationRoutes = Router();
 /**
  * @swagger
  * components:
@@ -112,7 +112,7 @@ const router = Router();
  *         description: Failed to create organization
  */
 
-router.post('/', upload.single('organisation_logo'), validateCreateOrganization, handleCreateOrganization);
+organisationRoutes.post('/', upload.single('organisation_logo'), validateCreateOrganization, handleCreateOrganization);
 
 /**
  * @swagger
@@ -139,7 +139,7 @@ router.post('/', upload.single('organisation_logo'), validateCreateOrganization,
  *         description: Failed to fetch organizations
  */
 
-router.get('/', handleGetAllOrganizations);
+organisationRoutes.get('/', handleGetAllOrganizations);
 
 
-export default router;
+export default organisationRoutes;
