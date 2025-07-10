@@ -2,7 +2,7 @@ import { Router } from 'express';
 import {
     handleCreateOrganization,
     handleGetAllOrganizations,
-} from '../controllers/index.controllers';
+} from '../controllers/org.controllers';
 import { upload } from '../middlewares/multer';
 import {
     validateCreateOrganization,

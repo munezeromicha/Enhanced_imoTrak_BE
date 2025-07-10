@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { handleCreateUnit } from '../controllers/unit.controllers';
+import { handleCreateUnit, handleGetAllUnits } from '../controllers/unit.controllers';
 import { validateCreateUnit } from '../middlewares/validationMiddlewares';
 
 const unitRoutes = Router();
@@ -66,6 +66,49 @@ const unitRoutes = Router();
  *         description: Failed to create unit
  */
 
+/**
+ * @swagger
+ * /units:
+ *   get:
+ *     summary: Get all units
+ *     tags: [Units]
+ *     responses:
+ *       200:
+ *         description: A list of units
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Units fetched successfully
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       unit_id:
+ *                         type: string
+ *                         format: uuid
+ *                         example: 3e6dbb6c-92e9-472f-9a9c-b1fcaa5aabf2
+ *                       unit_name:
+ *                         type: string
+ *                         example: Finance
+ *                       created_at:
+ *                         type: string
+ *                         format: date-time
+ *                         example: 2025-07-10T20:31:18.391Z
+ *                       organization_id:
+ *                         type: string
+ *                         format: uuid
+ *                         example: 8395c735-5a48-47b0-8cee-2e4f00516e03
+ *       500:
+ *         description: Failed to fetch units
+ */
+
+unitRoutes.get('/', handleGetAllUnits);
 unitRoutes.post('/', validateCreateUnit, handleCreateUnit);
+
 
 export default unitRoutes;

@@ -11,3 +11,11 @@ export const createUnit = async (data: CreateUnitInput) => {
     data,
   });
 };
+
+export const getAllUnits = async () => {
+  return await prisma.tbl_unit.findMany({
+    include: {
+      tbl_organizations: true, // Optional: include related organization
+    },
+  });
+};
