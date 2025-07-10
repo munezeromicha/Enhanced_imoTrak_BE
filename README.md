@@ -16,7 +16,7 @@ A modular, microservice-based Node.js/TypeScript backend for managing fleets, ve
 │   ├── reservation-service/
 │   ├── notification-service/
 │   └── audit-logs-service/
-├── gateway/                # API Gateway (optional)
+├── gateway/                # API Gateway 
 ├── shared/                 # Shared types, utils, middleware
 ├── docker-compose.yml      # Local service orchestration
 ├── .env.example
@@ -50,7 +50,7 @@ Each service is fully isolated with:
 
 ```bash
 # Clone the repo
-$ git clone <your-repo-url>
+$ git clone https://github.com/binaryhubrw/imotrak-backside.git
 $ cd imotarak-backside
 
 # Copy env variables (adjust as needed)
@@ -71,7 +71,7 @@ npm run dev
 ---
 
 ## 🌐 API Gateway
-The optional gateway (in `gateway/`) can route external traffic to internal services securely. You can also use an API gateway like **Kong**, **Traefik**, or **NGINX**.
+The gateway (in `gateway/`) will route external traffic to internal services securely. We will also use an API gateway like **Kong**, **Traefik**, or **NGINX**.
 
 ---
 
