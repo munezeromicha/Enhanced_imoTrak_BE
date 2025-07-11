@@ -24,8 +24,8 @@ const swaggerOptions = {
       description: 'API for authentication (login/logout)'
     },
     servers: [
-      { url: 'http://localhost:3000' },
-      { url: 'https://auth-service-latest-35ie.onrender.com' }
+      { url: 'https://auth-service-latest-35ie.onrender.com', description: 'Render Deployment' },
+      { url: 'http://localhost:3000', description: 'Local Development' }
     ]
   },
   apis: ['./src/controllers/*.ts'],
