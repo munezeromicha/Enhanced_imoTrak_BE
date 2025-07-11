@@ -35,10 +35,25 @@ export const validateCreateUnit = (req: Request, res: Response, next: NextFuncti
   next();
 };
 
+const PositionAccessSchema = Joi.object({
+  organisation: Joi.object({
+    canViewOrgs: Joi.boolean().required(),
+    canEditOrgs: Joi.boolean().required(),
+    canDeleteOrgs: Joi.boolean().required(),
+    canCreateOrgs: Joi.boolean().required(),
+    
+    canCreateUnitOrgUnits: Joi.boolean().required(),
+    canViewAllUnits: Joi.boolean().required(),
+    canViewOrgUnits: Joi.boolean().required(),
+    canCreatePosition: Joi.boolean().required()
+  }).required()
+});
+
+// The main schema to create a position
 const createPositionSchema = Joi.object({
   position_name: Joi.string().optional(),
   position_description: Joi.string().optional(),
-  position_access: Joi.object().required(),
+  position_access: PositionAccessSchema.required(),  // Ensure position_access matches the PositionAccessSchema
   unit_id: Joi.string().uuid().required(),
 });
 

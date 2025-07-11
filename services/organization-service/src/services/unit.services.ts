@@ -15,7 +15,7 @@ export const createUnit = async (data: CreateUnitInput) => {
 export const getAllUnits = async () => {
   return await prisma.tbl_unit.findMany({
     include: {
-      tbl_organizations: true, // Optional: include related organization
+      organization: true, // Optional: include related organization
     },
   });
 };
@@ -24,7 +24,7 @@ export const getUnitsByOrganization = async (organization_id: string) => {
   return await prisma.tbl_unit.findMany({
     where: { organization_id },
     include: {
-      tbl_organizations: true, // Optional
+      organization: true, // Optional
     },
   });
 };
