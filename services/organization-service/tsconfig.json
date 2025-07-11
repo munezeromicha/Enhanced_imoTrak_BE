@@ -1,16 +1,19 @@
 {
   "compilerOptions": {
-    "target": "ES2020",           // or whatever version you need
-    "module": "commonjs",         // or whatever module system you're using
-    "strict": true,               // optional, enables strict type checking
-    "esModuleInterop": true,      // optional, allows for compatibility with ES modules
-    "skipLibCheck": true,         // optional, skips library checks for faster compilation
-    "outDir": "./dist",           // directs output to the dist folder
-    "rootDir": "./src",           // sets the root directory to src
-    "resolveJsonModule": true,    // optional, if you're using JSON files
-    "declaration": true,          // optional, generates .d.ts files
-    "sourceMap": true             // optional, generates source maps
+    "target": "ES2020",
+    "module": "commonjs",
+    "lib": ["ES2020"],
+    "outDir": "dist",
+    "rootDir": "src",
+    "strict": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
+    "moduleResolution": "node",
+    "resolveJsonModule": true,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true
   },
-  "include": ["src/**/*.ts"],       // include all TypeScript files in src
-  "exclude": ["node_modules"]       // exclude node_modules
+  "include": ["src"],
+  "exclude": ["node_modules", "dist"]
 }
