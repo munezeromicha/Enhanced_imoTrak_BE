@@ -1,16 +1,15 @@
 import express from 'express';
-import router from './routes/index';
+import routes from './routes';
 import * as dotenv from 'dotenv';
 
-dotenv.config(); // Load environment variables from .env file
+dotenv.config();
 
 const app = express();
-const port = process.env.PORT || 4000;
 
-// Use the routes defined above
-app.use(router);
+app.use(express.json());
+app.use('/', routes);
 
-// Start the server
-app.listen(port, () => {
-  console.log(`Gateway running at http://localhost:${port}`);
+const PORT = process.env.PORT || 8080;
+app.listen(PORT, () => {
+  console.log(`🚀 API Gateway running on port ${PORT}`);
 });
