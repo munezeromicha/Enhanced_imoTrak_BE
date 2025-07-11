@@ -17,7 +17,7 @@ COPY . .
 RUN npm run build
 
 # Run prisma generate to create the Prisma client
-RUN npx prisma generate
+RUN npx prisma generate && npm run seed
 
 # Expose the port your app will run on
 EXPOSE 4001

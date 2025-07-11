@@ -5,7 +5,6 @@ import swaggerJsdoc from 'swagger-jsdoc';
 import swaggerUi from 'swagger-ui-express';
 import cors from 'cors';
 import cron from 'node-cron';
-import fetch from 'node-fetch';
 
 // Load environment variables
 dotenv.config();
@@ -21,7 +20,7 @@ const swaggerOptions = {
     info: {
       title: 'Auth Service API',
       version: '1.0.0',
-      description: 'API for authentication (login/logout)'
+      description: 'API for authentication (login/logout)',
     },
     servers: [
       { url: 'https://auth-service-latest-35ie.onrender.com', description: 'Render Deployment' },
@@ -42,6 +41,8 @@ app.get('/', (_req, res) => res.send('Auth Service Running'));
 // Ping every 14 minutes (to be safe, before 15 min sleep)
 cron.schedule('*/14 * * * *', async () => {
   try {
+    // Dynamically import node-fetch and assert it as the correct type
+    const { default: fetch } = await import('node-fetch');  // Import the default fetch
     const res = await fetch('https://auth-service-latest-35ie.onrender.com/');
     if (res.ok) {
       console.log('Self-ping successful');
