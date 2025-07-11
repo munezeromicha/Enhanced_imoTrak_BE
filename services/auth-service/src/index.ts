@@ -3,11 +3,15 @@ import dotenv from 'dotenv';
 import { authRoutes } from './routes';
 import swaggerJsdoc from 'swagger-jsdoc';
 import swaggerUi from 'swagger-ui-express';
+import cors from 'cors';
+import cron from 'node-cron';
+import fetch from 'node-fetch';
 
 // Load environment variables
 dotenv.config();
 
 const app = express();
+app.use(cors()); // Allows all origins
 app.use(express.json());
 
 // Swagger setup
@@ -20,7 +24,8 @@ const swaggerOptions = {
       description: 'API for authentication (login/logout)'
     },
     servers: [
-      { url: 'http://localhost:3000' }
+      { url: 'http://localhost:3000' },
+      { url: 'https://auth-service-latest-35ie.onrender.com' }
     ]
   },
   apis: ['./src/controllers/*.ts'],
@@ -33,6 +38,20 @@ app.use('/auth', authRoutes);
 
 // Health check
 app.get('/', (_req, res) => res.send('Auth Service Running'));
+
+// Ping every 14 minutes (to be safe, before 15 min sleep)
+cron.schedule('*/14 * * * *', async () => {
+  try {
+    const res = await fetch('https://auth-service-latest-35ie.onrender.com/');
+    if (res.ok) {
+      console.log('Self-ping successful');
+    } else {
+      console.log('Self-ping failed with status:', res.status);
+    }
+  } catch (error) {
+    console.error('Self-ping error:', error);
+  }
+});
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {

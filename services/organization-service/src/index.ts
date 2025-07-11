@@ -2,11 +2,11 @@ import express, { Request, Response } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import morgan from 'morgan';
-import { errorHandler } from './src/middlewares/errorHandler';
+import { errorHandler } from './middlewares/errorHandler';
 
-import { swaggerUi, swaggerSpec } from './src/utils/swagger';
+import { swaggerUi, swaggerSpec } from './utils/swagger';
 import helmet from 'helmet';
-import router from './src/routes/index.routes';
+import router from './routes/index.routes';
 
 // Load environment variables
 dotenv.config();

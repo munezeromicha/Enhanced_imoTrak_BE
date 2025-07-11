@@ -1,20 +1,15 @@
-import { Router } from 'express';
-import {
-    handleCreateUnit,
-    handleGetAllUnits,
-    handleGetUnitsByOrg
-} from '../controllers/unit.controllers';
-import { validateCreateUnit } from '../middlewares/validationMiddlewares';
-
-const unitRoutes = Router();
-
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const unit_controllers_1 = require("../controllers/unit.controllers");
+const validationMiddlewares_1 = require("../middlewares/validationMiddlewares");
+const unitRoutes = (0, express_1.Router)();
 /**
  * @swagger
  * tags:
  *   name: Units
  *   description: Unit management APIs
  */
-
 /**
  * @swagger
  * /units:
@@ -69,7 +64,6 @@ const unitRoutes = Router();
  *       500:
  *         description: Failed to create unit
  */
-
 /**
  * @swagger
  * /units:
@@ -110,10 +104,8 @@ const unitRoutes = Router();
  *       500:
  *         description: Failed to fetch units
  */
-
-unitRoutes.get('/', handleGetAllUnits);
-unitRoutes.post('/', validateCreateUnit, handleCreateUnit);
-
+unitRoutes.get('/', unit_controllers_1.handleGetAllUnits);
+unitRoutes.post('/', validationMiddlewares_1.validateCreateUnit, unit_controllers_1.handleCreateUnit);
 /**
  * @swagger
  * /units/org/{organization_id}:
@@ -162,10 +154,5 @@ unitRoutes.post('/', validateCreateUnit, handleCreateUnit);
  *       500:
  *         description: Server error
  */
-
-
-unitRoutes.get('/org/:organization_id', handleGetUnitsByOrg);
-
-
-
-export default unitRoutes;
+unitRoutes.get('/org/:organization_id', unit_controllers_1.handleGetUnitsByOrg);
+exports.default = unitRoutes;

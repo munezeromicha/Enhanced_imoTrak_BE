@@ -35,3 +35,24 @@ export const validateCreateUnit = (req: Request, res: Response, next: NextFuncti
   next();
 };
 
+const createPositionSchema = Joi.object({
+  position_name: Joi.string().optional(),
+  position_description: Joi.string().optional(),
+  position_access: Joi.object().required(),
+  unit_id: Joi.string().uuid().required(),
+});
+
+export const validateCreatePosition = (req: Request, res: Response, next: NextFunction) => {
+  const { error } = createPositionSchema.validate(req.body, { abortEarly: false });
+
+  if (error) {
+    return res.status(400).json({
+      message: 'Validation error',
+      details: error.details.map((d) => d.message),
+    });
+  }
+
+  next();
+};
+
+
