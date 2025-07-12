@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "@prisma/client": "^6.11.1",
     "argon2": "^0.43.0",
     "cors": "^2.8.5",
     "dotenv": "^17.2.0",
