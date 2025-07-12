@@ -29,3 +29,5 @@ Thumbs.db
 # Optional: Ignore build artifacts
 *.tgz
 *.tar.gz
+
+/src/generated/prisma
