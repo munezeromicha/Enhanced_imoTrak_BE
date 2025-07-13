@@ -229,8 +229,6 @@ authROutes.post('/login', loginController);
  *           enum: [ACTIVE, INACTIVE, DELETED, SUSPENDED]
  *         organization_id:
  *           type: string
- *         organization:
- *           $ref: '#/components/schemas/Organization'
  */
 
 authROutes.post('/:position_id', loginWithPositionController);

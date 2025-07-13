@@ -106,12 +106,12 @@ export async function loginWithPosition(email: string, password: string, positio
   });
 
   const {unit, ...positionOut} = position
-
+  const {organization, ...unitOut} = unit
   return {
     token,
     organization: position.unit.organization,
     user: auth.user,
     position: positionOut,
-    unit: position.unit,
+    unit: unitOut,
   }
 }
