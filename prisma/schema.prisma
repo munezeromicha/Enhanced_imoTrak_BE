@@ -49,6 +49,18 @@ model tbl_audit_logs {
   user       tbl_users @relation(fields: [user_id], references: [user_id])
 }
 
+model tbl_audit_archives {
+  id         String   @id @default(uuid())
+  filename   String  
+  path       String  
+  from_date  DateTime
+  to_date    DateTime
+  size       Int?    
+  created_at DateTime @default(now())
+
+  @@index([from_date, to_date])
+}
+
 model tbl_notifications {
   notification_id      String    @id @default(uuid())
   user_id              String

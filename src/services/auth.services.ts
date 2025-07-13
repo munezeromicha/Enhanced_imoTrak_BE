@@ -1,12 +1,12 @@
-// auth.services.ts
 import { PrismaClient } from '@prisma/client';
 import * as argon2 from 'argon2';
 import { AppError } from '../utils/Error';
 import { signToken } from '../utils/jwt';
+import { logAudit } from '../utils/get-meta';
 
 const prisma = new PrismaClient();
 
-export async function loginUser(email: string, password: string) {
+export async function loginUser(email: string, password: string, auditMeta?: { ip: string; userAgent: string }) {
   // Find auth + user + positions + units + organizations
   const authWithUser = await prisma.tbl_auth.findUnique({
     where: { email },
@@ -41,6 +41,19 @@ export async function loginUser(email: string, password: string) {
     throw new AppError('User profile not found', 500);
   }
 
+  if (auditMeta) {
+  const { ip, userAgent } = auditMeta;
+  await logAudit({
+    userId: authWithUser.user.user_id,
+    action: "LOGIN",
+    tableName: "tbl_users",
+    recordId: authWithUser.user.user_id,
+    newValue: { email },
+    ip,
+    userAgent,
+  });
+}
+
   // Map positions info to response format
   const positionsData = authWithUser.user.positions.map((position) => ({
     position_id: position.position_id,
@@ -54,7 +67,7 @@ export async function loginUser(email: string, password: string) {
   return positionsData
 }
 
-export async function loginWithPosition(email: string, password: string, position_id: string) {
+export async function loginWithPosition(email: string, password: string, position_id: string, auditMeta?: { ip: string; userAgent: string }) {
   const auth = await prisma.tbl_auth.findUnique({
     where: { email },
     include: {
@@ -97,6 +110,19 @@ export async function loginWithPosition(email: string, password: string, positio
 
   if (position.position_status !== 'ACTIVE') {
     throw new AppError('Position is not active', 403);
+  }
+
+  if (auditMeta) {
+    const { ip, userAgent } = auditMeta;
+    await logAudit({
+      userId: auth.user.user_id,
+      action: "LOGIN_WITH_POSITION",
+      tableName: "tbl_users",
+      recordId: auth.user.user_id,
+      newValue: { position_id },
+      ip,
+      userAgent,
+    });
   }
 
   const token = signToken({

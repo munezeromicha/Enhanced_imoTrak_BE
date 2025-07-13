@@ -1,11 +1,9 @@
-// auth.controllers.ts
 import { Request, Response, NextFunction } from 'express';
-import {
-  loginUser,
-  loginWithPosition
-} from '../services/auth.services';
+import { loginUser,loginWithPosition } from '../services/auth.services';
 import { loginSchema } from '../schemas/auth.schema';
 import { AppError } from '../utils/Error';
+import { getRequestMeta } from '../utils/get-meta';
+
 
 export async function loginController(req: Request, res: Response, next: NextFunction) {
   try {
@@ -38,8 +36,8 @@ export async function loginWithPositionController(req: Request, res: Response, n
     }
 
     const { email, password } = parsed.data;
-
-    const result = await loginWithPosition(email, password, position_id);
+    const { ip, userAgent } = getRequestMeta(req);
+    const result = await loginWithPosition(email, password, position_id, { ip, userAgent });
 
     res.status(200).json({
       message: 'Sign in successful',
