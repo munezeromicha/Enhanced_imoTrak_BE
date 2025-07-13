@@ -29,6 +29,7 @@ app.get('/', (req: Request, res: Response) => {
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
   console.log(`Server is running at ${baseUrl}`);
+  console.log(`For documentation hit : ${baseUrl}/api-docs`)
 });
 
 const baseUrl = process.env.BASE_URL || `http://localhost:${PORT}`;
