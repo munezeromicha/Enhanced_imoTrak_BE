@@ -61,153 +61,166 @@ enum RequestStatus {
   EXPIRED
 }
 
-
 model tbl_auth {
-  auth_id    String   @id @default(uuid())
-  email      String?  @unique
-  password   String?
-  updated_at DateTime?
+  auth_id     String     @id @default(uuid())
+  email       String?    @unique
+  password    String?
+  updated_at  DateTime?
   user_status UserStatus @default(ACTIVE)
-  tbl_users  tbl_users[]
+
+  user tbl_users? @relation()
 }
 
 model tbl_users {
-  user_id        String    @id @default(uuid())
+  user_id        String   @id @default(uuid())
   first_name     String
   last_name      String
-  user_nid       String  @unique
+  user_nid       String   @unique
   user_phone     String   @unique
-  created_at     DateTime  @default(now())
+  created_at     DateTime @default(now())
   user_dob       DateTime
   user_photo     String?
   user_gender    Gender
   street_address String?
-  auth_id        String
-  tbl_auth       tbl_auth  @relation(fields: [auth_id], references: [auth_id])
-  tbl_reservations tbl_reservations[]
-  tbl_notifications tbl_notifications[]
-  tbl_audit_logs tbl_audit_logs[]
+  auth_id        String   @unique
+
+  auth          tbl_auth            @relation(fields: [auth_id], references: [auth_id])
+  reservations  tbl_reservations[]
+  notifications tbl_notifications[]
+  audit_logs    tbl_audit_logs[]
+  positions     tbl_position[]
 }
 
 model tbl_audit_logs {
-  id           String   @id @default(uuid())
-  user_id      String
-  action       String
-  table_name   String?
-  record_id    String?
-  old_value    Json?
-  new_value    Json?
-  timestamp    DateTime @default(now())
-  ip_address   String
-  user_agent   String
-  user         tbl_users @relation(fields: [user_id], references: [user_id])
+  id         String   @id @default(uuid())
+  user_id    String
+  action     String
+  table_name String?
+  record_id  String?
+  old_value  Json?
+  new_value  Json?
+  timestamp  DateTime @default(now())
+  ip_address String
+  user_agent String
+
+  user tbl_users @relation(fields: [user_id], references: [user_id])
 }
 
 model tbl_notifications {
-  notification_id String   @id @default(uuid())
-  user_id         String
-  notification_title String
+  notification_id      String    @id @default(uuid())
+  user_id              String
+  notification_title   String
   notification_message String
-  created_at      DateTime @default(now())
-  user            tbl_users @relation(fields: [user_id], references: [user_id])
+  created_at           DateTime  @default(now())
+  user                 tbl_users @relation(fields: [user_id], references: [user_id])
 }
 
 model tbl_organizations {
-  organization_id String   @id @default(uuid())
-  organization_name String @unique
-  street_address   String
-  organization_phone String @unique
-  organization_email String @unique
-  organization_logo String
-  created_at       DateTime @default(now())
-  organization_customId String @unique
-  organization_status OrgStatus @default(ACTIVE)
-  tbl_vehicles     tbl_vehicles[]
-  tbl_unit         tbl_unit[]
+  organization_id       String         @id @default(uuid())
+  organization_name     String         @unique
+  street_address        String
+  organization_phone    String         @unique
+  organization_email    String         @unique
+  organization_logo     String
+  created_at            DateTime       @default(now())
+  organization_customId String         @unique
+  organization_status   OrgStatus      @default(ACTIVE)
+  vehicles              tbl_vehicles[]
+  units                 tbl_unit[]
 }
 
 model tbl_reservations {
-  reservation_id     String       @id @default(uuid())
-  created_at         DateTime     @default(now())
-  reservation_purpose String
-  start_location     String
+  reservation_id          String                  @id @default(uuid())
+  created_at              DateTime                @default(now())
+  reservation_purpose     String
+  start_location          String
   reservation_destination String
-  departure_date     DateTime
+  departure_date          DateTime
   expected_returning_date DateTime
-  reservation_status RequestStatus @default(UNDER_REVIEW)
-  reviewed_at        DateTime?
-  rejection_comment  String?
-  user_id            String
-  user               tbl_users   @relation(fields: [user_id], references: [user_id])
-  tbl_reserved_vehicles tbl_reserved_vehicles[]
+  reservation_status      RequestStatus           @default(UNDER_REVIEW)
+  reviewed_at             DateTime?
+  rejection_comment       String?
+  user_id                 String
+  user                    tbl_users               @relation(fields: [user_id], references: [user_id])
+  reserved_vehicles       tbl_reserved_vehicles[]
 }
 
 model tbl_vehicle_models {
-  vehicle_model_id   String   @id @default(uuid())
-  vehicle_model_name String   @unique
+  vehicle_model_id   String         @id @default(uuid())
+  vehicle_model_name String         @unique
   vehicle_type       VehicleType
-  manufacturer_name  String   @unique
-  created_at         DateTime @default(now())
-  tbl_vehicles       tbl_vehicles[]
+  manufacturer_name  String         @unique
+  created_at         DateTime       @default(now())
+  ehicles            tbl_vehicles[]
 }
 
 model tbl_vehicles {
-  vehicle_id         String       @id @default(uuid())
-  plate_number       String      @unique
-  vehicle_type       VehicleType
-  transmission_mode  TransmissionMode
-  vehicle_model_id   String
-  vehicle_photo      String
-  vehicle_year       Int
-  vehicle_capacity   Int
-  vehicle_status     VehicleStatus @default(AVAILABLE)
-  energy_type        String
-  last_service_date  DateTime @default(now())
-  created_at         DateTime     @default(now())
-  organization_id    String
-  tbl_organizations  tbl_organizations @relation(fields: [organization_id], references: [organization_id])
-  vehicle_model      tbl_vehicle_models @relation(fields: [vehicle_model_id], references: [vehicle_model_id])
-  tbl_reserved_vehicles tbl_reserved_vehicles[]
+  vehicle_id        String           @id @default(uuid())
+  plate_number      String           @unique
+  vehicle_type      VehicleType
+  transmission_mode TransmissionMode
+  vehicle_model_id  String
+  vehicle_photo     String
+  vehicle_year      Int
+  vehicle_capacity  Int
+  vehicle_status    VehicleStatus    @default(AVAILABLE)
+  energy_type       String
+  last_service_date DateTime         @default(now())
+  created_at        DateTime         @default(now())
+  organization_id   String
+
+  organization  tbl_organizations       @relation(fields: [organization_id], references: [organization_id])
+  vehicle_model tbl_vehicle_models      @relation(fields: [vehicle_model_id], references: [vehicle_model_id])
+  reservations  tbl_reserved_vehicles[]
 }
 
 model tbl_reserved_vehicles {
-  reserved_vehicle_id String    @id @default(uuid())
+  reserved_vehicle_id String   @id @default(uuid())
   vehicle_id          String
   reservation_id      String
-  created_at          DateTime  @default(now())
+  created_at          DateTime @default(now())
   starting_odometer   Int
   returned_odometer   Int?
   fuel_provided       Int?
   returned_date       DateTime
-  vehicle             tbl_vehicles  @relation(fields: [vehicle_id], references: [vehicle_id])
-  reservation         tbl_reservations @relation(fields: [reservation_id], references: [reservation_id])
-  isuues  tbl_vehicle_issues[]
+
+  vehicle     tbl_vehicles         @relation(fields: [vehicle_id], references: [vehicle_id])
+  reservation tbl_reservations     @relation(fields: [reservation_id], references: [reservation_id])
+  isuues      tbl_vehicle_issues[]
 }
 
 model tbl_unit {
-  unit_id       String    @id @default(uuid())
-  unit_name     String
-  created_at    DateTime  @default(now())
+  unit_id         String            @id @default(uuid())
+  unit_name       String
+  created_at      DateTime          @default(now())
   organization_id String
-  organization tbl_organizations @relation(fields: [organization_id], references: [organization_id])
-  positions tbl_position[]
+  organization    tbl_organizations @relation(fields: [organization_id], references: [organization_id])
+  positions       tbl_position[]
+
+  @@unique([unit_name, organization_id])
 }
 
 model tbl_position {
-  position_id       String  @id @default(uuid())
-  position_name     String
+  position_id          String   @id @default(uuid())
+  position_name        String
   position_description String
-  position_access   Json
-  created_at        DateTime @default(now())
-  unit_id           String
-  tbl_unit          tbl_unit @relation(fields: [unit_id], references: [unit_id])
+  position_access      Json
+  created_at           DateTime @default(now())
+  user_id              String?
+  unit_id              String
+
+  unit tbl_unit  @relation(fields: [unit_id], references: [unit_id])
+  user tbl_users? @relation(fields: [user_id], references: [user_id])
+
+  @@unique([position_name, unit_id])
 }
 
 model tbl_vehicle_issues {
-  issue_id           String   @id @default(uuid())
-  issue_description  String
-  issue_date         DateTime @default(now())
-  created_at         DateTime @default(now())
+  issue_id            String   @id @default(uuid())
+  issue_description   String
+  issue_date          DateTime @default(now())
+  created_at          DateTime @default(now())
   reserved_vehicle_id String
-  reserved_vehicle   tbl_reserved_vehicles @relation(fields: [reserved_vehicle_id], references: [reserved_vehicle_id])
+
+  reserved_vehicle tbl_reserved_vehicles @relation(fields: [reserved_vehicle_id], references: [reserved_vehicle_id])
 }
