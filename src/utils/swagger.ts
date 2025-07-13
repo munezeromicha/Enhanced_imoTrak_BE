@@ -15,10 +15,10 @@ const options: swaggerJSDoc.Options = {
     },
     servers: [
       {
-        url: `http://localhost:${PORT}/api`,
+        url: `http://localhost:${PORT}`,
       },
       {
-        url: 'https://imotrak-backside-lah2.onrender.com/api',
+        url: 'https://imotrak-backside-lah2.onrender.com',
       },
     ],
     components: {
