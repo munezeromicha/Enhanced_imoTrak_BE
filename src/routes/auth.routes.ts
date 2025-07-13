@@ -105,6 +105,7 @@ authROutes.post('/login', loginController);
  *               properties:
  *                 message:
  *                   type: string
+ *                   example: Sign in successful
  *                 data:
  *                   type: object
  *                   properties:
@@ -123,7 +124,7 @@ authROutes.post('/login', loginController);
  *       401:
  *         description: Invalid credentials
  *       403:
- *         description: Position does not belong to user
+ *         description: Position does not belong to user or is inactive
  *
  * components:
  *   schemas:
@@ -179,10 +180,6 @@ authROutes.post('/login', loginController);
  *           type: string
  *         auth_id:
  *           type: string
- *         positions:
- *           type: array
- *           items:
- *             $ref: '#/components/schemas/Position'
  *
  *     Position:
  *       type: object
@@ -198,10 +195,17 @@ authROutes.post('/login', loginController);
  *           additionalProperties:
  *             type: object
  *             properties:
- *               view: { type: boolean }
- *               create: { type: boolean }
- *               update: { type: boolean }
- *               delete: { type: boolean }
+ *               view:
+ *                 type: boolean
+ *               create:
+ *                 type: boolean
+ *               update:
+ *                 type: boolean
+ *               delete:
+ *                 type: boolean
+ *         position_status:
+ *           type: string
+ *           enum: [ACTIVE, INACTIVE, DELETED, SUSPENDED]
  *         created_at:
  *           type: string
  *           format: date-time
@@ -209,8 +213,6 @@ authROutes.post('/login', loginController);
  *           type: string
  *         unit_id:
  *           type: string
- *         unit:
- *           $ref: '#/components/schemas/Unit'
  *
  *     Unit:
  *       type: object
@@ -222,6 +224,9 @@ authROutes.post('/login', loginController);
  *         created_at:
  *           type: string
  *           format: date-time
+ *         status:
+ *           type: string
+ *           enum: [ACTIVE, INACTIVE, DELETED, SUSPENDED]
  *         organization_id:
  *           type: string
  *         organization:

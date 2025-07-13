@@ -59,15 +59,16 @@ export async function loginWithPosition(email: string, password: string, positio
     where: { email },
     include: {
       user: {
-        include: {
-          positions: true,
-        },
       },
     },
   });
 
   if (!auth || !auth.password || !auth.user) {
     throw new AppError('Invalid credentials', 401);
+  }
+
+  if (auth.user_status !== 'ACTIVE') {
+    throw new AppError('User is not active', 403);
   }
 
   const isValid = await argon2.verify(auth.password, password);
@@ -86,8 +87,16 @@ export async function loginWithPosition(email: string, password: string, positio
     },
   });
 
-  if (!position || position.user_id !== auth.user.user_id) {
+  if (!position) {
+    throw new AppError('Position not found', 404);
+  }
+
+  if (position.user_id !== auth.user.user_id) {
     throw new AppError('Unauthorized: position does not belong to user', 403);
+  }
+
+  if (position.position_status !== 'ACTIVE') {
+    throw new AppError('Position is not active', 403);
   }
 
   const token = signToken({
@@ -96,11 +105,13 @@ export async function loginWithPosition(email: string, password: string, positio
     position_id,
   });
 
+  const {unit, ...positionOut} = position
+
   return {
-      token,
-      organization: position.unit.organization,
-      user: auth.user,
-      position,
-      unit: position.unit,
-    }
+    token,
+    organization: position.unit.organization,
+    user: auth.user,
+    position: positionOut,
+    unit: position.unit,
+  }
 }
