@@ -1,6 +1,6 @@
 // auth.routes.ts
 import { Router } from 'express';
-import { loginController } from '../controllers/auth.controllers';
+import { loginController, loginWithPositionController } from '../controllers/auth.controllers';
 
 const authROutes = Router();
 
@@ -62,5 +62,172 @@ const authROutes = Router();
  *         description: Invalid credentials
  */
 authROutes.post('/login', loginController);
+
+/**
+ * @swagger
+ * /v2/auth/{position_id}:
+ *   post:
+ *     summary: Login using position context
+ *     tags:
+ *       - Auth
+ *     parameters:
+ *       - name: position_id
+ *         in: path
+ *         required: true
+ *         description: ID of the position the user is logging in under
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *               - password
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 example: superadmin@tekinova.rw
+ *               password:
+ *                 type: string
+ *                 minLength: 6
+ *                 example: supersecurepassword
+ *     responses:
+ *       200:
+ *         description: Login successful with position context
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     token:
+ *                       type: string
+ *                     organization:
+ *                       $ref: '#/components/schemas/Organization'
+ *                     user:
+ *                       $ref: '#/components/schemas/User'
+ *                     position:
+ *                       $ref: '#/components/schemas/Position'
+ *                     unit:
+ *                       $ref: '#/components/schemas/Unit'
+ *       400:
+ *         description: Bad request
+ *       401:
+ *         description: Invalid credentials
+ *       403:
+ *         description: Position does not belong to user
+ *
+ * components:
+ *   schemas:
+ *     Organization:
+ *       type: object
+ *       properties:
+ *         organization_id:
+ *           type: string
+ *         organization_name:
+ *           type: string
+ *         street_address:
+ *           type: string
+ *         organization_phone:
+ *           type: string
+ *         organization_email:
+ *           type: string
+ *         organization_logo:
+ *           type: string
+ *         created_at:
+ *           type: string
+ *           format: date-time
+ *         organization_customId:
+ *           type: string
+ *         organization_status:
+ *           type: string
+ *           enum: [ACTIVE, INACTIVE, DELETED, SUSPENDED]
+ *
+ *     User:
+ *       type: object
+ *       properties:
+ *         user_id:
+ *           type: string
+ *         first_name:
+ *           type: string
+ *         last_name:
+ *           type: string
+ *         user_nid:
+ *           type: string
+ *         user_phone:
+ *           type: string
+ *         created_at:
+ *           type: string
+ *           format: date-time
+ *         user_dob:
+ *           type: string
+ *           format: date
+ *         user_photo:
+ *           type: string
+ *         user_gender:
+ *           type: string
+ *           enum: [MALE, FEMALE]
+ *         street_address:
+ *           type: string
+ *         auth_id:
+ *           type: string
+ *         positions:
+ *           type: array
+ *           items:
+ *             $ref: '#/components/schemas/Position'
+ *
+ *     Position:
+ *       type: object
+ *       properties:
+ *         position_id:
+ *           type: string
+ *         position_name:
+ *           type: string
+ *         position_description:
+ *           type: string
+ *         position_access:
+ *           type: object
+ *           additionalProperties:
+ *             type: object
+ *             properties:
+ *               view: { type: boolean }
+ *               create: { type: boolean }
+ *               update: { type: boolean }
+ *               delete: { type: boolean }
+ *         created_at:
+ *           type: string
+ *           format: date-time
+ *         user_id:
+ *           type: string
+ *         unit_id:
+ *           type: string
+ *         unit:
+ *           $ref: '#/components/schemas/Unit'
+ *
+ *     Unit:
+ *       type: object
+ *       properties:
+ *         unit_id:
+ *           type: string
+ *         unit_name:
+ *           type: string
+ *         created_at:
+ *           type: string
+ *           format: date-time
+ *         organization_id:
+ *           type: string
+ *         organization:
+ *           $ref: '#/components/schemas/Organization'
+ */
+
+authROutes.post('/:position_id', loginWithPositionController);
 
 export default authROutes;
