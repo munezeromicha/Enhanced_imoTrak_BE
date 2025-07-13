@@ -44,7 +44,7 @@ async function main() {
     users: { create: true, view: true, update: true, delete: true },
   };
 
-  // 4. Create the position
+  // 4. Create the position without user_id yet
   const position = await prisma.tbl_position.upsert({
     where: {
       position_name_unit_id: {
@@ -64,6 +64,7 @@ async function main() {
   // 5. Hash password using Argon2
   const password = await argon2.hash('supersecurepassword');
 
+  // 6. Create the auth record
   const auth = await prisma.tbl_auth.create({
     data: {
       email: 'superadmin@tekinova.rw',
@@ -71,8 +72,8 @@ async function main() {
     },
   });
 
-  // 6. Create the user
-  await prisma.tbl_users.create({
+  // 7. Create the user and link to auth
+  const user = await prisma.tbl_users.create({
     data: {
       first_name: 'Tekinova',
       last_name: 'Admin',
@@ -84,6 +85,12 @@ async function main() {
       street_address: 'Admin Street',
       auth_id: auth.auth_id,
     },
+  });
+
+  // 8. Update the position to assign the user_id
+  await prisma.tbl_position.update({
+    where: { position_id: position.position_id },
+    data: { user_id: user.user_id },
   });
 
   console.log('✅ Seeding completed successfully.');
