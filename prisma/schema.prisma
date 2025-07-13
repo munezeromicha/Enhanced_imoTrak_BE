@@ -61,6 +61,11 @@ enum RequestStatus {
   EXPIRED
 }
 
+enum PostitionStatus {
+  ACTIVE
+  INACTIVE
+}
+
 model tbl_auth {
   auth_id     String     @id @default(uuid())
   email       String?    @unique
@@ -193,6 +198,7 @@ model tbl_unit {
   unit_id         String            @id @default(uuid())
   unit_name       String
   created_at      DateTime          @default(now())
+  status        OrgStatus   @default(ACTIVE)
   organization_id String
   organization    tbl_organizations @relation(fields: [organization_id], references: [organization_id])
   positions       tbl_position[]
@@ -205,6 +211,7 @@ model tbl_position {
   position_name        String
   position_description String
   position_access      Json
+  position_status       OrgStatus @default(ACTIVE)
   created_at           DateTime @default(now())
   user_id              String?
   unit_id              String
