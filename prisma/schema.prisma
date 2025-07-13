@@ -191,6 +191,8 @@ model tbl_unit {
   organization_id String
   organization tbl_organizations @relation(fields: [organization_id], references: [organization_id])
   positions tbl_position[]
+
+  @@unique([unit_name, organization_id])
 }
 
 model tbl_position {
@@ -201,6 +203,8 @@ model tbl_position {
   created_at        DateTime @default(now())
   unit_id           String
   tbl_unit          tbl_unit @relation(fields: [unit_id], references: [unit_id])
+
+  @@unique([position_name, unit_id])
 }
 
 model tbl_vehicle_issues {
