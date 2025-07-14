@@ -37,19 +37,16 @@ async function main() {
   });
 
   // 2.5. Create vehicle models
-  const vehicleModel1 = await prisma.tbl_vehicle_models.upsert({
-    where: { vehicle_model_name: 'Toyota Hiace' },
-    update: {},
-    create: {
-      vehicle_model_name: 'Toyota Hiace',
-      vehicle_type: 'VAN',
-      manufacturer_name: 'Toyota',
+  const vehicleModel1 = await prisma.tbl_vehicle_models.create({
+  data: {
+    vehicle_model_name: 'Toyota Hiace',
+    vehicle_type: 'VAN',
+    manufacturer_name: 'Toyota',
     },
   });
-  const vehicleModel2 = await prisma.tbl_vehicle_models.upsert({
-    where: { vehicle_model_name: 'Land Cruiser' },
-    update: {},
-    create: {
+
+  const vehicleModel2 = await prisma.tbl_vehicle_models.create({
+    data: {
       vehicle_model_name: 'Land Cruiser',
       vehicle_type: 'SUV',
       manufacturer_name: 'Toyota',
