@@ -1,9 +1,10 @@
 // auth.services.ts
 import { PrismaClient } from '@prisma/client';
 import * as argon2 from 'argon2';
+import jwt from 'jsonwebtoken';
 import { AppError } from '../utils/Error';
 import { signToken, verifyToken } from '../utils/jwt';
-import jwt from 'jsonwebtoken';
+
 const prisma = new PrismaClient();
 
 export async function loginUser(email: string, password: string) {
@@ -116,7 +117,7 @@ export async function loginWithPosition(email: string, password: string, positio
   }
 }
 
-export async function logoutUser(token: string): Promise<void> {
+export async function logoutUser(token: string, meta?: { ip: string, userAgent: string }): Promise<void> {
   try {
     // Verify the token to get user information and expiration
     const decoded = verifyToken(token);
@@ -133,6 +134,18 @@ export async function logoutUser(token: string): Promise<void> {
         expires_at: expiresAt
       }
     });
+    if (meta) {
+      await prisma.tbl_audit_logs.create({
+        data: {
+          user_id: decoded.user_id,
+          action: "LOGOUT",
+          table_name: "tbl_users",
+          record_id: decoded.user_id,
+          ip_address: meta.ip,
+          user_agent: meta.userAgent
+        }
+      });
+    }
   } catch (error) {
     // Even if token verification fails, we still want to blacklist it
     // to prevent any potential replay attacks

@@ -1,12 +1,8 @@
-// auth.controllers.ts
 import { Request, Response, NextFunction } from 'express';
-import {
-  loginUser,
-  loginWithPosition,
-  logoutUser
-} from '../services/auth.services';
+import { loginUser, loginWithPosition, logoutUser } from '../services/auth.services';
 import { loginSchema } from '../schemas/auth.schema';
 import { AppError } from '../utils/Error';
+
 
 export async function loginController(req: Request, res: Response, next: NextFunction) {
   try {
@@ -55,14 +51,16 @@ export async function logoutController(req: Request, res: Response, next: NextFu
   try {
     console.log('Logout endpoint hit. Headers:', req.headers);
     const authHeader = req.headers.authorization;
-    const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
+    const token = authHeader && authHeader.split(' ')[1];
     console.log('Extracted token:', token);
 
     if (!token) {
       throw new AppError('Access token required', 401);
     }
+    const ip = req.ip || req.connection.remoteAddress || '';
+    const userAgent = req.headers['user-agent'] || 'Unknown';
 
-    await logoutUser(token);
+    await logoutUser(token, { ip, userAgent });
 
     res.status(200).json({
       message: 'Logout successful',

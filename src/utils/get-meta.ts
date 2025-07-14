@@ -38,8 +38,7 @@ export async function logAudit({
       },
     });
   } catch (err) {
-    console.error('⚠️ Audit log failed:', err);
-    // Optional: Send error to monitoring service like Sentry
+    console.error('Audit log failed:', err);
   }
 }
 
