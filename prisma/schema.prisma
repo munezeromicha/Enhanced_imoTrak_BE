@@ -33,6 +33,7 @@ model tbl_users {
   positions      tbl_position[]
   reservations   tbl_reservations[]
   auth           tbl_auth            @relation(fields: [auth_id], references: [auth_id])
+  blacklisted_tokens tbl_jwt_blacklist[]
 }
 
 model tbl_audit_logs {
@@ -235,4 +236,14 @@ enum RequestStatus {
 enum PostitionStatus {
   ACTIVE
   INACTIVE
+}
+
+model tbl_jwt_blacklist {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  user_id   String
+  expires_at DateTime
+  created_at DateTime @default(now())
+  user tbl_users @relation(fields: [user_id], references: [user_id])
+  @@index([expires_at])
 }

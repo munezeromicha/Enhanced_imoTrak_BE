@@ -2,7 +2,6 @@ import { PrismaClient } from '@prisma/client';
 import * as argon2 from 'argon2';
 import { AppError } from '../utils/Error';
 import { signToken } from '../utils/jwt';
-import { logAudit } from '../utils/get-meta';
 
 const prisma = new PrismaClient();
 
@@ -139,5 +138,62 @@ export async function loginWithPosition(email: string, password: string, positio
     user: auth.user,
     position: positionOut,
     unit: unitOut,
+  }
+}
+
+export async function logoutUser(token: string): Promise<void> {
+  try {
+    // Verify the token to get user information and expiration
+    const decoded = verifyToken(token);
+
+    // Get the actual expiration time from the JWT token
+    const tokenData = jwt.decode(token) as any;
+    const expiresAt = new Date(tokenData.exp * 1000); // Convert from seconds to milliseconds
+
+    // Add token to blacklist
+    await prisma.tbl_jwt_blacklist.create({
+      data: {
+        token,
+        user_id: decoded.user_id,
+        expires_at: expiresAt
+      }
+    });
+  } catch (error) {
+    // Even if token verification fails, we still want to blacklist it
+    // to prevent any potential replay attacks
+    // Use a reasonable expiration time for invalid tokens
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 7);
+
+    await prisma.tbl_jwt_blacklist.create({
+      data: {
+        token,
+        user_id: 'unknown', // We don't know the user_id if token is invalid
+        expires_at: expiresAt
+      }
+    });
+
+    throw new AppError('Invalid token', 401);
+  }
+}
+
+export async function logoutAllUserSessions(userId: string): Promise<void> {
+  // This function would be used to logout from all devices
+  // For now, we'll just clean up expired tokens
+  await cleanupExpiredTokens();
+}
+
+async function cleanupExpiredTokens(): Promise<void> {
+  try {
+    const now = new Date();
+    await prisma.tbl_jwt_blacklist.deleteMany({
+      where: {
+        expires_at: {
+          lt: now
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Error cleaning up expired tokens:', error);
   }
 }
