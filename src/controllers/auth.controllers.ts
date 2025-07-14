@@ -1,8 +1,8 @@
+// auth.controllers.ts
 import { Request, Response, NextFunction } from 'express';
 import { loginUser, loginWithPosition, logoutUser } from '../services/auth.services';
 import { loginSchema } from '../schemas/auth.schema';
 import { AppError } from '../utils/Error';
-import { getRequestMeta } from '../utils/get-meta';
 
 
 export async function loginController(req: Request, res: Response, next: NextFunction) {
@@ -13,9 +13,8 @@ export async function loginController(req: Request, res: Response, next: NextFun
     }
 
     const { email, password } = parseResult.data;
-    const { ip, userAgent } = getRequestMeta(req);
 
-    const result = await loginUser(email, password, { ip, userAgent });
+    const result = await loginUser(email, password);
 
     res.status(200).json({      
       message: 'Login successful',
@@ -37,8 +36,8 @@ export async function loginWithPositionController(req: Request, res: Response, n
     }
 
     const { email, password } = parsed.data;
-    const { ip, userAgent } = getRequestMeta(req);
-    const result = await loginWithPosition(email, password, position_id, { ip, userAgent });
+
+    const result = await loginWithPosition(email, password, position_id);
 
     res.status(200).json({
       message: 'Sign in successful',
