@@ -1,8 +1,9 @@
 // auth.routes.ts
 import { Router } from 'express';
-import { loginController, loginWithPositionController } from '../controllers/auth.controllers';
+import { loginController, loginWithPositionController, logoutController } from '../controllers/auth.controllers';
+import { authenticateToken } from '../middlewares/auth.middleware';
 
-const authROutes = Router();
+const authRoutes = Router();
 
 /**
  * @swagger
@@ -61,7 +62,7 @@ const authROutes = Router();
  *       401:
  *         description: Invalid credentials
  */
-authROutes.post('/login', loginController);
+authRoutes.post('/login', loginController);
 
 /**
  * @swagger
@@ -125,7 +126,44 @@ authROutes.post('/login', loginController);
  *         description: Invalid credentials
  *       403:
  *         description: Position does not belong to user or is inactive
- *
+ */
+
+/**
+ * @swagger
+ * /v2/auth/logout:
+ *   post:
+ *     summary: User logout
+ *     tags:
+ *       - Auth
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: header
+ *         name: Authorization
+ *         required: true
+ *         description: JWT access token
+ *         schema:
+ *           type: string
+ *           example: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+ *     responses:
+ *       200:
+ *         description: Logout successful
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Logout successful
+ *                 data:
+ *                   type: null
+ *       401:
+ *         description: Unauthorized - Invalid or missing token
+ */
+
+/**
+ * @swagger
  * components:
  *   schemas:
  *     Organization:
@@ -230,7 +268,10 @@ authROutes.post('/login', loginController);
  *         organization_id:
  *           type: string
  */
+authRoutes.post('/logout', authenticateToken, logoutController);
 
-authROutes.post('/:position_id', loginWithPositionController);
+authRoutes.post('/:position_id', loginWithPositionController);
 
-export default authROutes;
+
+
+export default authRoutes;

@@ -14,12 +14,8 @@ const options: swaggerJSDoc.Options = {
       description: 'API documentation for Imotrak Backend',
     },
     servers: [
-      {
-        url: `http://localhost:${PORT}`,
-      },
-      {
-        url: 'https://imotrak-backside-lah2.onrender.com',
-      },
+      { url: `http://localhost:${PORT}` },
+      { url: 'https://imotrak-backside-lah2.onrender.com' },
     ],
     components: {
       securitySchemes: {
@@ -29,7 +25,10 @@ const options: swaggerJSDoc.Options = {
           bearerFormat: 'JWT',
         },
       },
-    }
+    },
+    security: [
+      { bearerAuth: [] }
+    ],
   },
   apis: ['src/**/*.routes.ts'],
 };

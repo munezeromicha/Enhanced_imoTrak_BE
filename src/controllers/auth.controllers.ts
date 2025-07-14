@@ -2,7 +2,8 @@
 import { Request, Response, NextFunction } from 'express';
 import {
   loginUser,
-  loginWithPosition
+  loginWithPosition,
+  logoutUser
 } from '../services/auth.services';
 import { loginSchema } from '../schemas/auth.schema';
 import { AppError } from '../utils/Error';
@@ -44,6 +45,28 @@ export async function loginWithPositionController(req: Request, res: Response, n
     res.status(200).json({
       message: 'Sign in successful',
       data: result
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function logoutController(req: Request, res: Response, next: NextFunction) {
+  try {
+    console.log('Logout endpoint hit. Headers:', req.headers);
+    const authHeader = req.headers.authorization;
+    const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
+    console.log('Extracted token:', token);
+
+    if (!token) {
+      throw new AppError('Access token required', 401);
+    }
+
+    await logoutUser(token);
+
+    res.status(200).json({
+      message: 'Logout successful',
+      data: null
     });
   } catch (error) {
     next(error);
