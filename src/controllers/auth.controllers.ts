@@ -4,7 +4,6 @@ import { loginSchema } from '../schemas/auth.schema';
 import { AppError } from '../utils/Error';
 import { getRequestMeta } from '../utils/get-meta';
 
-
 export async function loginController(req: Request, res: Response, next: NextFunction) {
   try {
     const parseResult = loginSchema.safeParse(req.body);
@@ -13,8 +12,9 @@ export async function loginController(req: Request, res: Response, next: NextFun
     }
 
     const { email, password } = parseResult.data;
+    const { ip, userAgent } = getRequestMeta(req);
 
-    const result = await loginUser(email, password);
+    const result = await loginUser(email, password, { ip, userAgent });
 
     res.status(200).json({      
       message: 'Login successful',
