@@ -1,7 +1,10 @@
 import { PrismaClient } from '@prisma/client';
 import * as argon2 from 'argon2';
+import jwt from 'jsonwebtoken';
 import { AppError } from '../utils/Error';
-import { signToken } from '../utils/jwt';
+import { signToken, verifyToken } from '../utils/jwt';
+import { logAudit } from '../utils/get-meta';
+
 
 const prisma = new PrismaClient();
 
