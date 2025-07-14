@@ -7,6 +7,7 @@ import { Request, Response } from 'express';
 import { swaggerUi, swaggerSpec } from './src/utils/swagger';
 import { errorHandler } from './src/middlewares/errorHandler';
 import routes from './src/routes';
+import { startTokenCleanupScheduler } from './src/utils/tokenCleanup';
 
 dotenv.config();
 
@@ -36,6 +37,8 @@ const baseUrl = process.env.BASE_URL || `http://localhost:${PORT}`;
 app.listen(PORT, () => {
   console.log(`Server is running at ${baseUrl}`);
   console.log(`For documentation hit : ${baseUrl}/api-docs`);
+
+  startTokenCleanupScheduler();
 });
 
 
