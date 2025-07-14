@@ -1,8 +1,9 @@
-// controllers/organization.controller.ts
 import { Request, Response, NextFunction } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { AppError } from '../utils/Error';
 import { generateCustomId } from '../utils/idGenerator';
+import { uploadToCloudinary } from '../utils/cloudinary'; // Make sure this exists
+import { createOrganizationService } from '../services/organization.services';
 
 const prisma = new PrismaClient();
 
@@ -21,30 +22,33 @@ export const createOrganizationController = async (
   next: NextFunction
 ) => {
   try {
-    const { organization_name, organization_email, organization_phone, organization_logo, street_address } = req.body;
+    const { organization_name, organization_email, organization_phone, street_address } = req.body;
 
-    console.log(req.user);
-    // Access check
     if (!req.user?.position_access?.organizations?.create) {
       throw new AppError('You do not have permission to create organizations', 403);
     }
 
+    let logoUrl = '';
+
+    if (req.file) {
+      logoUrl = await uploadToCloudinary(req.file.buffer, 'Imotrak/organization_logo');
+    }
+    else {
+      throw new AppError('Organization logo is required', 400)
+    }
+
     const organization_customId = generateCustomId('ORG');
 
-    const organization = await prisma.tbl_organizations.create({
-      data: {
+    const organization = await createOrganizationService({
         organization_customId,
-        organization_status: 'ACTIVE',
         organization_name,
         organization_email,
         organization_phone,
-        organization_logo,
+        organization_logo: logoUrl,
         street_address
-      }
     });
 
     res.status(201).json({
-      success: true,
       message: 'Organization created successfully',
       data: organization
     });
