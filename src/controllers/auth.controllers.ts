@@ -1,8 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import {
-  loginUser,
-  loginWithPosition
-} from '../services/auth.services';
+import { loginUser, loginWithPosition } from '../services/auth.services';
 import { loginSchema } from '../schemas/auth.schema';
 import { AppError } from '../utils/Error';
 import { getRequestMeta } from '../utils/get-meta';
