@@ -36,6 +36,58 @@ async function main() {
     },
   });
 
+  // 2.5. Create vehicle models
+  const vehicleModel1 = await prisma.tbl_vehicle_models.upsert({
+    where: { vehicle_model_name: 'Toyota Hiace' },
+    update: {},
+    create: {
+      vehicle_model_name: 'Toyota Hiace',
+      vehicle_type: 'VAN',
+      manufacturer_name: 'Toyota',
+    },
+  });
+  const vehicleModel2 = await prisma.tbl_vehicle_models.upsert({
+    where: { vehicle_model_name: 'Land Cruiser' },
+    update: {},
+    create: {
+      vehicle_model_name: 'Land Cruiser',
+      vehicle_type: 'SUV',
+      manufacturer_name: 'Toyota',
+    },
+  });
+
+  // 2.6. Create vehicles
+  await prisma.tbl_vehicles.upsert({
+    where: { plate_number: 'RAC123A' },
+    update: {},
+    create: {
+      plate_number: 'RAC123A',
+      vehicle_type: 'VAN',
+      transmission_mode: 'MANUAL',
+      vehicle_model_id: vehicleModel1.vehicle_model_id,
+      vehicle_photo: 'hiace.png',
+      vehicle_year: 2018,
+      vehicle_capacity: 15,
+      energy_type: 'Diesel',
+      organization_id: organization.organization_id,
+    },
+  });
+  await prisma.tbl_vehicles.upsert({
+    where: { plate_number: 'RAD456B' },
+    update: {},
+    create: {
+      plate_number: 'RAD456B',
+      vehicle_type: 'SUV',
+      transmission_mode: 'AUTOMATIC',
+      vehicle_model_id: vehicleModel2.vehicle_model_id,
+      vehicle_photo: 'landcruiser.png',
+      vehicle_year: 2020,
+      vehicle_capacity: 7,
+      energy_type: 'Petrol',
+      organization_id: organization.organization_id,
+    },
+  });
+
   // 3. Define full access JSON
   const fullAccess = {
     organizations: { create: true, view: true, update: true, delete: true },

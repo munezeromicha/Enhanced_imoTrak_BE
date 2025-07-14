@@ -105,7 +105,7 @@ model tbl_vehicle_models {
   vehicle_model_id   String         @id @default(uuid())
   vehicle_model_name String         @unique
   vehicle_type       VehicleType
-  manufacturer_name  String         @unique
+  manufacturer_name  String
   created_at         DateTime       @default(now())
   ehicles            tbl_vehicles[]
 }
