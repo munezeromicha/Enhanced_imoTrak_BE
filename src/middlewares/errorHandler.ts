@@ -16,5 +16,6 @@ export const errorHandler = (
 
   res.status(statusCode).json({
     message,
+    dadta: null
   });
 };
