@@ -104,6 +104,7 @@ export async function loginWithPosition(email: string, password: string, positio
     user_id: auth.user.user_id,
     email: auth.email!,
     position_id,
+    organization_id: position.unit.organization.organization_id
   });
 
   const {unit, ...positionOut} = position
