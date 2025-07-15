@@ -5,6 +5,7 @@ import { generateCustomId } from '../utils/idGenerator';
 import { uploadToCloudinary } from '../utils/cloudinary';
 import {
   createOrganizationService,
+  createUnitService,
   getOrganizationsService
 } from '../services/organization.services';
 
@@ -85,6 +86,35 @@ export const getOrganizationsController = async (
       data: result
     });
   } catch (error) {
+    next(error);
+  }
+};
+
+export const createUnitController = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    if (!req.user?.position_access?.units?.create) {
+      throw new AppError('You do not have permission to create units', 403);
+    }
+
+    const { unit_name, organization_id } = req.body;
+
+    const newUnit = await createUnitService({ unit_name, organization_id });
+
+    res.status(201).json({
+      message: 'Unit created successfully',
+      data: newUnit,
+    });
+  } catch (error: any) {
+    if (error.code === 'P2003') {
+      return next(new AppError('Organization not found', 404));
+    }
+    if (error.code === 'P2002') {
+      return next(new AppError('Unit name already exists in this organization', 409));
+    }
     next(error);
   }
 };

@@ -1,9 +1,9 @@
 import { Router } from 'express';
-import { createOrganizationController, getOrganizationsController } from '../controllers/organization.controllers';
+import { createOrganizationController, createUnitController, getOrganizationsController } from '../controllers/organization.controllers';
 import { authenticateToken } from '../middlewares/auth.middleware';
 import { attachPositionAccess } from '../middlewares/attachPositionAccess';
 import { validateBody } from '../middlewares/bodyValidator';
-import { organizationSchema } from '../schemas/organization.schema';
+import { createUnitSchema, organizationSchema } from '../schemas/organization.schema';
 import { upload } from '../middlewares/multer';
 
 const organizationRoutes = Router();
@@ -150,6 +150,60 @@ organizationRoutes.get(
   authenticateToken,
   attachPositionAccess,
   getOrganizationsController
+);
+
+/**
+ * @swagger
+ * /v2/organizations/units:
+ *   post:
+ *     summary: Create a new unit inside an organization
+ *     tags:
+ *       - Organization
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - unit_name
+ *               - organization_id
+ *             properties:
+ *               unit_name:
+ *                 type: string
+ *               organization_id:
+ *                 type: string
+ *                 format: uuid
+ *     responses:
+ *       201:
+ *         description: Unit created successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   $ref: '#/components/schemas/Unit'
+ *       403:
+ *         description: Forbidden - No permission
+ *       404:
+ *         description: Organization not found
+ *       409:
+ *         description: Unit name already exists in this organization
+ *       400:
+ *         description: Validation error
+ */
+
+organizationRoutes.post(
+  '/units',
+  authenticateToken,
+  attachPositionAccess,
+  validateBody(createUnitSchema),
+  createUnitController
 );
 
 

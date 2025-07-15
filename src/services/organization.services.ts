@@ -16,6 +16,11 @@ interface GetOrganizationsOptions {
   status?: OrgStatus;
 }
 
+interface CreateUnitPayload {
+  unit_name: string;
+  organization_id: string;
+}
+
 export async function createOrganizationService(data: CreateOrgPayload) {
   const newOrg = await prisma.tbl_organizations.create({
     data: {
@@ -49,4 +54,11 @@ export async function getOrganizationsService({ page = 1, limit = 10, status }: 
       pages: Math.ceil(total / limit),
     }
   };
+}
+
+export async function createUnitService(data: CreateUnitPayload) {
+  const newUnit = await prisma.tbl_unit.create({
+    data,
+  });
+  return newUnit;
 }
