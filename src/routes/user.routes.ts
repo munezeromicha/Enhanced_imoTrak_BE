@@ -3,7 +3,7 @@ import { authenticateToken } from '../middlewares/auth.middleware';
 import { attachPositionAccess } from '../middlewares/attachPositionAccess';
 import { validateBody } from '../middlewares/bodyValidator';
 import { createUserSchema } from '../schemas/user.schema';
-import { createUserController } from '../controllers/user.controllers';
+import { createUserController, getUsersGroupedByUnitsController } from '../controllers/user.controllers';
 
 const usersRoutes = Router();
 
@@ -85,6 +85,61 @@ usersRoutes.post(
   attachPositionAccess,
   validateBody(createUserSchema),
   createUserController
+);
+
+/**
+ * @swagger
+ * /v2/users/:
+ *   get:
+ *     summary: Get users grouped by units in the same organization
+ *     tags:
+ *       - Users
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of users grouped by their units
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   unit_id:
+ *                     type: string
+ *                   unit_name:
+ *                     type: string
+ *                   users:
+ *                     type: array
+ *                     items:
+ *                       type: object
+ *                       properties:
+ *                         user_id:
+ *                           type: string
+ *                         first_name:
+ *                           type: string
+ *                         last_name:
+ *                           type: string
+ *                         email:
+ *                           type: string
+ *                         user_gender:
+ *                           type: string
+ *                         user_phone:
+ *                           type: string
+ *                         position_id:
+ *                           type: string
+ *                         position_name:
+ *                           type: string
+ *       403:
+ *         description: Forbidden - Access denied
+ */
+
+usersRoutes.get(
+  '/',
+  authenticateToken,
+  attachPositionAccess,
+  getUsersGroupedByUnitsController
 );
 
 export default usersRoutes;

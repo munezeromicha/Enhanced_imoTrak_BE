@@ -101,3 +101,53 @@ export async function createUserService(data: CreateUserPayload) {
 
   return result;
 }
+
+export const getUsersGroupedByUnitsService = async (organization_id: string) => {
+  const units = await prisma.tbl_unit.findMany({
+    where: { organization_id },
+    select: {
+      unit_id: true,
+      unit_name: true,
+      positions: {
+        where: {
+          user_id: {
+            not: null,
+          },
+        },
+        select: {
+          position_id: true,
+          position_name: true,
+          user: {
+            select: {
+              user_id: true,
+              first_name: true,
+              last_name: true,
+              user_gender: true,
+              user_phone: true,
+              auth: {
+                select: {
+                  email: true,
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  });
+
+  return units.map((unit) => ({
+    unit_id: unit.unit_id,
+    unit_name: unit.unit_name,
+    users: unit.positions.map((pos) => ({
+      user_id: pos.user?.user_id,
+      first_name: pos.user?.first_name,
+      last_name: pos.user?.last_name,
+      email: pos.user?.auth.email,
+      user_gender: pos.user?.user_gender,
+      user_phone: pos.user?.user_phone,
+      position_id: pos.position_id,
+      position_name: pos.position_name,
+    })),
+  }));
+};

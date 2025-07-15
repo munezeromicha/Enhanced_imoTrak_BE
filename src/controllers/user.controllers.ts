@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { createUserService } from '../services/use.services';
+import { createUserService, getUsersGroupedByUnitsService } from '../services/use.services';
 import { AppError } from '../utils/Error';
 
 interface AuthenticatedRequest extends Request {
@@ -63,6 +63,24 @@ export const createUserController = async (
     if (error.message === 'Position not found or inactive' || error.message === 'Position does not belong to your organization') {
       return next(new AppError(error.message, 400));
     }
+    next(error);
+  }
+};
+
+export const getUsersGroupedByUnitsController = async (
+  req: Request & { user?: any },
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    if (!req.user?.position_access.users.view) {
+      throw new AppError('You do not have permission to view users', 403);
+    }
+
+    const result = await getUsersGroupedByUnitsService(req.user.organization_id);
+
+    res.status(200).json({ data: result });
+  } catch (error) {
     next(error);
   }
 };
