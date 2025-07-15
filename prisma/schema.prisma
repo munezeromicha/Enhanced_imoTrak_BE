@@ -107,7 +107,7 @@ model tbl_vehicle_models {
   vehicle_type       VehicleType
   manufacturer_name  String
   created_at         DateTime       @default(now())
-  ehicles            tbl_vehicles[]
+  vehicles            tbl_vehicles[]
 }
 
 model tbl_vehicles {
