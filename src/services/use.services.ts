@@ -1,0 +1,103 @@
+import { PrismaClient } from '@prisma/client';
+import { sendUserCredentialsEmail } from '../utils/sendCredentials';
+import { generateRandomPassword } from '../utils/password';
+import argon2 from 'argon2';
+
+const prisma = new PrismaClient();
+
+interface CreateUserPayload {
+  first_name: string;
+  last_name: string;
+  user_nid: string;
+  user_phone: string;
+  user_gender: 'MALE' | 'FEMALE';
+  user_dob: Date;
+  street_address?: string;
+  position_id: string;
+  email: string;
+  requester_org_id: string;
+  hasOrgCreateAccess: boolean;
+}
+
+export async function createUserService(data: CreateUserPayload) {
+  const {
+    first_name,
+    last_name,
+    user_nid,
+    user_phone,
+    user_gender,
+    user_dob,
+    street_address,
+    position_id,
+    email,
+    requester_org_id,
+    hasOrgCreateAccess,
+  } = data;
+
+  // Step 1: Validate position
+  const position = await prisma.tbl_position.findUnique({
+    where: { position_id },
+    include: {
+      unit: {
+        include: {
+          organization: true,
+        },
+      },
+    },
+  });
+
+  if (!position || position.position_status !== 'ACTIVE') {
+    throw new Error('Position not found or inactive');
+  }
+
+  if (!hasOrgCreateAccess) {
+    if (position.unit.organization.organization_id !== requester_org_id) {
+      throw new Error('Position does not belong to your organization');
+    }
+  }
+
+  const password = generateRandomPassword(10);
+  const hashedPassword = await argon2.hash(password);
+
+  // Step 2: Run all write operations inside a transaction
+  const result = await prisma.$transaction(async (tx) => {
+    // Create auth record
+    const auth = await tx.tbl_auth.create({
+      data: {
+        email,
+        password: hashedPassword,
+        user_status: 'ACTIVE',
+      },
+    });
+
+    // Create user record
+    const user = await tx.tbl_users.create({
+      data: {
+        first_name,
+        last_name,
+        user_nid,
+        user_phone,
+        user_gender,
+        user_dob: new Date(user_dob),
+        street_address,
+        auth_id: auth.auth_id,
+      },
+    });
+
+    // Assign user to position
+    await tx.tbl_position.update({
+      where: { position_id },
+      data: { user_id: user.user_id },
+    });
+
+    return user;
+  });
+
+  try {
+    await sendUserCredentialsEmail(email, password);
+  } catch (error) {
+    console.error('Failed to send email:', error);
+  }
+
+  return result;
+}
