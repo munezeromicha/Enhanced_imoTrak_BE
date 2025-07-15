@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { createOrganizationController, createPositionController, createUnitController, getOrganizationsController } from '../controllers/organization.controllers';
+import { createOrganizationController, createPositionController, createUnitController, deletePositionController, getOrganizationsController } from '../controllers/organization.controllers';
 import { authenticateToken } from '../middlewares/auth.middleware';
 import { attachPositionAccess } from '../middlewares/attachPositionAccess';
 import { validateBody } from '../middlewares/bodyValidator';
@@ -307,6 +307,46 @@ organizationRoutes.post(
   attachPositionAccess,
   validateBody(createPositionSchema),
   createPositionController
+);
+
+/**
+ * @swagger
+ * /v2/organizations/positions/{positionId}:
+ *   delete:
+ *     summary: Soft delete a position
+ *     tags:
+ *       - Position
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: positionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID of the position to be deleted
+ *     responses:
+ *       200:
+ *         description: Position deleted successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Position deleted (soft) successfully
+ *       403:
+ *         description: Forbidden - Not allowed
+ *       404:
+ *         description: Position not found
+ */
+
+organizationRoutes.delete(
+  '/positions/:positionId',
+  authenticateToken,
+  attachPositionAccess,
+  deletePositionController
 );
 
 

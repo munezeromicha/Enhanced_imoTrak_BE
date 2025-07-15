@@ -1,4 +1,5 @@
 import { OrgStatus, PrismaClient } from '@prisma/client';
+import { AppError } from '../utils/Error';
 const prisma = new PrismaClient();
 
 interface CreateOrgPayload {
@@ -73,4 +74,52 @@ export async function createPositionService(data: {
     data,
   });
   return position;
+}
+
+export async function softDeletePositionService(positionId: string, userId: string, userAccess: any) {
+  if (!userAccess?.positions?.delete) {
+    throw new AppError('You do not have permission to delete positions', 403);
+  }
+
+  const position = await prisma.tbl_position.findUnique({
+    where: { position_id: positionId },
+    include: {
+      unit: true,
+    },
+  });
+
+  if (!position) {
+    throw new AppError('Position not found', 404);
+  }
+
+  // Get the requesting user's organization
+  const user = await prisma.tbl_users.findUnique({
+    where: { user_id: userId },
+    include: {
+      positions: {
+        include: {
+          unit: true,
+        },
+      },
+    },
+  });
+
+  const userOrgId = user?.positions?.[0]?.unit?.organization_id;
+
+  if (position.unit.organization_id !== userOrgId) {
+    throw new AppError('You are not allowed to delete positions from another organization', 403);
+  }
+
+  if (position.position_status === 'INACTIVE') {
+    throw new AppError('Position is already inactive', 400);
+  }
+
+  await prisma.tbl_position.update({
+    where: { position_id: positionId },
+    data: {
+      position_status: 'INACTIVE',
+    },
+  });
+
+  return { message: 'Position deleted (soft) successfully' };
 }

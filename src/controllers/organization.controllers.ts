@@ -7,7 +7,8 @@ import {
   createOrganizationService,
   createPositionService,
   createUnitService,
-  getOrganizationsService
+  getOrganizationsService,
+  softDeletePositionService
 } from '../services/organization.services';
 
 const prisma = new PrismaClient();
@@ -170,3 +171,23 @@ export const createPositionController = async (
     next(error);
   }
 };
+
+export const deletePositionController = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { positionId } = req.params;
+    const result = await softDeletePositionService(
+      positionId,
+      req.user!.user_id,
+      req.user!.position_access
+    );
+
+    res.status(200).json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+
