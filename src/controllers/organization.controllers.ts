@@ -8,6 +8,7 @@ import {
   createPositionService,
   createUnitService,
   getOrganizationsService,
+  getPositionsInUnitService,
   softDeletePositionService
 } from '../services/organization.services';
 
@@ -191,3 +192,31 @@ export const deletePositionController = async (
   }
 };
 
+export const getPositionsInUnitController = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    if (!req.user?.position_access.positions.view) {
+      throw new AppError('You do not have permission to view positions', 403);
+    }
+
+    const unit_id = req.params.unit_id;
+    const requesterOrgId = req.user.organization_id;
+    const hasOrgViewAccess = req.user.position_access.organizations.view;
+
+    const positions = await getPositionsInUnitService({
+      unit_id,
+      requesterOrgId,
+      hasOrgViewAccess,
+    });
+
+    res.status(200).json({
+      message: 'Positions retrieved successfully',
+      data: positions,
+    });
+  } catch (error) {
+    next(error);
+  }
+};

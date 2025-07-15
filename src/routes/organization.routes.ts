@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { createOrganizationController, createPositionController, createUnitController, deletePositionController, getOrganizationsController } from '../controllers/organization.controllers';
+import { createOrganizationController, createPositionController, createUnitController, deletePositionController, getOrganizationsController, getPositionsInUnitController } from '../controllers/organization.controllers';
 import { authenticateToken } from '../middlewares/auth.middleware';
 import { attachPositionAccess } from '../middlewares/attachPositionAccess';
 import { validateBody } from '../middlewares/bodyValidator';
@@ -204,6 +204,72 @@ organizationRoutes.post(
   attachPositionAccess,
   validateBody(createUnitSchema),
   createUnitController
+);
+
+/**
+ * @swagger
+ * /v2/organizations/units/{unit_id}/positions:
+ *   get:
+ *     summary: Get all positions in a unit along with assigned users
+ *     tags:
+ *       - unit
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: unit_id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: The ID of the unit to retrieve positions for
+ *     responses:
+ *       200:
+ *         description: A list of positions with assigned users
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Positions retrieved successfully
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       position_id:
+ *                         type: string
+ *                         format: uuid
+ *                       position_name:
+ *                         type: string
+ *                       position_status:
+ *                         type: string
+ *                       user:
+ *                         type: object
+ *                         nullable: true
+ *                         properties:
+ *                           user_id:
+ *                             type: string
+ *                             format: uuid
+ *                           first_name:
+ *                             type: string
+ *                           last_name:
+ *                             type: string
+ *       403:
+ *         description: Forbidden - User does not have permission
+ *       404:
+ *         description: Unit not found or does not belong to your organization
+ *       500:
+ *         description: Internal server error
+ */
+
+organizationRoutes.get(
+  '/units/:unit_id/positions',
+  authenticateToken,
+  attachPositionAccess,
+  getPositionsInUnitController
 );
 
 /**

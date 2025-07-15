@@ -22,6 +22,12 @@ interface CreateUnitPayload {
   organization_id: string;
 }
 
+interface GetPositionsInUnitPayload {
+  unit_id: string;
+  requesterOrgId: string;
+  hasOrgViewAccess: boolean;
+}
+
 export async function createOrganizationService(data: CreateOrgPayload) {
   const newOrg = await prisma.tbl_organizations.create({
     data: {
@@ -122,4 +128,39 @@ export async function softDeletePositionService(positionId: string, userId: stri
   });
 
   return { message: 'Position deleted (soft) successfully' };
+}
+
+export async function getPositionsInUnitService({
+  unit_id,
+  requesterOrgId,
+  hasOrgViewAccess,
+}: GetPositionsInUnitPayload) {
+  const unit = await prisma.tbl_unit.findUnique({
+    where: { unit_id: unit_id },
+    include: { organization: true },
+  });
+
+  if (!unit) {
+    throw new AppError('Unit not found', 404);
+  }
+
+  if (!hasOrgViewAccess && unit.organization_id !== requesterOrgId) {
+    throw new AppError('Access denied: Unit is outside your organization', 403);
+  }
+
+  const positions = await prisma.tbl_position.findMany({
+    where: { unit_id: unit_id },
+    include: {
+      user: {
+        select: {
+          user_id: true,
+          first_name: true,
+          last_name: true,
+          auth: { select: { email: true } },
+        },
+      },
+    },
+  });
+
+  return positions;
 }
