@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { AppError } from '../utils/Error';
 import { generateCustomId } from '../utils/idGenerator';
-import { uploadToCloudinary } from '../utils/cloudinary'; // Make sure this exists
+import { uploadToCloudinary } from '../utils/cloudinary';
 import { createOrganizationService } from '../services/organization.services';
 
 const prisma = new PrismaClient();
