@@ -19,6 +19,9 @@ RUN npx prisma generate
 # Build the TypeScript code into the dist folder
 RUN npm run build
 
+# Seeding the admin account
+RUN npm run seed
+
 # Expose the port the app will run on
 EXPOSE 4000
 

@@ -103,7 +103,7 @@ model tbl_reservations {
 
 model tbl_vehicle_models {
   vehicle_model_id   String         @id @default(uuid())
-  vehicle_model_name String         @unique
+  vehicle_model_name String         
   vehicle_type       VehicleType
   manufacturer_name  String
   created_at         DateTime       @default(now())
