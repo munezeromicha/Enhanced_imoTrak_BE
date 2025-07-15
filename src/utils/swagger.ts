@@ -25,6 +25,69 @@ const options: swaggerJSDoc.Options = {
           bearerFormat: 'JWT',
         },
       },
+      schemas: {
+        PositionAccess: {
+          type: 'object',
+          properties: {
+            organizations: {
+              type: 'object',
+              properties: {
+                create: { type: 'boolean' },
+                view: { type: 'boolean' },
+                update: { type: 'boolean' },
+                delete: { type: 'boolean' },
+              },
+            },
+            units: {
+              type: 'object',
+              properties: {
+                create: { type: 'boolean' },
+                view: { type: 'boolean' },
+                update: { type: 'boolean' },
+                delete: { type: 'boolean' },
+              },
+            },
+            positions: {
+              type: 'object',
+              properties: {
+                create: { type: 'boolean' },
+                view: { type: 'boolean' },
+                update: { type: 'boolean' },
+                delete: { type: 'boolean' },
+              },
+            },
+            users: {
+              type: 'object',
+              properties: {
+                create: { type: 'boolean' },
+                view: { type: 'boolean' },
+                update: { type: 'boolean' },
+                delete: { type: 'boolean' },
+              },
+            },
+            vehicleModels: {
+              type: 'object',
+              properties: {
+                create: { type: 'boolean' },
+                view: { type: 'boolean' },
+                viewSingle: { type: 'boolean' },
+                update: { type: 'boolean' },
+                delete: { type: 'boolean' },
+              },
+            },
+            vehicles: {
+              type: 'object',
+              properties: {
+                create: { type: 'boolean' },
+                view: { type: 'boolean' },
+                viewSingle: { type: 'boolean' },
+                update: { type: 'boolean' },
+                delete: { type: 'boolean' },
+              },
+            },
+          },
+        },
+      },
     },
   },
   apis: ['src/**/*.routes.ts'],

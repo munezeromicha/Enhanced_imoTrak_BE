@@ -1,5 +1,5 @@
 // prisma/seed.ts
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, TransmissionMode, VehicleType } from '@prisma/client';
 import * as argon2 from 'argon2';
 
 const prisma = new PrismaClient();
@@ -7,8 +7,27 @@ const prisma = new PrismaClient();
 async function main() {
   const now = new Date();
 
-  // 1. Create the organization
-  const organization = await prisma.tbl_organizations.upsert({
+  // ======= Helper Access Objects =======
+  const fullAdminAccess = {
+    organizations: { create: true, view: true, update: true, delete: true },
+    units: { create: true, view: true, update: true, delete: true },
+    positions: { create: true, view: true, update: true, delete: true },
+    users: { create: true, view: true, update: true, delete: true },
+    vehicleModels: { create: false, view: false, viewSingle: false, update: false, delete: false },
+    vehicles: { create: false, view: false, viewSingle: false, update: false, delete: false },
+  };
+
+  const fleetManagerAccess = {
+    organizations: { create: false, view: false, update: false, delete: false },
+    units: { create: false, view: false, update: false, delete: false },
+    positions: { create: false, view: false, update: false, delete: false },
+    users: { create: false, view: false, update: false, delete: false },
+    vehicleModels: { create: true, view: true, viewSingle: true, update: true, delete: true },
+    vehicles: { create: true, view: true, viewSingle: true, update: true, delete: true },
+  };
+
+  // ======= 1. SuperAdmin for Tekinova hub =======
+  const tekinovaOrg = await prisma.tbl_organizations.upsert({
     where: { organization_name: 'Tekinova hub' },
     update: {},
     create: {
@@ -21,111 +40,48 @@ async function main() {
     },
   });
 
-  // 2. Create the unit
-  const unit = await prisma.tbl_unit.upsert({
+  const adminUnit = await prisma.tbl_unit.upsert({
     where: {
       unit_name_organization_id: {
         unit_name: 'Administrative',
-        organization_id: organization.organization_id,
+        organization_id: tekinovaOrg.organization_id,
       },
     },
     update: {},
     create: {
       unit_name: 'Administrative',
-      organization_id: organization.organization_id,
+      organization_id: tekinovaOrg.organization_id,
     },
   });
 
-  // 2.5. Create vehicle models
-  const vehicleModel1 = await prisma.tbl_vehicle_models.upsert({
-    where: { vehicle_model_name: 'Toyota Hiace' },
-    update: {},
-    create: {
-      vehicle_model_name: 'Toyota Hiace',
-      vehicle_type: 'VAN',
-      manufacturer_name: 'Toyota',
-    },
-  });
-  const vehicleModel2 = await prisma.tbl_vehicle_models.upsert({
-    where: { vehicle_model_name: 'Land Cruiser' },
-    update: {},
-    create: {
-      vehicle_model_name: 'Land Cruiser',
-      vehicle_type: 'SUV',
-      manufacturer_name: 'Toyota',
-    },
-  });
-
-  // 2.6. Create vehicles
-  await prisma.tbl_vehicles.upsert({
-    where: { plate_number: 'RAC123A' },
-    update: {},
-    create: {
-      plate_number: 'RAC123A',
-      vehicle_type: 'VAN',
-      transmission_mode: 'MANUAL',
-      vehicle_model_id: vehicleModel1.vehicle_model_id,
-      vehicle_photo: 'hiace.png',
-      vehicle_year: 2018,
-      vehicle_capacity: 15,
-      energy_type: 'Diesel',
-      organization_id: organization.organization_id,
-    },
-  });
-  await prisma.tbl_vehicles.upsert({
-    where: { plate_number: 'RAD456B' },
-    update: {},
-    create: {
-      plate_number: 'RAD456B',
-      vehicle_type: 'SUV',
-      transmission_mode: 'AUTOMATIC',
-      vehicle_model_id: vehicleModel2.vehicle_model_id,
-      vehicle_photo: 'landcruiser.png',
-      vehicle_year: 2020,
-      vehicle_capacity: 7,
-      energy_type: 'Petrol',
-      organization_id: organization.organization_id,
-    },
-  });
-
-  // 3. Define full access JSON
-  const fullAccess = {
-    organizations: { create: true, view: true, update: true, delete: true },
-    units: { create: true, view: true, update: true, delete: true },
-    positions: { create: true, view: true, update: true, delete: true },
-    users: { create: true, view: true, update: true, delete: true },
-  };
-
-  // 4. Create the position without user_id yet
-  const position = await prisma.tbl_position.upsert({
+  const adminPosition = await prisma.tbl_position.upsert({
     where: {
       position_name_unit_id: {
         position_name: 'SuperAdmin',
-        unit_id: unit.unit_id,
+        unit_id: adminUnit.unit_id,
       },
     },
     update: {},
     create: {
       position_name: 'SuperAdmin',
       position_description: 'Has full access to all resources.',
-      position_access: fullAccess,
-      unit_id: unit.unit_id,
+      position_access: fullAdminAccess,
+      unit_id: adminUnit.unit_id,
     },
   });
 
-  // 5. Hash password using Argon2
-  const password = await argon2.hash('supersecurepassword');
-
-  // 6. Create the auth record
-  const auth = await prisma.tbl_auth.create({
-    data: {
+  const adminPassword = await argon2.hash('supersecurepassword');
+  const adminAuth = await prisma.tbl_auth.upsert({
+    where: { email: 'superadmin@tekinova.rw' },
+    update: { password: adminPassword },
+    create: {
       email: 'superadmin@tekinova.rw',
-      password,
+      password: adminPassword,
     },
   });
 
-  // 7. Create the user and link to auth
-  const user = await prisma.tbl_users.create({
+
+  const adminUser = await prisma.tbl_users.create({
     data: {
       first_name: 'Tekinova',
       last_name: 'Admin',
@@ -135,14 +91,135 @@ async function main() {
       user_gender: 'MALE',
       user_photo: 'https://avatars.githubusercontent.com/u/122959151?v=4',
       street_address: 'Admin Street',
-      auth_id: auth.auth_id,
+      auth_id: adminAuth.auth_id,
     },
   });
 
-  // 8. Update the position to assign the user_id
   await prisma.tbl_position.update({
-    where: { position_id: position.position_id },
-    data: { user_id: user.user_id },
+    where: { position_id: adminPosition.position_id },
+    data: { user_id: adminUser.user_id },
+  });
+
+  // ======= 2. Fleet Manager for Fleet Corp =======
+  const fleetOrg = await prisma.tbl_organizations.upsert({
+    where: { organization_name: 'Fleet Corp' },
+    update: {},
+    create: {
+      organization_name: 'Fleet Corp',
+      street_address: '456 Fleet Avenue',
+      organization_phone: '250788999000',
+      organization_email: 'info@fleetcorp.rw',
+      organization_logo: 'fleetcorp_logo.png',
+      organization_customId: 'FLEET-001',
+    },
+  });
+
+  const fleetUnit = await prisma.tbl_unit.upsert({
+    where: {
+      unit_name_organization_id: {
+        unit_name: 'Fleet management',
+        organization_id: fleetOrg.organization_id,
+      },
+    },
+    update: {},
+    create: {
+      unit_name: 'Fleet management',
+      organization_id: fleetOrg.organization_id,
+    },
+  });
+
+  const vehicleModel = await prisma.tbl_vehicle_models.create({
+    data: {
+      vehicle_model_name: 'Nissan Patrol',
+      vehicle_type: 'SUV',
+      manufacturer_name: 'Nissan',
+    },
+  });
+
+ const vehicles = [
+  {
+    plate_number: 'FLEET001',
+    vehicle_type: VehicleType.SUV,
+    transmission_mode: TransmissionMode.AUTOMATIC,
+    vehicle_photo: 'patrol1.png',
+    vehicle_year: 2019,
+    vehicle_capacity: 5,
+    energy_type: 'Petrol',
+  },
+  {
+    plate_number: 'FLEET002',
+    vehicle_type: VehicleType.SUV,
+    transmission_mode: TransmissionMode.MANUAL,
+    vehicle_photo: 'patrol2.png',
+    vehicle_year: 2020,
+    vehicle_capacity: 7,
+    energy_type: 'Diesel',
+  },
+  {
+    plate_number: 'FLEET003',
+    vehicle_type: VehicleType.SUV,
+    transmission_mode: TransmissionMode.AUTOMATIC,
+    vehicle_photo: 'patrol3.png',
+    vehicle_year: 2021,
+    vehicle_capacity: 5,
+    energy_type: 'Diesel',
+  },
+];
+
+
+
+  for (const v of vehicles) {
+    await prisma.tbl_vehicles.create({
+      data: {
+        ...v,
+        vehicle_model: { connect: { vehicle_model_id: vehicleModel.vehicle_model_id } },
+        organization: { connect: { organization_id: fleetOrg.organization_id } },
+      },
+    });
+
+  }
+
+  const fleetPosition = await prisma.tbl_position.upsert({
+    where: {
+      position_name_unit_id: {
+        position_name: 'Fleet Manager',
+        unit_id: fleetUnit.unit_id,
+      },
+    },
+    update: {},
+    create: {
+      position_name: 'Fleet Manager',
+      position_description: 'Manages fleet resources.',
+      position_access: fleetManagerAccess,
+      unit_id: fleetUnit.unit_id,
+    },
+  });
+
+  const fleetPassword = await argon2.hash('fleetsecurepassword');
+  const fleetAuth = await prisma.tbl_auth.create({
+    data: {
+      email: 'fleetmanager@fleetcorp.rw',
+      password: fleetPassword,
+    },
+  });
+
+  const fleetUser = await prisma.tbl_users.create({
+    data: {
+      first_name: 'Fleet',
+      last_name: 'Manager',
+      user_nid: '9876543210987654',
+      user_phone: '250788123789',
+      user_dob: new Date('1985-05-20'),
+      user_gender: 'FEMALE',
+      user_photo: 'https://avatars.githubusercontent.com/u/122959151?v=4',
+      street_address: 'Fleet Road',
+      auth_id: fleetAuth.auth_id,
+    },
+  });
+
+  await prisma.tbl_position.update({
+    where: { position_id: fleetPosition.position_id },
+    data: { user_id: fleetUser.user_id },
   });
 
   console.log('✅ Seeding completed successfully.');

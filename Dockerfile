@@ -1,5 +1,5 @@
 # Use an official Node.js runtime as a parent image
-FROM node:18-alpine
+FROM node:18
 
 # Set the working directory in the container
 WORKDIR /usr/app
@@ -24,3 +24,6 @@ EXPOSE 4000
 
 # Run the compiled JavaScript code from the dist folder
 CMD ["node", "dist/index.js"]
+
+# Seeding the admin account
+# RUN npm run seed
