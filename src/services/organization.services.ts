@@ -62,3 +62,15 @@ export async function createUnitService(data: CreateUnitPayload) {
   });
   return newUnit;
 }
+
+export async function createPositionService(data: {
+  position_name: string;
+  position_description: string;
+  unit_id: string;
+  position_access: any;
+}) {
+  const position = await prisma.tbl_position.create({
+    data,
+  });
+  return position;
+}

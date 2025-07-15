@@ -1,9 +1,9 @@
 import { Router } from 'express';
-import { createOrganizationController, createUnitController, getOrganizationsController } from '../controllers/organization.controllers';
+import { createOrganizationController, createPositionController, createUnitController, getOrganizationsController } from '../controllers/organization.controllers';
 import { authenticateToken } from '../middlewares/auth.middleware';
 import { attachPositionAccess } from '../middlewares/attachPositionAccess';
 import { validateBody } from '../middlewares/bodyValidator';
-import { createUnitSchema, organizationSchema } from '../schemas/organization.schema';
+import { createPositionSchema, createUnitSchema, organizationSchema } from '../schemas/organization.schema';
 import { upload } from '../middlewares/multer';
 
 const organizationRoutes = Router();
@@ -205,6 +205,110 @@ organizationRoutes.post(
   validateBody(createUnitSchema),
   createUnitController
 );
+
+/**
+ * @swagger
+ * /v2/organizations/positions:
+ *   post:
+ *     summary: Create a new position in a unit
+ *     tags:
+ *       - Position
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - position_name
+ *               - position_description
+ *               - unit_id
+ *               - position_access
+ *             properties:
+ *               position_name:
+ *                 type: string
+ *               position_description:
+ *                 type: string
+ *               unit_id:
+ *                 type: string
+ *                 format: uuid
+ *               position_access:
+ *                 type: object
+ *                 properties:
+ *                   organizations:
+ *                     type: object
+ *                     properties:
+ *                       create:
+ *                         type: boolean
+ *                       view:
+ *                         type: boolean
+ *                       update:
+ *                         type: boolean
+ *                       delete:
+ *                         type: boolean
+ *                   units:
+ *                     type: object
+ *                     properties:
+ *                       create:
+ *                         type: boolean
+ *                       view:
+ *                         type: boolean
+ *                       update:
+ *                         type: boolean
+ *                       delete:
+ *                         type: boolean
+ *                   positions:
+ *                     type: object
+ *                     properties:
+ *                       create:
+ *                         type: boolean
+ *                       view:
+ *                         type: boolean
+ *                       update:
+ *                         type: boolean
+ *                       delete:
+ *                         type: boolean
+ *                   users:
+ *                     type: object
+ *                     properties:
+ *                       create:
+ *                         type: boolean
+ *                       view:
+ *                         type: boolean
+ *                       update:
+ *                         type: boolean
+ *                       delete:
+ *                         type: boolean
+ *     responses:
+ *       201:
+ *         description: Position created successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   $ref: '#/components/schemas/Position'
+ *       403:
+ *         description: Forbidden - No permission or outside your organization
+ *       404:
+ *         description: Unit not found or inactive
+ *       409:
+ *         description: Position name already exists in this unit
+ */
+
+organizationRoutes.post(
+  '/positions',
+  authenticateToken,
+  attachPositionAccess,
+  validateBody(createPositionSchema),
+  createPositionController
+);
+
 
 
 export default organizationRoutes;

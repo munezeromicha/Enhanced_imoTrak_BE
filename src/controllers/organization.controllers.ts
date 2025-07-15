@@ -5,6 +5,7 @@ import { generateCustomId } from '../utils/idGenerator';
 import { uploadToCloudinary } from '../utils/cloudinary';
 import {
   createOrganizationService,
+  createPositionService,
   createUnitService,
   getOrganizationsService
 } from '../services/organization.services';
@@ -16,6 +17,7 @@ interface AuthenticatedRequest extends Request {
     user_id: string;
     email: string;
     position_id: string;
+    organization_id: string;
     position_access?: any;
   };
 }
@@ -114,6 +116,56 @@ export const createUnitController = async (
     }
     if (error.code === 'P2002') {
       return next(new AppError('Unit name already exists in this organization', 409));
+    }
+    next(error);
+  }
+};
+
+export const createPositionController = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    if (!req.user?.position_access?.positions?.create) {
+      throw new AppError('You do not have permission to create positions', 403);
+    }
+
+    const { position_name, position_description, unit_id, position_access } = req.body;
+
+    const unit = await prisma.tbl_unit.findUnique({
+      where: { unit_id },
+      select: { organization_id: true, status: true },
+    });
+
+    if (!unit || unit.status !== 'ACTIVE') {
+      throw new AppError('Unit not found or inactive', 404);
+    }
+
+    // Check org ownership if user lacks org creation access
+    if (!req.user.position_access.organizations.create) {
+      if (unit.organization_id !== req.user.organization_id) {
+        throw new AppError('You cannot create a position outside your organization', 403);
+      }
+    }
+
+    const position = await createPositionService({
+      position_name,
+      position_description,
+      unit_id,
+      position_access,
+    });
+
+    res.status(201).json({
+      message: 'Position created successfully',
+      data: position,
+    });
+  } catch (error: any) {
+    if (error.code === 'P2002') {
+      return next(new AppError('Position name already exists in this unit', 409));
+    }
+    if (error.code === 'P2003') {
+      return next(new AppError('Unit not found', 404));
     }
     next(error);
   }
