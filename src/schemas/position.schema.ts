@@ -25,7 +25,22 @@ export const positionAccessSchema = z.object({
     update: z.boolean(),
     delete: z.boolean(),
   }),
+  vehicleModels: z.object({
+    create: z.boolean(),
+    view: z.boolean(),
+    viewSingle: z.boolean(),
+    update: z.boolean(),
+    delete: z.boolean(),
+  }),
+  vehicles: z.object({
+    create: z.boolean(),
+    view: z.boolean(),
+    viewSingle: z.boolean(),
+    update: z.boolean(),
+    delete: z.boolean(),
+  }),
 });
+
 
 export const createPositionSchema = z.object({
   position_name: z.string().min(1),

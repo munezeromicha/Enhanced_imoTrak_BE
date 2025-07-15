@@ -23,4 +23,18 @@ export interface position_accesses {
     update: boolean;
     delete: boolean;
   };
+  vehicleModels: {
+    create: boolean;
+    view: boolean;
+    viewSingle: boolean;
+    update: boolean;
+    delete: boolean;
+  };
+  vehicles: {
+    create: boolean;
+    view: boolean;
+    viewSingle: boolean;
+    update: boolean;
+    delete: boolean;
+  }
 }
