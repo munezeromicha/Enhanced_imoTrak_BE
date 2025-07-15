@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { createUserService, getUsersGroupedByUnitsService } from '../services/use.services';
+import { createUserService, getUsersGroupedByUnitsService } from '../services/user.services';
 import { AppError } from '../utils/Error';
 
 interface AuthenticatedRequest extends Request {
