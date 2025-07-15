@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { createOrganizationController } from '../controllers/organization.controllers';
+import { createOrganizationController, getOrganizationsController } from '../controllers/organization.controllers';
 import { authenticateToken } from '../middlewares/auth.middleware';
 import { attachPositionAccess } from '../middlewares/attachPositionAccess';
 import { validateBody } from '../middlewares/bodyValidator';
@@ -70,6 +70,86 @@ organizationRoutes.post(
   upload.single('organization_logo'),
   validateBody(organizationSchema),
   createOrganizationController
+);
+
+/**
+ * @swagger
+ * /v2/organizations:
+ *   get:
+ *     summary: Get a paginated list of organizations
+ *     tags:
+ *       - Organization
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: Page number for pagination
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *         description: Number of organizations per page
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *           enum: [ACTIVE, INACTIVE, SUSPENDED, DELETED]
+ *         description: Filter organizations by status
+ *     responses:
+ *       200:
+ *         description: Organizations retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Organizations retrieved successfully
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     organizations:
+ *                       type: array
+ *                       items:
+ *                         $ref: '#/components/schemas/Organization'
+ *                     pagination:
+ *                       type: object
+ *                       properties:
+ *                         page:
+ *                           type: integer
+ *                           example: 1
+ *                         limit:
+ *                           type: integer
+ *                           example: 10
+ *                         total:
+ *                           type: integer
+ *                           example: 35
+ *                         pages:
+ *                           type: integer
+ *                           example: 4
+ *       403:
+ *         description: Forbidden - No permission
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: You do not have permission to view organizations
+ */
+
+organizationRoutes.get(
+  '/',
+  authenticateToken,
+  attachPositionAccess,
+  getOrganizationsController
 );
 
 

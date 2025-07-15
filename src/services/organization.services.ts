@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client';
+import { OrgStatus, PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 interface CreateOrgPayload {
@@ -10,6 +10,12 @@ interface CreateOrgPayload {
   street_address: string;
 }
 
+interface GetOrganizationsOptions {
+  page?: number;
+  limit?: number;
+  status?: OrgStatus;
+}
+
 export async function createOrganizationService(data: CreateOrgPayload) {
   const newOrg = await prisma.tbl_organizations.create({
     data: {
@@ -19,4 +25,28 @@ export async function createOrganizationService(data: CreateOrgPayload) {
   });
 
   return newOrg;
+}
+
+export async function getOrganizationsService({ page = 1, limit = 10, status }: GetOrganizationsOptions) {
+  const whereClause = status ? { organization_status: status } : {};
+
+  const [organizations, total] = await Promise.all([
+    prisma.tbl_organizations.findMany({
+      where: whereClause,
+      skip: (page - 1) * limit,
+      take: limit,
+      orderBy: { created_at: 'desc' }
+    }),
+    prisma.tbl_organizations.count({ where: whereClause })
+  ]);
+
+  return {
+    organizations,
+    pagination: {
+      page,
+      limit,
+      total,
+      pages: Math.ceil(total / limit),
+    }
+  };
 }

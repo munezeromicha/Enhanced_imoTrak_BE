@@ -3,7 +3,10 @@ import { PrismaClient } from '@prisma/client';
 import { AppError } from '../utils/Error';
 import { generateCustomId } from '../utils/idGenerator';
 import { uploadToCloudinary } from '../utils/cloudinary';
-import { createOrganizationService } from '../services/organization.services';
+import {
+  createOrganizationService,
+  getOrganizationsService
+} from '../services/organization.services';
 
 const prisma = new PrismaClient();
 
@@ -57,6 +60,31 @@ export const createOrganizationController = async (
       const field = error.meta?.target?.[0];
       throw new AppError(`Organization ${field} already exists`, 409);
     }
+    next(error);
+  }
+};
+
+export const getOrganizationsController = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    if (!req.user?.position_access?.organizations?.view) {
+      throw new AppError('You do not have permission to view organizations', 403);
+    }
+
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 10;
+    const status = req.query.status as any; // validated in schema or assumed valid enum
+
+    const result = await getOrganizationsService({ page, limit, status });
+
+    res.status(200).json({
+      message: 'Organizations retrieved successfully',
+      data: result
+    });
+  } catch (error) {
     next(error);
   }
 };
