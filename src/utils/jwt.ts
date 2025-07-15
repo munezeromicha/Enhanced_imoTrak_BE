@@ -7,7 +7,7 @@ interface JwtPayload {
   user_id: string;
   position_id: string;
   email: string;
-  organizatio_id: string
+  organization_id: string
 }
 
 export function signToken(payload: JwtPayload): string {

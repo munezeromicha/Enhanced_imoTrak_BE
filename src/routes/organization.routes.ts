@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { createOrganizationController, createPositionController, createUnitController, deletePositionController, getOrganizationsController, getPositionsInUnitController } from '../controllers/organization.controllers';
+import { createOrganizationController, createPositionController, createUnitController, deletePositionController, getOrganizationsController, getPositionsInUnitController, getUnitsController } from '../controllers/organization.controllers';
 import { authenticateToken } from '../middlewares/auth.middleware';
 import { attachPositionAccess } from '../middlewares/attachPositionAccess';
 import { validateBody } from '../middlewares/bodyValidator';
@@ -208,11 +208,68 @@ organizationRoutes.post(
 
 /**
  * @swagger
+ * /v2/organizations/units:
+ *   get:
+ *     summary: Get all units in the requester's organization
+ *     tags:
+ *       - Organization
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of units with their positions
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 units:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       unit_id:
+ *                         type: string
+ *                       unit_name:
+ *                         type: string
+ *                       unit_status:
+ *                         type: string
+ *                       organization_id:
+ *                         type: string
+ *                       positions:
+ *                         type: array
+ *                         items:
+ *                           type: object
+ *                           properties:
+ *                             position_id:
+ *                               type: string
+ *                             position_title:
+ *                               type: string
+ *                             position_status:
+ *                               type: string
+ *                             user_id:
+ *                               type: string
+ *                               nullable: true
+ *       403:
+ *         description: You do not have permission to view units
+ *       401:
+ *         description: Unauthorized
+ */
+
+organizationRoutes.get(
+  '/units',
+  authenticateToken,
+  attachPositionAccess,
+  getUnitsController
+);
+
+/**
+ * @swagger
  * /v2/organizations/units/{unit_id}/positions:
  *   get:
  *     summary: Get all positions in a unit along with assigned users
  *     tags:
- *       - unit
+ *       - Position
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -414,7 +471,5 @@ organizationRoutes.delete(
   attachPositionAccess,
   deletePositionController
 );
-
-
 
 export default organizationRoutes;
