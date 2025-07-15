@@ -358,52 +358,7 @@ organizationRoutes.get(
  *                 type: string
  *                 format: uuid
  *               position_access:
- *                 type: object
- *                 properties:
- *                   organizations:
- *                     type: object
- *                     properties:
- *                       create:
- *                         type: boolean
- *                       view:
- *                         type: boolean
- *                       update:
- *                         type: boolean
- *                       delete:
- *                         type: boolean
- *                   units:
- *                     type: object
- *                     properties:
- *                       create:
- *                         type: boolean
- *                       view:
- *                         type: boolean
- *                       update:
- *                         type: boolean
- *                       delete:
- *                         type: boolean
- *                   positions:
- *                     type: object
- *                     properties:
- *                       create:
- *                         type: boolean
- *                       view:
- *                         type: boolean
- *                       update:
- *                         type: boolean
- *                       delete:
- *                         type: boolean
- *                   users:
- *                     type: object
- *                     properties:
- *                       create:
- *                         type: boolean
- *                       view:
- *                         type: boolean
- *                       update:
- *                         type: boolean
- *                       delete:
- *                         type: boolean
+ *                 $ref: '#/components/schemas/PositionAccess'
  *     responses:
  *       201:
  *         description: Position created successfully
