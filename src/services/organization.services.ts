@@ -193,7 +193,6 @@ export const getSingleOrganizationService = async ({ organization_id, user }: Ge
   return organization;
 };
 
-
 export const updateOrganizationService = async ({
   organization_id,
   updates
@@ -221,4 +220,42 @@ export const updateOrganizationService = async ({
 
   return updatedOrg;
 };
+
+export const deleteOrganizationService = async ({
+  organization_id,
+}: {
+  organization_id: string;
+}) => {
+  const organization = await prisma.tbl_organizations.findUnique({
+    where: { organization_id }
+  });
+
+  if (!organization) {
+    throw new AppError('Organization not found', 404);
+  }
+
+  // Get all unit_ids for the organization
+  const units = await prisma.tbl_unit.findMany({
+    where: { organization_id },
+    select: { unit_id: true }
+  });
+  const unitIds = units.map((unit) => unit.unit_id);
+
+  // Perform soft delete in a transaction
+  await prisma.$transaction([
+    prisma.tbl_organizations.update({
+      where: { organization_id },
+      data: { organization_status: 'INACTIVE' }
+    }),
+    prisma.tbl_unit.updateMany({
+      where: { organization_id },
+      data: { status: 'INACTIVE' }
+    }),
+    prisma.tbl_position.updateMany({
+      where: { unit_id: { in: unitIds } },
+      data: { position_status: 'INACTIVE' }
+    })
+  ]);
+};
+
 

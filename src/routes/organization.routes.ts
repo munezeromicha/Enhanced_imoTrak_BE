@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { createOrganizationController, createPositionController, createUnitController, deletePositionController, getOrganizationsController, getPositionsInUnitController, getSingleOrganizationController, getUnitsController, updateOrganizationController } from '../controllers/organization.controllers';
+import { createOrganizationController, createPositionController, createUnitController, deleteOrganizationController, deletePositionController, getOrganizationsController, getPositionsInUnitController, getSingleOrganizationController, getUnitsController, updateOrganizationController } from '../controllers/organization.controllers';
 import { authenticateToken } from '../middlewares/auth.middleware';
 import { attachPositionAccess } from '../middlewares/attachPositionAccess';
 import { validateBody } from '../middlewares/bodyValidator';
@@ -536,6 +536,44 @@ organizationRoutes.patch(
   updateOrganizationController
 );
 
+/**
+ * @swagger
+ * /v2/organizations/{organization_id}:
+ *   delete:
+ *     summary: Soft delete an organization and cascade update related units and positions
+ *     tags:
+ *       - Organization
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: organization_id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: ID of the organization to delete
+ *     responses:
+ *       200:
+ *         description: Organization deleted successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *       403:
+ *         description: Forbidden - No permission
+ *       404:
+ *         description: Organization not found
+ */
+organizationRoutes.delete(
+  '/:organization_id',
+  authenticateToken,
+  attachPositionAccess,
+  deleteOrganizationController
+);
 
 
 export default organizationRoutes;
