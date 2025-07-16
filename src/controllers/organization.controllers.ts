@@ -250,7 +250,7 @@ export const getUnitsController = async (
 
     const units = await getUnitsService(organization_id);
 
-    res.status(200).json({ units });
+    res.status(200).json({ message: 'Getting units successful', data: units });
   } catch (error) {
     next(error);
   }
