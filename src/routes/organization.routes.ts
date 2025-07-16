@@ -158,7 +158,7 @@ organizationRoutes.get(
  *   post:
  *     summary: Create a new unit inside an organization
  *     tags:
- *       - Organization
+ *       - Units
  *     security:
  *       - bearerAuth: []
  *     requestBody:
@@ -212,7 +212,7 @@ organizationRoutes.post(
  *   get:
  *     summary: Get all units in the requester's organization
  *     tags:
- *       - Organization
+ *       - Units
  *     security:
  *       - bearerAuth: []
  *     responses:
@@ -581,7 +581,7 @@ organizationRoutes.delete(
  *   get:
  *     summary: Get a specific unit by ID
  *     tags:
- *       - Organization
+ *       - Units
  *     security:
  *       - bearerAuth: []
  *     parameters:
