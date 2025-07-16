@@ -14,8 +14,10 @@ import {
   getSingleUnitService,
   getUnitsService,
   softDeletePositionService,
-  updateOrganizationService
+  updateOrganizationService,
+  updateUnitService
 } from '../services/organization.services';
+import { updateUnitSchema } from '../schemas/organization.schema';
 
 const prisma = new PrismaClient();
 
@@ -354,6 +356,35 @@ export const getSingleUnitController = async (
     res.status(200).json({
       message: 'Unit retrieved successfully',
       data: unit
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const updateUnitController = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { unit_id } = req.params;
+
+    if (!req.user?.position_access?.units?.update) {
+      throw new AppError('You do not have permission to update units', 403);
+    }
+
+    const validatedData = updateUnitSchema.parse(req.body);
+
+    const updatedUnit = await updateUnitService({
+      unit_id,
+      user: req.user,
+      data: validatedData,
+    });
+
+    res.status(200).json({
+      message: 'Unit updated successfully',
+      data: updatedUnit,
     });
   } catch (error) {
     next(error);

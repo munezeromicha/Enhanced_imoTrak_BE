@@ -34,6 +34,11 @@ interface GetOrgParams {
   user: any;
 }
 
+interface GetUnitParams {
+  unit_id: string;
+  user: AuthenticatedUser;
+}
+
 export async function createOrganizationService(data: CreateOrgPayload) {
   const newOrg = await prisma.tbl_organizations.create({
     data: {
@@ -259,11 +264,6 @@ export const deleteOrganizationService = async ({
   ]);
 };
 
-interface GetUnitParams {
-  unit_id: string;
-  user: AuthenticatedUser;
-}
-
 export const getSingleUnitService = async ({ unit_id, user }: GetUnitParams) => {
   const unit = await prisma.tbl_unit.findUnique({
     where: { unit_id }
@@ -280,3 +280,37 @@ export const getSingleUnitService = async ({ unit_id, user }: GetUnitParams) => 
 
   return unit;
 };
+
+interface UpdateUnitParams {
+  unit_id: string;
+  user: AuthenticatedUser;
+  data: {
+    unit_name: string;
+  };
+}
+
+export const updateUnitService = async ({ unit_id, user, data }: UpdateUnitParams) => {
+  const unit = await prisma.tbl_unit.findUnique({
+    where: { unit_id },
+  });
+
+  if (!unit) {
+    throw new AppError('Unit not found', 404);
+  }
+
+  const userOrgId = user.organization_id;
+
+  if (!userOrgId || unit.organization_id !== userOrgId) {
+    throw new AppError('You can only update units within your organization', 403);
+  }
+
+  const updatedUnit = await prisma.tbl_unit.update({
+    where: { unit_id },
+    data: {
+      unit_name: data.unit_name,
+    },
+  });
+
+  return updatedUnit;
+};
+

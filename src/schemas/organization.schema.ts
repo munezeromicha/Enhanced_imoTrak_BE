@@ -61,3 +61,8 @@ export const updateOrganizationSchema = z.object({
     .optional(),
   street_address: z.string().optional()
 });
+
+export const updateUnitSchema = z.object({
+  unit_name: z.string().min(1, 'Unit name is required'),
+});
+

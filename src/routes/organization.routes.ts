@@ -1,9 +1,9 @@
 import { Router } from 'express';
-import { createOrganizationController, createPositionController, createUnitController, deleteOrganizationController, deletePositionController, getOrganizationsController, getPositionsInUnitController, getSingleOrganizationController, getSingleUnitController, getUnitsController, updateOrganizationController } from '../controllers/organization.controllers';
+import { createOrganizationController, createPositionController, createUnitController, deleteOrganizationController, deletePositionController, getOrganizationsController, getPositionsInUnitController, getSingleOrganizationController, getSingleUnitController, getUnitsController, updateOrganizationController, updateUnitController } from '../controllers/organization.controllers';
 import { authenticateToken } from '../middlewares/auth.middleware';
 import { attachPositionAccess } from '../middlewares/attachPositionAccess';
 import { validateBody } from '../middlewares/bodyValidator';
-import { createPositionSchema, createUnitSchema, organizationSchema, updateOrganizationSchema } from '../schemas/organization.schema';
+import { createPositionSchema, createUnitSchema, organizationSchema, updateOrganizationSchema, updateUnitSchema } from '../schemas/organization.schema';
 import { upload } from '../middlewares/multer';
 
 const organizationRoutes = Router();
@@ -615,6 +615,65 @@ organizationRoutes.get(
   authenticateToken,
   attachPositionAccess,
   getSingleUnitController
+);
+
+/**
+ * @swagger
+ * /v2/organizations/units/{unit_id}:
+ *   put:
+ *     summary: Update a unit's name (within user's organization only)
+ *     tags:
+ *       - Units
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: unit_id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: ID of the unit to update
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               unit_name:
+ *                 type: string
+ *                 description: New name for the unit
+ *             required:
+ *               - unit_name
+ *     responses:
+ *       200:
+ *         description: Unit updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   $ref: '#/components/schemas/Unit'
+ *       400:
+ *         description: Validation error or bad request
+ *       403:
+ *         description: Forbidden - user not allowed to update this unit
+ *       404:
+ *         description: Unit not found
+ *       401:
+ *         description: Unauthorized - invalid or missing token
+ */
+
+organizationRoutes.put(
+  '/units/:unit_id',
+  authenticateToken,
+  attachPositionAccess,
+  validateBody(updateUnitSchema),
+  updateUnitController
 );
 
 export default organizationRoutes;
