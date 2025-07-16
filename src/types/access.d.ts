@@ -38,3 +38,11 @@ export interface position_accesses {
     delete: boolean;
   }
 }
+
+export interface AuthenticatedUser {
+  user_id: string;
+  email: string;
+  organization_id: string;
+  position_id: string;
+  position_access?: PositionAccess;
+}

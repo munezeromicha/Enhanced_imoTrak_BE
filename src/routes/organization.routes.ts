@@ -1,9 +1,9 @@
 import { Router } from 'express';
-import { createOrganizationController, createPositionController, createUnitController, deletePositionController, getOrganizationsController, getPositionsInUnitController, getUnitsController } from '../controllers/organization.controllers';
+import { createOrganizationController, createPositionController, createUnitController, deleteOrganizationController, deletePositionController, deleteUnitController, getOrganizationsController, getPositionsInUnitController, getSingleOrganizationController, getSinglePositionController, getSingleUnitController, getUnitsController, updateOrganizationController, updatePositionController, updateUnitController } from '../controllers/organization.controllers';
 import { authenticateToken } from '../middlewares/auth.middleware';
 import { attachPositionAccess } from '../middlewares/attachPositionAccess';
 import { validateBody } from '../middlewares/bodyValidator';
-import { createPositionSchema, createUnitSchema, organizationSchema } from '../schemas/organization.schema';
+import { createPositionSchema, createUnitSchema, organizationSchema, updateOrganizationSchema, updateUnitSchema } from '../schemas/organization.schema';
 import { upload } from '../middlewares/multer';
 
 const organizationRoutes = Router();
@@ -158,7 +158,7 @@ organizationRoutes.get(
  *   post:
  *     summary: Create a new unit inside an organization
  *     tags:
- *       - Organization
+ *       - Units
  *     security:
  *       - bearerAuth: []
  *     requestBody:
@@ -212,7 +212,7 @@ organizationRoutes.post(
  *   get:
  *     summary: Get all units in the requester's organization
  *     tags:
- *       - Organization
+ *       - Units
  *     security:
  *       - bearerAuth: []
  *     responses:
@@ -426,5 +426,386 @@ organizationRoutes.delete(
   attachPositionAccess,
   deletePositionController
 );
+
+/**
+ * @swagger
+ * /v2/organizations/{organization_id}:
+ *   get:
+ *     summary: Get a specific organization by ID
+ *     tags:
+ *       - Organization
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: organization_id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: ID of the organization
+ *     responses:
+ *       200:
+ *         description: Organization retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   $ref: '#/components/schemas/Organization'
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden
+ *       404:
+ *         description: Organization not found
+ */
+
+organizationRoutes.get(
+  '/:organization_id',
+  authenticateToken,
+  attachPositionAccess,
+  getSingleOrganizationController
+);
+
+/**
+ * @swagger
+ * /v2/organizations/{organization_id}:
+ *   patch:
+ *     summary: Update an existing organization's details (excluding status)
+ *     tags:
+ *       - Organization
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: organization_id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: ID of the organization to update
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               organization_name:
+ *                 type: string
+ *               organization_email:
+ *                 type: string
+ *                 format: email
+ *               organization_phone:
+ *                 type: string
+ *               organization_logo:
+ *                 type: string
+ *                 format: binary
+ *               street_address:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Organization updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   $ref: '#/components/schemas/Organization'
+ *       400:
+ *         description: Validation error
+ *       403:
+ *         description: Forbidden - You do not have permission
+ *       404:
+ *         description: Organization not found
+ */
+
+organizationRoutes.patch(
+  '/:organization_id',
+  authenticateToken,
+  attachPositionAccess,
+  upload.single('organization_logo'),
+  validateBody(updateOrganizationSchema),
+  updateOrganizationController
+);
+
+/**
+ * @swagger
+ * /v2/organizations/{organization_id}:
+ *   delete:
+ *     summary: Soft delete an organization and cascade update related units and positions
+ *     tags:
+ *       - Organization
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: organization_id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: ID of the organization to delete
+ *     responses:
+ *       200:
+ *         description: Organization deleted successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *       403:
+ *         description: Forbidden - No permission
+ *       404:
+ *         description: Organization not found
+ */
+
+organizationRoutes.delete(
+  '/:organization_id',
+  authenticateToken,
+  attachPositionAccess,
+  deleteOrganizationController
+);
+
+/**
+ * @swagger
+ * /v2/organizations/units/{unit_id}:
+ *   get:
+ *     summary: Get a specific unit by ID
+ *     tags:
+ *       - Units
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: unit_id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: ID of the unit to retrieve
+ *     responses:
+ *       200:
+ *         description: Unit retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   $ref: '#/components/schemas/Unit'
+ *       403:
+ *         description: Forbidden - No access to this unit
+ *       404:
+ *         description: Unit not found
+ */
+
+organizationRoutes.get(
+  '/units/:unit_id',
+  authenticateToken,
+  attachPositionAccess,
+  getSingleUnitController
+);
+
+/**
+ * @swagger
+ * /v2/organizations/units/{unit_id}:
+ *   patch:
+ *     summary: Update a unit's name (within user's organization only)
+ *     tags:
+ *       - Units
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: unit_id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: ID of the unit to update
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               unit_name:
+ *                 type: string
+ *                 description: New name for the unit
+ *             required:
+ *               - unit_name
+ *     responses:
+ *       200:
+ *         description: Unit updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   $ref: '#/components/schemas/Unit'
+ *       400:
+ *         description: Validation error or bad request
+ *       403:
+ *         description: Forbidden - user not allowed to update this unit
+ *       404:
+ *         description: Unit not found
+ *       401:
+ *         description: Unauthorized - invalid or missing token
+ */
+
+organizationRoutes.patch(
+  '/units/:unit_id',
+  authenticateToken,
+  attachPositionAccess,
+  validateBody(updateUnitSchema),
+  updateUnitController
+);
+
+/**
+ * @swagger
+ * /v2/organizations/units/{unit_id}:
+ *   delete:
+ *     summary: Soft delete a unit by ID
+ *     tags:
+ *       - Units
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: unit_id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID of the unit to delete
+ *     responses:
+ *       200:
+ *         description: Unit deleted successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Unit deleted successfully
+ *       401:
+ *         description: Unauthorized - Invalid or missing authentication token
+ *       403:
+ *         description: Forbidden - User does not have permission to delete units or does not belong to the organization
+ *       404:
+ *         description: Not Found - Unit not found
+ */
+
+organizationRoutes.delete(
+  '/units/:unit_id',
+  authenticateToken,
+  attachPositionAccess,
+  deleteUnitController
+);
+
+/**
+ * @swagger
+ * /v2/organizations/positions/{position_id}:
+ *   get:
+ *     summary: Get a specific position by ID
+ *     tags:
+ *       - Position
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: position_id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID of the position
+ *     responses:
+ *       200:
+ *         description: Position retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   $ref: '#/components/schemas/Position'
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden
+ *       404:
+ *         description: Position not found
+ */
+
+organizationRoutes.get(
+  '/positions/:position_id',
+  authenticateToken,
+  attachPositionAccess,
+  getSinglePositionController
+);
+
+/**
+ * @swagger
+ * /v2/organizations/positions/{position_id}:
+ *   patch:
+ *     summary: Update a position
+ *     tags:
+ *       - Position
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: position_id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID of the position to update
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               position_name:
+ *                 type: string
+ *               position_description:
+ *                 type: string
+ *               position_access:
+ *                 $ref: '#/components/schemas/PositionAccess'
+ *     responses:
+ *       200:
+ *         description: Position updated successfully
+ *       403:
+ *         description: Forbidden
+ *       404:
+ *         description: Position not found
+ */
+
+organizationRoutes.patch(
+  '/positions/:position_id',
+  authenticateToken,
+  attachPositionAccess,
+  updatePositionController
+);
+
 
 export default organizationRoutes;

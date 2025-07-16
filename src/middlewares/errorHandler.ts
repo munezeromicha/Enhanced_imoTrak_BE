@@ -8,7 +8,7 @@ export const errorHandler = (
 ) => {
   if (!err.statusCode) {
     console.error(err)
-    res.status(500).json({message: 'Something went wrong'})
+    return res.status(500).json({message: 'Something went wrong'})
   }
 
   const statusCode = err.statusCode;

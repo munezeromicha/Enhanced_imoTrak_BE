@@ -7,11 +7,21 @@ import {
   createOrganizationService,
   createPositionService,
   createUnitService,
+  deleteOrganizationService,
+  deleteUnitService,
   getOrganizationsService,
   getPositionsInUnitService,
+  getSingleOrganizationService,
+  getSinglePositionService,
+  getSingleUnitService,
   getUnitsService,
-  softDeletePositionService
+  softDeletePositionService,
+  updateOrganizationService,
+  updatePositionService,
+  updateUnitService
 } from '../services/organization.services';
+import { updateUnitSchema } from '../schemas/organization.schema';
+import { updatePositionSchema } from '../schemas/position.schema';
 
 const prisma = new PrismaClient();
 
@@ -240,8 +250,219 @@ export const getUnitsController = async (
 
     const units = await getUnitsService(organization_id);
 
-    res.status(200).json({ units });
+    res.status(200).json({ message: 'Getting units successful', data: units });
   } catch (error) {
     next(error);
   }
 };
+
+export const getSingleOrganizationController = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { organization_id } = req.params;
+
+    if (!req.user?.position_access?.organizations?.view) {
+      throw new AppError('You do not have permission to view organizations', 403);
+    }
+
+    const organization = await getSingleOrganizationService({
+      organization_id,
+      user: req.user
+    });
+
+    res.status(200).json({
+      message: 'Organization retrieved successfully',
+      data: organization
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const updateOrganizationController = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { organization_id } = req.params;
+
+    if (!req.user?.position_access?.organizations?.update) {
+      throw new AppError('You do not have permission to update organizations', 403);
+    }
+
+    let logoUrl: string | undefined;
+
+    if (req.file) {
+      logoUrl = await uploadToCloudinary(req.file.buffer, 'Imotrak/organization_logo');
+    }
+
+    const updatedOrganization = await updateOrganizationService({
+      organization_id,
+      updates: {
+        ...req.body,
+        ...(logoUrl && { organization_logo: logoUrl })
+      }
+    });
+
+    res.status(200).json({
+      message: 'Organization updated successfully',
+      data: updatedOrganization
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const deleteOrganizationController = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { organization_id } = req.params;
+
+    if (!req.user?.position_access?.organizations?.delete) {
+      throw new AppError('You do not have permission to delete organizations', 403);
+    }
+
+    await deleteOrganizationService({ organization_id });
+
+    res.status(200).json({
+      message: 'Organization deleted successfully',
+      data:null
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getSingleUnitController = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { unit_id } = req.params;
+
+    if (!req.user?.position_access?.units?.view) {
+      throw new AppError('You do not have permission to view units', 403);
+    }
+
+    const unit = await getSingleUnitService({
+      unit_id,
+      user: req.user
+    });
+
+    res.status(200).json({
+      message: 'Unit retrieved successfully',
+      data: unit
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const updateUnitController = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { unit_id } = req.params;
+
+    if (!req.user?.position_access?.units?.update) {
+      throw new AppError('You do not have permission to update units', 403);
+    }
+
+    const validatedData = updateUnitSchema.parse(req.body);
+
+    const updatedUnit = await updateUnitService({
+      unit_id,
+      user: req.user,
+      data: validatedData,
+    });
+
+    res.status(200).json({
+      message: 'Unit updated successfully',
+      data: updatedUnit,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const deleteUnitController = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { unit_id } = req.params;
+
+    if (!req.user?.position_access?.units?.delete) {
+      throw new AppError('You do not have permission to delete units', 403);
+    }
+
+    await deleteUnitService({ unit_id, user: req.user });
+
+    res.status(200).json({ message: 'Unit deleted successfully' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getSinglePositionController = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { position_id } = req.params;
+
+    if (!req.user?.position_access?.positions?.view) {
+      throw new AppError('You do not have permission to view positions', 403);
+    }
+
+    const position = await getSinglePositionService({ position_id, user: req.user });
+
+    res.status(200).json({
+      message: 'Position retrieved successfully',
+      data: position
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const updatePositionController = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    if (!req.user?.position_access?.positions?.update) {
+      throw new AppError('You do not have permission to update positions', 403);
+    }
+
+    const { position_id } = req.params;
+    const parsed = updatePositionSchema.parse(req.body);
+
+    const updatedPosition = await updatePositionService({
+      position_id,
+      updateData: parsed,
+      user: req.user
+    });
+
+    res.status(200).json({
+      message: 'Position updated successfully',
+      data: updatedPosition
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+

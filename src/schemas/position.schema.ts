@@ -48,3 +48,9 @@ export const createPositionSchema = z.object({
   unit_id: z.string().uuid(),
   position_access: positionAccessSchema,
 });
+
+export const updatePositionSchema = z.object({
+  position_name: z.string().min(1).optional(),
+  position_description: z.string().min(1).optional(),
+  position_access: positionAccessSchema.optional(),
+});
