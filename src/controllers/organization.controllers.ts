@@ -8,6 +8,7 @@ import {
   createPositionService,
   createUnitService,
   deleteOrganizationService,
+  deleteUnitService,
   getOrganizationsService,
   getPositionsInUnitService,
   getSingleOrganizationService,
@@ -386,6 +387,26 @@ export const updateUnitController = async (
       message: 'Unit updated successfully',
       data: updatedUnit,
     });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const deleteUnitController = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { unit_id } = req.params;
+
+    if (!req.user?.position_access?.units?.delete) {
+      throw new AppError('You do not have permission to delete units', 403);
+    }
+
+    await deleteUnitService({ unit_id, user: req.user });
+
+    res.status(200).json({ message: 'Unit deleted successfully' });
   } catch (error) {
     next(error);
   }

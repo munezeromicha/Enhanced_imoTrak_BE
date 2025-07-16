@@ -39,6 +39,19 @@ interface GetUnitParams {
   user: AuthenticatedUser;
 }
 
+interface UpdateUnitParams {
+  unit_id: string;
+  user: AuthenticatedUser;
+  data: {
+    unit_name: string;
+  };
+}
+
+interface DeleteUnitParams {
+  unit_id: string;
+  user: AuthenticatedUser;
+}
+
 export async function createOrganizationService(data: CreateOrgPayload) {
   const newOrg = await prisma.tbl_organizations.create({
     data: {
@@ -281,14 +294,6 @@ export const getSingleUnitService = async ({ unit_id, user }: GetUnitParams) => 
   return unit;
 };
 
-interface UpdateUnitParams {
-  unit_id: string;
-  user: AuthenticatedUser;
-  data: {
-    unit_name: string;
-  };
-}
-
 export const updateUnitService = async ({ unit_id, user, data }: UpdateUnitParams) => {
   const unit = await prisma.tbl_unit.findUnique({
     where: { unit_id },
@@ -314,3 +319,37 @@ export const updateUnitService = async ({ unit_id, user, data }: UpdateUnitParam
   return updatedUnit;
 };
 
+export const deleteUnitService = async ({ unit_id, user }: DeleteUnitParams) => {
+  const unit = await prisma.tbl_unit.findUnique({
+    where: { unit_id },
+    include: { organization: true }
+  });
+
+  if (!unit) {
+    throw new AppError('Unit not found', 404);
+  }
+
+  const userOrgId = user.organization_id;
+
+  if (!user.position_access.organizations?.create && unit.organization_id !== userOrgId) {
+    throw new AppError('You can only delete units within your organization', 403);
+  }
+
+  // Fetch positions under this unit
+  const positions = await prisma.tbl_position.findMany({
+    where: { unit_id }
+  });
+
+  const positionIds = positions.map(pos => pos.position_id);
+
+  await prisma.$transaction([
+    prisma.tbl_unit.update({
+      where: { unit_id },
+      data: { status: 'INACTIVE' }
+    }),
+    prisma.tbl_position.updateMany({
+      where: { unit_id },
+      data: { position_status: 'INACTIVE' }
+    })
+  ]);
+};

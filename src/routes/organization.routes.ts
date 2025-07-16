@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { createOrganizationController, createPositionController, createUnitController, deleteOrganizationController, deletePositionController, getOrganizationsController, getPositionsInUnitController, getSingleOrganizationController, getSingleUnitController, getUnitsController, updateOrganizationController, updateUnitController } from '../controllers/organization.controllers';
+import { createOrganizationController, createPositionController, createUnitController, deleteOrganizationController, deletePositionController, deleteUnitController, getOrganizationsController, getPositionsInUnitController, getSingleOrganizationController, getSingleUnitController, getUnitsController, updateOrganizationController, updateUnitController } from '../controllers/organization.controllers';
 import { authenticateToken } from '../middlewares/auth.middleware';
 import { attachPositionAccess } from '../middlewares/attachPositionAccess';
 import { validateBody } from '../middlewares/bodyValidator';
@@ -675,6 +675,48 @@ organizationRoutes.patch(
   attachPositionAccess,
   validateBody(updateUnitSchema),
   updateUnitController
+);
+
+/**
+ * @swagger
+ * /v2/organizations/units/{unit_id}:
+ *   delete:
+ *     summary: Soft delete a unit by ID
+ *     tags:
+ *       - Units
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: unit_id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID of the unit to delete
+ *     responses:
+ *       200:
+ *         description: Unit deleted successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Unit deleted successfully
+ *       401:
+ *         description: Unauthorized - Invalid or missing authentication token
+ *       403:
+ *         description: Forbidden - User does not have permission to delete units or does not belong to the organization
+ *       404:
+ *         description: Not Found - Unit not found
+ */
+
+organizationRoutes.delete(
+  '/units/:unit_id',
+  authenticateToken,
+  attachPositionAccess,
+  deleteUnitController
 );
 
 export default organizationRoutes;
