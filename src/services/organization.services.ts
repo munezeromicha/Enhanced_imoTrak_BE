@@ -57,6 +57,16 @@ interface GetSinglePositionParams {
   user: AuthenticatedUser;
 }
 
+interface UpdatePositionParams {
+  position_id: string;
+  updateData: {
+    position_name?: string;
+    position_description?: string;
+    position_access?: object;
+  };
+  user: AuthenticatedUser;
+}
+
 export async function createOrganizationService(data: CreateOrgPayload) {
   const newOrg = await prisma.tbl_organizations.create({
     data: {
@@ -383,5 +393,33 @@ export const getSinglePositionService = async ({ position_id, user }: GetSingleP
   }
 
   return position;
+};
+
+export const updatePositionService = async ({
+  position_id,
+  updateData,
+  user
+}: UpdatePositionParams) => {
+  const position = await prisma.tbl_position.findUnique({
+    where: { position_id },
+    include: {
+      unit: true
+    }
+  });
+
+  if (!position) {
+    throw new AppError('Position not found', 404);
+  }
+
+  if (position.unit.organization_id !== user.organization_id) {
+    throw new AppError('You can only update positions within your organization', 403);
+  }
+
+  const updatedPosition = await prisma.tbl_position.update({
+    where: { position_id },
+    data: updateData
+  });
+
+  return updatedPosition;
 };
 

@@ -17,9 +17,11 @@ import {
   getUnitsService,
   softDeletePositionService,
   updateOrganizationService,
+  updatePositionService,
   updateUnitService
 } from '../services/organization.services';
 import { updateUnitSchema } from '../schemas/organization.schema';
+import { updatePositionSchema } from '../schemas/position.schema';
 
 const prisma = new PrismaClient();
 
@@ -435,3 +437,32 @@ export const getSinglePositionController = async (
     next(error);
   }
 };
+
+export const updatePositionController = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    if (!req.user?.position_access?.positions?.update) {
+      throw new AppError('You do not have permission to update positions', 403);
+    }
+
+    const { position_id } = req.params;
+    const parsed = updatePositionSchema.parse(req.body);
+
+    const updatedPosition = await updatePositionService({
+      position_id,
+      updateData: parsed,
+      user: req.user
+    });
+
+    res.status(200).json({
+      message: 'Position updated successfully',
+      data: updatedPosition
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+

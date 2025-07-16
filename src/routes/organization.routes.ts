@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { createOrganizationController, createPositionController, createUnitController, deleteOrganizationController, deletePositionController, deleteUnitController, getOrganizationsController, getPositionsInUnitController, getSingleOrganizationController, getSinglePositionController, getSingleUnitController, getUnitsController, updateOrganizationController, updateUnitController } from '../controllers/organization.controllers';
+import { createOrganizationController, createPositionController, createUnitController, deleteOrganizationController, deletePositionController, deleteUnitController, getOrganizationsController, getPositionsInUnitController, getSingleOrganizationController, getSinglePositionController, getSingleUnitController, getUnitsController, updateOrganizationController, updatePositionController, updateUnitController } from '../controllers/organization.controllers';
 import { authenticateToken } from '../middlewares/auth.middleware';
 import { attachPositionAccess } from '../middlewares/attachPositionAccess';
 import { validateBody } from '../middlewares/bodyValidator';
@@ -760,6 +760,51 @@ organizationRoutes.get(
   authenticateToken,
   attachPositionAccess,
   getSinglePositionController
+);
+
+/**
+ * @swagger
+ * /v2/organizations/positions/{position_id}:
+ *   patch:
+ *     summary: Update a position
+ *     tags:
+ *       - Position
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: position_id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID of the position to update
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               position_name:
+ *                 type: string
+ *               position_description:
+ *                 type: string
+ *               position_access:
+ *                 $ref: '#/components/schemas/PositionAccess'
+ *     responses:
+ *       200:
+ *         description: Position updated successfully
+ *       403:
+ *         description: Forbidden
+ *       404:
+ *         description: Position not found
+ */
+
+organizationRoutes.patch(
+  '/positions/:position_id',
+  authenticateToken,
+  attachPositionAccess,
+  updatePositionController
 );
 
 
