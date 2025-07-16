@@ -11,7 +11,8 @@ import {
   getPositionsInUnitService,
   getSingleOrganizationService,
   getUnitsService,
-  softDeletePositionService
+  softDeletePositionService,
+  updateOrganizationService
 } from '../services/organization.services';
 
 const prisma = new PrismaClient();
@@ -267,6 +268,41 @@ export const getSingleOrganizationController = async (
     res.status(200).json({
       message: 'Organization retrieved successfully',
       data: organization
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const updateOrganizationController = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { organization_id } = req.params;
+
+    if (!req.user?.position_access?.organizations?.update) {
+      throw new AppError('You do not have permission to update organizations', 403);
+    }
+
+    let logoUrl: string | undefined;
+
+    if (req.file) {
+      logoUrl = await uploadToCloudinary(req.file.buffer, 'Imotrak/organization_logo');
+    }
+
+    const updatedOrganization = await updateOrganizationService({
+      organization_id,
+      updates: {
+        ...req.body,
+        ...(logoUrl && { organization_logo: logoUrl })
+      }
+    });
+
+    res.status(200).json({
+      message: 'Organization updated successfully',
+      data: updatedOrganization
     });
   } catch (error) {
     next(error);

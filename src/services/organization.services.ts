@@ -1,4 +1,4 @@
-import { OrgStatus, PrismaClient } from '@prisma/client';
+import { OrgStatus, PrismaClient, tbl_organizations } from '@prisma/client';
 import { AppError } from '../utils/Error';
 const prisma = new PrismaClient();
 
@@ -192,3 +192,33 @@ export const getSingleOrganizationService = async ({ organization_id, user }: Ge
 
   return organization;
 };
+
+
+export const updateOrganizationService = async ({
+  organization_id,
+  updates
+}: {
+  organization_id: string;
+  updates: Partial<tbl_organizations>;
+}) => {
+  const organization = await prisma.tbl_organizations.findUnique({
+    where: { organization_id }
+  });
+
+  if (!organization) {
+    throw new AppError('Organization not found', 404);
+  }
+
+  // Ensure status is not updated
+  if ('status' in updates) {
+    delete updates.status;
+  }
+
+  const updatedOrg = await prisma.tbl_organizations.update({
+    where: { organization_id },
+    data: updates
+  });
+
+  return updatedOrg;
+};
+

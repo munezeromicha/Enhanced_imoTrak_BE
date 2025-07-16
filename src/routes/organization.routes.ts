@@ -1,9 +1,9 @@
 import { Router } from 'express';
-import { createOrganizationController, createPositionController, createUnitController, deletePositionController, getOrganizationsController, getPositionsInUnitController, getSingleOrganizationController, getUnitsController } from '../controllers/organization.controllers';
+import { createOrganizationController, createPositionController, createUnitController, deletePositionController, getOrganizationsController, getPositionsInUnitController, getSingleOrganizationController, getUnitsController, updateOrganizationController } from '../controllers/organization.controllers';
 import { authenticateToken } from '../middlewares/auth.middleware';
 import { attachPositionAccess } from '../middlewares/attachPositionAccess';
 import { validateBody } from '../middlewares/bodyValidator';
-import { createPositionSchema, createUnitSchema, organizationSchema } from '../schemas/organization.schema';
+import { createPositionSchema, createUnitSchema, organizationSchema, updateOrganizationSchema } from '../schemas/organization.schema';
 import { upload } from '../middlewares/multer';
 
 const organizationRoutes = Router();
@@ -470,6 +470,72 @@ organizationRoutes.get(
   attachPositionAccess,
   getSingleOrganizationController
 );
+
+/**
+ * @swagger
+ * /v2/organizations/{organization_id}:
+ *   patch:
+ *     summary: Update an existing organization's details (excluding status)
+ *     tags:
+ *       - Organization
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: organization_id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: ID of the organization to update
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               organization_name:
+ *                 type: string
+ *               organization_email:
+ *                 type: string
+ *                 format: email
+ *               organization_phone:
+ *                 type: string
+ *               organization_logo:
+ *                 type: string
+ *                 format: binary
+ *               street_address:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Organization updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   $ref: '#/components/schemas/Organization'
+ *       400:
+ *         description: Validation error
+ *       403:
+ *         description: Forbidden - You do not have permission
+ *       404:
+ *         description: Organization not found
+ */
+
+organizationRoutes.patch(
+  '/:organization_id',
+  authenticateToken,
+  attachPositionAccess,
+  upload.single('organization_logo'),
+  validateBody(updateOrganizationSchema),
+  updateOrganizationController
+);
+
 
 
 export default organizationRoutes;

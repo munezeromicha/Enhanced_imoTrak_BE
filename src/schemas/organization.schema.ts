@@ -51,3 +51,13 @@ export const createPositionSchema = z.object({
   position_access: positionAccessSchema,
 });
 
+
+export const updateOrganizationSchema = z.object({
+  organization_name: z.string().optional(),
+  organization_email: z.string().email().optional(),
+  organization_phone: z
+    .string()
+    .regex(/^\d{10,15}$/, 'Phone number must be 10 to 15 digits')
+    .optional(),
+  street_address: z.string().optional()
+});
