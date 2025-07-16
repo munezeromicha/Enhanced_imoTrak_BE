@@ -9,6 +9,7 @@ import {
   createUnitService,
   getOrganizationsService,
   getPositionsInUnitService,
+  getSingleOrganizationService,
   getUnitsService,
   softDeletePositionService
 } from '../services/organization.services';
@@ -241,6 +242,32 @@ export const getUnitsController = async (
     const units = await getUnitsService(organization_id);
 
     res.status(200).json({ units });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getSingleOrganizationController = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { organization_id } = req.params;
+
+    if (!req.user?.position_access?.organizations?.view) {
+      throw new AppError('You do not have permission to view organizations', 403);
+    }
+
+    const organization = await getSingleOrganizationService({
+      organization_id,
+      user: req.user
+    });
+
+    res.status(200).json({
+      message: 'Organization retrieved successfully',
+      data: organization
+    });
   } catch (error) {
     next(error);
   }

@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { createOrganizationController, createPositionController, createUnitController, deletePositionController, getOrganizationsController, getPositionsInUnitController, getUnitsController } from '../controllers/organization.controllers';
+import { createOrganizationController, createPositionController, createUnitController, deletePositionController, getOrganizationsController, getPositionsInUnitController, getSingleOrganizationController, getUnitsController } from '../controllers/organization.controllers';
 import { authenticateToken } from '../middlewares/auth.middleware';
 import { attachPositionAccess } from '../middlewares/attachPositionAccess';
 import { validateBody } from '../middlewares/bodyValidator';
@@ -426,5 +426,50 @@ organizationRoutes.delete(
   attachPositionAccess,
   deletePositionController
 );
+
+/**
+ * @swagger
+ * /v2/organizations/{organization_id}:
+ *   get:
+ *     summary: Get a specific organization by ID
+ *     tags:
+ *       - Organization
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: organization_id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: ID of the organization
+ *     responses:
+ *       200:
+ *         description: Organization retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   $ref: '#/components/schemas/Organization'
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden
+ *       404:
+ *         description: Organization not found
+ */
+
+organizationRoutes.get(
+  '/:organization_id',
+  authenticateToken,
+  attachPositionAccess,
+  getSingleOrganizationController
+);
+
 
 export default organizationRoutes;

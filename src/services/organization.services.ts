@@ -28,6 +28,11 @@ interface GetPositionsInUnitPayload {
   hasOrgViewAccess: boolean;
 }
 
+interface GetOrgParams {
+  organization_id: string;
+  user: any;
+}
+
 export async function createOrganizationService(data: CreateOrgPayload) {
   const newOrg = await prisma.tbl_organizations.create({
     data: {
@@ -175,3 +180,15 @@ export async function getUnitsService(organization_id: string) {
 
   return units;
 }
+
+export const getSingleOrganizationService = async ({ organization_id, user }: GetOrgParams) => {
+  const organization = await prisma.tbl_organizations.findUnique({
+    where: { organization_id }
+  });
+
+  if (!organization) {
+    throw new AppError('Organization not found', 404);
+  }
+
+  return organization;
+};
