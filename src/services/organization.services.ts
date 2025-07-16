@@ -52,6 +52,11 @@ interface DeleteUnitParams {
   user: AuthenticatedUser;
 }
 
+interface GetSinglePositionParams {
+  position_id: string;
+  user: AuthenticatedUser;
+}
+
 export async function createOrganizationService(data: CreateOrgPayload) {
   const newOrg = await prisma.tbl_organizations.create({
     data: {
@@ -353,3 +358,30 @@ export const deleteUnitService = async ({ unit_id, user }: DeleteUnitParams) => 
     })
   ]);
 };
+
+export const getSinglePositionService = async ({ position_id, user }: GetSinglePositionParams) => {
+  const position = await prisma.tbl_position.findUnique({
+    where: { position_id },
+    include: {
+      unit: {
+        select: {
+          organization_id: true
+        }
+      }
+    }
+  });
+
+  if (!position) {
+    throw new AppError('Position not found', 404);
+  }
+
+  const positionOrgId = position.unit.organization_id;
+
+  // If user has no global org access, restrict to same org
+  if (user.organization_id !== positionOrgId) {
+    throw new AppError('You do not have permission to view this position', 403);
+  }
+
+  return position;
+};
+

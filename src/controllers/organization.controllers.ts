@@ -12,6 +12,7 @@ import {
   getOrganizationsService,
   getPositionsInUnitService,
   getSingleOrganizationService,
+  getSinglePositionService,
   getSingleUnitService,
   getUnitsService,
   softDeletePositionService,
@@ -407,6 +408,29 @@ export const deleteUnitController = async (
     await deleteUnitService({ unit_id, user: req.user });
 
     res.status(200).json({ message: 'Unit deleted successfully' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getSinglePositionController = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { position_id } = req.params;
+
+    if (!req.user?.position_access?.positions?.view) {
+      throw new AppError('You do not have permission to view positions', 403);
+    }
+
+    const position = await getSinglePositionService({ position_id, user: req.user });
+
+    res.status(200).json({
+      message: 'Position retrieved successfully',
+      data: position
+    });
   } catch (error) {
     next(error);
   }
