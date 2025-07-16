@@ -568,6 +568,7 @@ organizationRoutes.patch(
  *       404:
  *         description: Organization not found
  */
+
 organizationRoutes.delete(
   '/:organization_id',
   authenticateToken,
@@ -620,7 +621,7 @@ organizationRoutes.get(
 /**
  * @swagger
  * /v2/organizations/units/{unit_id}:
- *   put:
+ *   patch:
  *     summary: Update a unit's name (within user's organization only)
  *     tags:
  *       - Units
@@ -668,7 +669,7 @@ organizationRoutes.get(
  *         description: Unauthorized - invalid or missing token
  */
 
-organizationRoutes.put(
+organizationRoutes.patch(
   '/units/:unit_id',
   authenticateToken,
   attachPositionAccess,
