@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { createOrganizationController, createPositionController, createUnitController, deleteOrganizationController, deletePositionController, getOrganizationsController, getPositionsInUnitController, getSingleOrganizationController, getUnitsController, updateOrganizationController } from '../controllers/organization.controllers';
+import { createOrganizationController, createPositionController, createUnitController, deleteOrganizationController, deletePositionController, getOrganizationsController, getPositionsInUnitController, getSingleOrganizationController, getSingleUnitController, getUnitsController, updateOrganizationController } from '../controllers/organization.controllers';
 import { authenticateToken } from '../middlewares/auth.middleware';
 import { attachPositionAccess } from '../middlewares/attachPositionAccess';
 import { validateBody } from '../middlewares/bodyValidator';
@@ -575,5 +575,46 @@ organizationRoutes.delete(
   deleteOrganizationController
 );
 
+/**
+ * @swagger
+ * /v2/organizations/units/{unit_id}:
+ *   get:
+ *     summary: Get a specific unit by ID
+ *     tags:
+ *       - Organization
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: unit_id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: ID of the unit to retrieve
+ *     responses:
+ *       200:
+ *         description: Unit retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   $ref: '#/components/schemas/Unit'
+ *       403:
+ *         description: Forbidden - No access to this unit
+ *       404:
+ *         description: Unit not found
+ */
+
+organizationRoutes.get(
+  '/units/:unit_id',
+  authenticateToken,
+  attachPositionAccess,
+  getSingleUnitController
+);
 
 export default organizationRoutes;

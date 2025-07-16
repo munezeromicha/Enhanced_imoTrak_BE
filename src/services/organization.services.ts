@@ -1,5 +1,6 @@
 import { OrgStatus, PrismaClient, tbl_organizations } from '@prisma/client';
 import { AppError } from '../utils/Error';
+import { AuthenticatedUser } from '../types/access';
 const prisma = new PrismaClient();
 
 interface CreateOrgPayload {
@@ -258,4 +259,24 @@ export const deleteOrganizationService = async ({
   ]);
 };
 
+interface GetUnitParams {
+  unit_id: string;
+  user: AuthenticatedUser;
+}
 
+export const getSingleUnitService = async ({ unit_id, user }: GetUnitParams) => {
+  const unit = await prisma.tbl_unit.findUnique({
+    where: { unit_id }
+  });
+
+  if (!unit) {
+    throw new AppError('Unit not found', 404);
+  }
+  const isOwnOrg = unit.organization_id === user.organization_id;
+
+  if (!isOwnOrg) {
+    throw new AppError('You do not have permission to access this unit', 403);
+  }
+
+  return unit;
+};
