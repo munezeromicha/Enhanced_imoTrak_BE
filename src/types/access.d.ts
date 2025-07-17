@@ -1,3 +1,5 @@
+import { Request } from 'express';
+
 export interface position_accesses {
   organizations: {
     create: boolean;
@@ -36,7 +38,13 @@ export interface position_accesses {
     viewSingle: boolean;
     update: boolean;
     delete: boolean;
-  }
+  };
+  reservations: {
+    create: boolean;
+    view: boolean;
+    update: boolean;
+    delete: boolean;
+  };
 }
 
 export interface AuthenticatedUser {
@@ -45,4 +53,8 @@ export interface AuthenticatedUser {
   organization_id: string;
   position_id: string;
   position_access?: PositionAccess;
+}
+
+export interface AuthenticatedRequest extends Request {
+  user: AuthenticatedUser;
 }

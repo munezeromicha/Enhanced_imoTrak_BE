@@ -39,6 +39,12 @@ export const positionAccessSchema = z.object({
     update: z.boolean(),
     delete: z.boolean(),
   }),
+  reservations: z.object({
+    create: z.boolean(),
+    view: z.boolean(),
+    update: z.boolean(),
+    delete: z.boolean(),
+  }),
 });
 
 
