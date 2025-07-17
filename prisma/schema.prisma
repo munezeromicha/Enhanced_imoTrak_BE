@@ -229,8 +229,8 @@ enum RequestStatus {
   IN_PROGRESS
   ON_HOLD
   COMPLETED
-  FAILED
   EXPIRED
+  STARTED
 }
 
 enum PostitionStatus {
