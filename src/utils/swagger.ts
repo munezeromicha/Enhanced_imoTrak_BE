@@ -85,78 +85,78 @@ const options: swaggerJSDoc.Options = {
                 delete: { type: 'boolean' },
               },
             },
-            Reservation: {
-              type: 'object',
-              properties: {
-                reservation_id: { type: 'string', format: 'uuid' },
-                created_at: { type: 'string', format: 'date-time' },
-                reservation_purpose: { type: 'string' },
-                start_location: { type: 'string' },
-                reservation_destination: { type: 'string' },
-                departure_date: { type: 'string', format: 'date-time' },
-                expected_returning_date: { type: 'string', format: 'date-time' },
-                reservation_status: { type: 'string' },
-                reviewed_at: { type: 'string', format: 'date-time', nullable: true },
-                rejection_comment: { type: 'string', nullable: true },
-                user_id: { type: 'string', format: 'uuid' },
-                reserved_vehicles: { type: 'array', items: { type: 'object' } },
-              },
-            },
-            CreateReservation: {
-              type: 'object',
-              properties: {
-                reservation_purpose: { type: 'string', example: 'Business meeting' },
-                start_location: { type: 'string', example: 'Kigali HQ' },
-                reservation_destination: { type: 'string', example: 'Musanze Branch' },
-                departure_date: { type: 'string', format: 'date-time', example: '2024-08-01T09:00:00Z' },
-                expected_returning_date: { type: 'string', format: 'date-time', example: '2024-08-01T18:00:00Z' },
-              },
-              required: [
-                'reservation_purpose',
-                'start_location',
-                'reservation_destination',
-                'departure_date',
-                'expected_returning_date',
-              ],
-            },
-            CancelReservation: {
-              type: 'object',
-              properties: {
-                reason: { type: 'string', example: 'Change of plans' },
-              },
-              required: ['reason'],
-            },
-            UpdateReservationStatus: {
-              type: 'object',
-              properties: {
-                status: { type: 'string', example: 'APPROVED' },
-                reason: { type: 'string', example: 'All requirements met' },
-              },
-              required: ['status'],
-            },
-            AssignVehicle: {
-              type: 'object',
-              properties: {
-                vehicle_id: { type: 'string', format: 'uuid', example: 'c4d5e6f7-1234-5678-9abc-def012345678' },
-              },
-              required: ['vehicle_id'],
-            },
-            StartReservation: {
-              type: 'object',
-              properties: {
-                starting_odometer: { type: 'integer', example: 12000 },
-                fuel_provided: { type: 'integer', example: 50 },
-              },
-              required: ['starting_odometer', 'fuel_provided'],
-            },
-            CompleteReservation: {
-              type: 'object',
-              properties: {
-                returned_odometer: { type: 'integer', example: 12500 },
-              },
-              required: ['returned_odometer'],
-            },
           },
+        },
+        Reservation: {
+          type: 'object',
+          properties: {
+            reservation_id: { type: 'string', format: 'uuid' },
+            created_at: { type: 'string', format: 'date-time' },
+            reservation_purpose: { type: 'string' },
+            start_location: { type: 'string' },
+            reservation_destination: { type: 'string' },
+            departure_date: { type: 'string', format: 'date-time' },
+            expected_returning_date: { type: 'string', format: 'date-time' },
+            reservation_status: { type: 'string' },
+            reviewed_at: { type: 'string', format: 'date-time', nullable: true },
+            rejection_comment: { type: 'string', nullable: true },
+            user_id: { type: 'string', format: 'uuid' },
+            reserved_vehicles: { type: 'array', items: { type: 'object' } },
+          },
+        },
+        CreateReservation: {
+          type: 'object',
+          properties: {
+            reservation_purpose: { type: 'string', example: 'Business meeting' },
+            start_location: { type: 'string', example: 'Kigali HQ' },
+            reservation_destination: { type: 'string', example: 'Musanze Branch' },
+            departure_date: { type: 'string', format: 'date-time', example: '2024-08-01T09:00:00Z' },
+            expected_returning_date: { type: 'string', format: 'date-time', example: '2024-08-01T18:00:00Z' },
+          },
+          required: [
+            'reservation_purpose',
+            'start_location',
+            'reservation_destination',
+            'departure_date',
+            'expected_returning_date',
+          ],
+        },
+        CancelReservation: {
+          type: 'object',
+          properties: {
+            reason: { type: 'string', example: 'Change of plans' },
+          },
+          required: ['reason'],
+        },
+        UpdateReservationStatus: {
+          type: 'object',
+          properties: {
+            status: { type: 'string', example: 'APPROVED' },
+            reason: { type: 'string', example: 'All requirements met' },
+          },
+          required: ['status'],
+        },
+        AssignVehicle: {
+          type: 'object',
+          properties: {
+            vehicle_id: { type: 'string', format: 'uuid', example: 'c4d5e6f7-1234-5678-9abc-def012345678' },
+          },
+          required: ['vehicle_id'],
+        },
+        StartReservation: {
+          type: 'object',
+          properties: {
+            starting_odometer: { type: 'integer', example: 12000 },
+            fuel_provided: { type: 'integer', example: 50 },
+          },
+          required: ['starting_odometer', 'fuel_provided'],
+        },
+        CompleteReservation: {
+          type: 'object',
+          properties: {
+            returned_odometer: { type: 'integer', example: 12500 },
+          },
+          required: ['returned_odometer'],
         },
       },
     },
