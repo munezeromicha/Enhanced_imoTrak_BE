@@ -17,23 +17,23 @@ model tbl_auth {
 }
 
 model tbl_users {
-  user_id        String              @id @default(uuid())
-  first_name     String
-  last_name      String
-  user_nid       String              @unique
-  user_phone     String              @unique
-  created_at     DateTime            @default(now())
-  user_dob       DateTime
-  user_photo     String?
-  user_gender    Gender
-  street_address String?
-  auth_id        String              @unique
-  audit_logs     tbl_audit_logs[]
-  notifications  tbl_notifications[]
-  positions      tbl_position[]
-  reservations   tbl_reservations[]
-  auth           tbl_auth            @relation(fields: [auth_id], references: [auth_id])
+  user_id            String              @id @default(uuid())
+  first_name         String
+  last_name          String
+  user_nid           String              @unique
+  user_phone         String              @unique
+  created_at         DateTime            @default(now())
+  user_dob           DateTime
+  user_photo         String?
+  user_gender        Gender
+  street_address     String?
+  auth_id            String              @unique
+  audit_logs         tbl_audit_logs[]
   blacklisted_tokens tbl_jwt_blacklist[]
+  notifications      tbl_notifications[]
+  positions          tbl_position[]
+  reservations       tbl_reservations[]
+  auth               tbl_auth            @relation(fields: [auth_id], references: [auth_id])
 }
 
 model tbl_audit_logs {
@@ -48,18 +48,6 @@ model tbl_audit_logs {
   ip_address String
   user_agent String
   user       tbl_users @relation(fields: [user_id], references: [user_id])
-}
-
-model tbl_audit_archives {
-  id         String   @id @default(uuid())
-  filename   String  
-  path       String  
-  from_date  DateTime
-  to_date    DateTime
-  size       Int?    
-  created_at DateTime @default(now())
-
-  @@index([from_date, to_date])
 }
 
 model tbl_notifications {
@@ -103,11 +91,11 @@ model tbl_reservations {
 
 model tbl_vehicle_models {
   vehicle_model_id   String         @id @default(uuid())
-  vehicle_model_name String         
+  vehicle_model_name String         @unique
   vehicle_type       VehicleType
   manufacturer_name  String
   created_at         DateTime       @default(now())
-  vehicles            tbl_vehicles[]
+  vehicles           tbl_vehicles[]
 }
 
 model tbl_vehicles {
@@ -179,6 +167,17 @@ model tbl_vehicle_issues {
   reserved_vehicle    tbl_reserved_vehicles @relation(fields: [reserved_vehicle_id], references: [reserved_vehicle_id])
 }
 
+model tbl_jwt_blacklist {
+  id         String    @id @default(uuid())
+  token      String    @unique
+  user_id    String
+  expires_at DateTime
+  created_at DateTime  @default(now())
+  user       tbl_users @relation(fields: [user_id], references: [user_id])
+
+  @@index([expires_at])
+}
+
 enum UserStatus {
   ACTIVE
   INACTIVE
@@ -229,21 +228,11 @@ enum RequestStatus {
   IN_PROGRESS
   ON_HOLD
   COMPLETED
+  FAILED
   EXPIRED
-  STARTED
 }
 
 enum PostitionStatus {
   ACTIVE
   INACTIVE
-}
-
-model tbl_jwt_blacklist {
-  id        String   @id @default(uuid())
-  token     String   @unique
-  user_id   String
-  expires_at DateTime
-  created_at DateTime @default(now())
-  user tbl_users @relation(fields: [user_id], references: [user_id])
-  @@index([expires_at])
 }

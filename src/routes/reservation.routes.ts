@@ -7,6 +7,8 @@ import {
   assignVehicle,
   startReservation,
   completeReservation,
+  getAllReservations,
+  deleteReservation,
 } from '../controllers/reservation.controllers';
 import { validateBody } from '../middlewares/bodyValidator';
 import {
@@ -30,9 +32,11 @@ const router = Router();
 
 /**
  * @openapi
- * /reservations:
+ * /v2/reservations:
  *   post:
  *     summary: Create a new reservation
+ *     security:
+ *       - bearerAuth: []
  *     tags:
  *       - Reservations
  *     requestBody:
@@ -74,9 +78,11 @@ router.post('/', authenticateToken, attachPositionAccess, validateBody(createRes
 
 /**
  * @openapi
- * /reservations/{id}/cancel:
+ * /v2/reservations/{id}/cancel:
  *   post:
  *     summary: Cancel a reservation
+ *     security:
+ *       - bearerAuth: []
  *     tags:
  *       - Reservations
  *     parameters:
@@ -112,9 +118,11 @@ router.post('/:id/cancel', authenticateToken, attachPositionAccess, validateBody
 
 /**
  * @openapi
- * /reservations/{id}/status:
+ * /v2/reservations/{id}/status:
  *   patch:
  *     summary: Update reservation status
+ *     security:
+ *       - bearerAuth: []
  *     tags:
  *       - Reservations
  *     parameters:
@@ -151,9 +159,11 @@ router.patch('/:id/status', authenticateToken, attachPositionAccess, validateBod
 
 /**
  * @openapi
- * /reservations/{id}/assign-vehicle:
+ * /v2/reservations/{id}/assign-vehicle:
  *   post:
  *     summary: Assign a vehicle to a reservation
+ *     security:
+ *       - bearerAuth: []
  *     tags:
  *       - Reservations
  *     parameters:
@@ -191,9 +201,11 @@ router.post('/:id/assign-vehicle', authenticateToken, attachPositionAccess, vali
 
 /**
  * @openapi
- * /reservations/{reservedVehicleId}/start:
+ * /v2/reservations/{reservedVehicleId}/start:
  *   post:
  *     summary: Start a reservation (vehicle pickup)
+ *     security:
+ *       - bearerAuth: []
  *     tags:
  *       - Reservations
  *     parameters:
@@ -222,9 +234,11 @@ router.post('/:reservedVehicleId/start', authenticateToken, attachPositionAccess
 
 /**
  * @openapi
- * /reservations/{reservedVehicleId}/complete:
+ * /v2/reservations/{reservedVehicleId}/complete:
  *   post:
  *     summary: Complete a reservation (vehicle return)
+ *     security:
+ *       - bearerAuth: []
  *     tags:
  *       - Reservations
  *     parameters:
@@ -249,5 +263,65 @@ router.post('/:reservedVehicleId/start', authenticateToken, attachPositionAccess
  *         description: Bad request
  */
 router.post('/:reservedVehicleId/complete', authenticateToken, attachPositionAccess, validateBody(completeReservationSchema), withAuthUser(completeReservation));
+
+/**
+ * @openapi
+ * /v2/reservations:
+ *   get:
+ *     summary: Get all reservation requests
+ *     security:
+ *       - bearerAuth: []
+ *     tags:
+ *       - Reservations
+ *     responses:
+ *       200:
+ *         description: List of reservations
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Reservation'
+ *       400:
+ *         description: Bad request
+ */
+router.get(
+  '/',
+  authenticateToken,
+  attachPositionAccess,
+  withAuthUser(getAllReservations)
+);
+
+/**
+ * @openapi
+ * /v2/reservations/{id}:
+ *   delete:
+ *     summary: Delete a specific reservation by ID
+ *     security:
+ *       - bearerAuth: []
+ *     tags:
+ *       - Reservations
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     responses:
+ *       200:
+ *         description: Reservation deleted
+ *       400:
+ *         description: Bad request
+ */
+router.delete(
+  '/:id',
+  authenticateToken,
+  attachPositionAccess,
+  withAuthUser(deleteReservation)
+);
 
 export default router; 

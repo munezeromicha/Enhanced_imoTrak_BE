@@ -169,4 +169,21 @@ export async function completeReservation(reservedVehicleId: string, returnedOdo
     data: { vehicle_status: 'AVAILABLE' },
   });
   return true;
+}
+
+export async function getAllReservations() {
+  return prisma.tbl_reservations.findMany({
+    include: {
+      user: true,
+      reserved_vehicles: true,
+    },
+    orderBy: { created_at: 'desc' },
+  });
+}
+
+export async function deleteReservation(reservationId: string) {
+  // Optionally: check if reservation exists and its status before deleting
+  return prisma.tbl_reservations.delete({
+    where: { reservation_id: reservationId },
+  });
 } 

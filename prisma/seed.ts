@@ -222,6 +222,109 @@ async function main() {
     data: { user_id: fleetUser.user_id },
   });
 
+  // ======= 3. Reservation User with Reservation Permissions =======
+  const reservationUserAccess = {
+    organizations: { create: false, view: false, update: false, delete: false },
+    units: { create: false, view: false, update: false, delete: false },
+    positions: { create: false, view: false, update: false, delete: false },
+    users: { create: false, view: false, update: false, delete: false },
+    vehicleModels: { create: false, view: false, viewSingle: false, update: false, delete: false },
+    vehicles: { create: false, view: true, viewSingle: true, update: false, delete: false },
+    reservations: { create: true, view: true, update: true, delete: true },
+  };
+
+  const reservationUnit = await prisma.tbl_unit.upsert({
+    where: {
+      unit_name_organization_id: {
+        unit_name: 'Reservation Unit',
+        organization_id: tekinovaOrg.organization_id,
+      },
+    },
+    update: {},
+    create: {
+      unit_name: 'Reservation Unit',
+      organization_id: tekinovaOrg.organization_id,
+    },
+  });
+
+  const reservationPosition = await prisma.tbl_position.upsert({
+    where: {
+      position_name_unit_id: {
+        position_name: 'Reservation User',
+        unit_id: reservationUnit.unit_id,
+      },
+    },
+    update: {},
+    create: {
+      position_name: 'Reservation User',
+      position_description: 'Can make and manage reservations.',
+      position_access: reservationUserAccess,
+      unit_id: reservationUnit.unit_id,
+    },
+  });
+
+  const reservationPassword = await argon2.hash('reservationpassword');
+  const reservationAuth = await prisma.tbl_auth.create({
+    data: {
+      email: 'reservationuser@tekinova.rw',
+      password: reservationPassword,
+    },
+  });
+
+  const reservationUser = await prisma.tbl_users.create({
+    data: {
+      first_name: 'Reservation',
+      last_name: 'User',
+      user_nid: '1111222233334444',
+      user_phone: '250788111222',
+      user_dob: new Date('1995-02-15'),
+      user_gender: 'FEMALE',
+      user_photo: 'https://avatars.githubusercontent.com/u/122959151?v=4',
+      street_address: 'Reservation Street',
+      auth_id: reservationAuth.auth_id,
+    },
+  });
+
+  await prisma.tbl_position.update({
+    where: { position_id: reservationPosition.position_id },
+    data: { user_id: reservationUser.user_id },
+  });
+
+  // ======= 4. Seed a Reservation and Reserved Vehicle =======
+  const availableVehicle = await prisma.tbl_vehicles.findFirst({
+    where: { vehicle_status: 'AVAILABLE' },
+  });
+
+  if (availableVehicle) {
+    const reservation = await prisma.tbl_reservations.create({
+      data: {
+        reservation_purpose: 'Client visit',
+        start_location: 'Kigali HQ',
+        reservation_destination: 'Gisenyi Branch',
+        departure_date: new Date('2024-08-10T08:00:00Z'),
+        expected_returning_date: new Date('2024-08-10T18:00:00Z'),
+        user_id: reservationUser.user_id,
+        reservation_status: 'UNDER_REVIEW',
+      },
+    });
+
+    await prisma.tbl_reserved_vehicles.create({
+      data: {
+        vehicle_id: availableVehicle.vehicle_id,
+        reservation_id: reservation.reservation_id,
+        starting_odometer: 10000,
+        fuel_provided: 60,
+        returned_odometer: null,
+        returned_date: new Date('2024-08-10T18:00:00Z'),
+      },
+    });
+
+    await prisma.tbl_vehicles.update({
+      where: { vehicle_id: availableVehicle.vehicle_id },
+      data: { vehicle_status: 'OCCUPIED' },
+    });
+  }
+
   console.log('✅ Seeding completed successfully.');
 }
 
