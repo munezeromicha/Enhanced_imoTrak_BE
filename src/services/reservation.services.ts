@@ -92,7 +92,7 @@ export async function assignVehicle(reservationId: string, vehicleId: string, re
     data: {
       vehicle_id: vehicleId,
       reservation_id: reservationId,
-      starting_odometer: 0, // Will be set when reservation is started
+      starting_odometer: 0, // Will be set when reservation is IN_PROGRESS
       returned_odometer: null,
       fuel_provided: null,
       returned_date: new Date(0), // Placeholder, will be set on return
@@ -132,7 +132,7 @@ export async function startReservation(reservedVehicleId: string, startingOdomet
   });
   await prisma.tbl_reservations.update({
     where: { reservation_id: reservation.reservation_id },
-    data: { reservation_status: RequestStatus.STARTED },
+    data: { reservation_status: RequestStatus.IN_PROGRESS },
   });
   return true;
 }
@@ -149,8 +149,8 @@ export async function completeReservation(reservedVehicleId: string, returnedOdo
   if (reservation.user_id !== userId) {
     throw new Error('Not authorized to complete this reservation');
   }
-  if (reservation.reservation_status !== RequestStatus.STARTED) {
-    throw new Error('Reservation must be started to complete');
+  if (reservation.reservation_status !== RequestStatus.IN_PROGRESS) {
+    throw new Error('Reservation must be IN_PROGRESS to complete');
   }
   // Update reserved vehicle, reservation status, and vehicle status
   await prisma.tbl_reserved_vehicles.update({
