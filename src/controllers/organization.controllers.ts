@@ -22,6 +22,7 @@ import {
 } from '../services/organization.services';
 import { updateUnitSchema } from '../schemas/organization.schema';
 import { updatePositionSchema } from '../schemas/position.schema';
+import { position_accesses } from '../types/access';
 
 const prisma = new PrismaClient();
 
@@ -31,7 +32,7 @@ interface AuthenticatedRequest extends Request {
     email: string;
     position_id: string;
     organization_id: string;
-    position_access?: any;
+    position_access: position_accesses;
   };
 }
 

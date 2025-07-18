@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { positionAccessSchema } from './position.schema';
 
 
 const phoneRegex = /^[0-9]{10,15}$/;
@@ -15,33 +16,6 @@ export const organizationSchema = z.object({
 export const createUnitSchema = z.object({
   unit_name: z.string().min(1, 'Unit name is required'),
   organization_id: z.string().uuid('Invalid organization ID'),
-});
-
-export const positionAccessSchema = z.object({
-  organizations: z.object({
-    create: z.boolean(),
-    view: z.boolean(),
-    update: z.boolean(),
-    delete: z.boolean(),
-  }),
-  units: z.object({
-    create: z.boolean(),
-    view: z.boolean(),
-    update: z.boolean(),
-    delete: z.boolean(),
-  }),
-  positions: z.object({
-    create: z.boolean(),
-    view: z.boolean(),
-    update: z.boolean(),
-    delete: z.boolean(),
-  }),
-  users: z.object({
-    create: z.boolean(),
-    view: z.boolean(),
-    update: z.boolean(),
-    delete: z.boolean(),
-  }),
 });
 
 export const createPositionSchema = z.object({
