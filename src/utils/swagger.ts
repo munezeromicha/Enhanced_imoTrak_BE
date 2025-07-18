@@ -1,6 +1,7 @@
 import swaggerJSDoc from 'swagger-jsdoc';
 import swaggerUi from 'swagger-ui-express';
 import dotenv from 'dotenv';
+import { object } from 'zod';
 
 dotenv.config();
 const PORT = process.env.PORT || 4000;
@@ -85,6 +86,16 @@ const options: swaggerJSDoc.Options = {
                 delete: { type: 'boolean' },
               },
             },
+            reservations: {
+              type: 'object',
+              properties: {
+                create: { type: 'boolean' },
+                view: { type: 'boolean' },
+                viewSingle: { type: 'boolean' },
+                update: { type: 'boolean' },
+                delete: { type: 'boolean' },
+              },
+            }
           },
         },
         Reservation: {

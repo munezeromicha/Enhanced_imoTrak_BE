@@ -1,15 +1,13 @@
 import { Request, Response, NextFunction } from 'express';
 import { createUserService, getUsersGroupedByUnitsService } from '../services/user.services';
 import { AppError } from '../utils/Error';
+import { position_accesses } from '../types/access';
 
 interface AuthenticatedRequest extends Request {
   user?: {
     user_id: string;
     email: string;
-    position_access: {
-      organizations: { create: boolean };
-      users: { create: boolean };
-    };
+    position_access: position_accesses
     organization_id: string;
   };
 }
