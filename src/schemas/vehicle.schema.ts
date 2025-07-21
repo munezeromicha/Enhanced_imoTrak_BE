@@ -12,9 +12,6 @@ export const vehicleModelUpdateSchema = vehicleModelSchema.partial();
 
 export const vehicleSchema = z.object({
   plate_number: z.string().min(1),
-  vehicle_type: z.enum([
-    'AMBULANCE', 'SEDAN', 'SUV', 'TRUCK', 'VAN', 'MOTORCYCLE', 'BUS', 'OTHER'
-  ]),
   transmission_mode: z.enum(['MANUAL', 'AUTOMATIC', 'SEMI_AUTOMATIC']),
   vehicle_model_id: z.string().uuid(),
   vehicle_photo: z.string().min(1),
