@@ -214,10 +214,6 @@ const router = Router();
  *               plate_number:
  *                 type: string
  *                 example: RAC123A
- *               vehicle_type:
- *                 type: string
- *                 enum: [AMBULANCE, SEDAN, SUV, TRUCK, VAN, MOTORCYCLE, BUS, OTHER]
- *                 example: VAN
  *               transmission_mode:
  *                 type: string
  *                 enum: [MANUAL, AUTOMATIC, SEMI_AUTOMATIC]
