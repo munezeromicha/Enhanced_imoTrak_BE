@@ -102,7 +102,7 @@ export async function assignVehicle(reservationId: string, vehicleId: string, re
   return reservedVehicle;
 }
 
-export async function startReservation(reservedVehicleId: string, startingOdometer: number, fuelProvided: number, userId: string) {
+export async function startReservation(reservedVehicleId: string, userId: string) {
   // Permission check: only assigned user (enforced in controller)
   // Only allow if reservation is APPROVED and date >= departure_date
   const reservedVehicle = await prisma.tbl_reserved_vehicles.findUnique({
@@ -122,17 +122,32 @@ export async function startReservation(reservedVehicleId: string, startingOdomet
   if (now < reservation.departure_date) {
     throw new Error('Cannot start reservation before departure date');
   }
-  // Update reserved vehicle and reservation status
+  // Only update reservation status
+  await prisma.tbl_reservations.update({
+    where: { reservation_id: reservation.reservation_id },
+    data: { reservation_status: RequestStatus.IN_PROGRESS },
+  });
+  return true;
+}
+
+export async function updateOdometerFuel(reservedVehicleId: string, startingOdometer: number, fuelProvided: number, userId: string) {
+  // Permission check: only assigned user (enforced in controller)
+  const reservedVehicle = await prisma.tbl_reserved_vehicles.findUnique({
+    where: { reserved_vehicle_id: reservedVehicleId },
+    include: { reservation: true },
+  });
+  if (!reservedVehicle) throw new Error('Reserved vehicle not found');
+  const reservation = reservedVehicle.reservation;
+  if (!reservation) throw new Error('Reservation not found');
+  if (reservation.user_id !== userId) {
+    throw new Error('Not authorized to update odometer/fuel for this reservation');
+  }
   await prisma.tbl_reserved_vehicles.update({
     where: { reserved_vehicle_id: reservedVehicleId },
     data: {
       starting_odometer: startingOdometer,
       fuel_provided: fuelProvided,
     },
-  });
-  await prisma.tbl_reservations.update({
-    where: { reservation_id: reservation.reservation_id },
-    data: { reservation_status: RequestStatus.IN_PROGRESS },
   });
   return true;
 }

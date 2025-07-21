@@ -9,6 +9,7 @@ import {
   completeReservation,
   getAllReservations,
   deleteReservation,
+  updateOdometerFuel,
 } from '../controllers/reservation.controllers';
 import { validateBody } from '../middlewares/bodyValidator';
 import {
@@ -18,6 +19,7 @@ import {
   assignVehicleSchema,
   startReservationSchema,
   completeReservationSchema,
+  odometerFuelSchema,
 } from '../schemas/reservation.schema';
 import { authenticateToken } from '../middlewares/auth.middleware';
 import { attachPositionAccess } from '../middlewares/attachPositionAccess';
@@ -201,9 +203,9 @@ router.post('/:id/assign-vehicle', authenticateToken, attachPositionAccess, vali
 
 /**
  * @openapi
- * /v2/reservations/{reservedVehicleId}/start:
+ * /v2/reservations/{reservedVehicleId}/odometer-fuel:
  *   post:
- *     summary: Start a reservation (vehicle pickup)
+ *     summary: Update starting odometer and fuel provided
  *     security:
  *       - bearerAuth: []
  *     tags:
@@ -220,10 +222,36 @@ router.post('/:id/assign-vehicle', authenticateToken, attachPositionAccess, vali
  *       content:
  *         application/json:
  *           schema:
- *             $ref: '#/components/schemas/StartReservation'
+ *             $ref: '#/components/schemas/OdometerFuel'
  *           example:
  *             starting_odometer: 12000
  *             fuel_provided: 50
+ *     responses:
+ *       200:
+ *         description: Odometer and fuel updated
+ *       400:
+ *         description: Bad request
+ */
+router.post('/:reservedVehicleId/odometer-fuel', authenticateToken, attachPositionAccess, validateBody(odometerFuelSchema), withAuthUser(updateOdometerFuel));
+
+/**
+ * @openapi
+ * /v2/reservations/{reservedVehicleId}/start:
+ *   post:
+ *     summary: Start a reservation (vehicle pickup)
+ *     security:
+ *       - bearerAuth: []
+ *     tags:
+ *       - Reservations
+ *     parameters:
+ *       - in: path
+ *         name: reservedVehicleId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     requestBody:
+ *       required: false
  *     responses:
  *       200:
  *         description: Reservation started

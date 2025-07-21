@@ -95,7 +95,7 @@ const options: swaggerJSDoc.Options = {
                 update: { type: 'boolean' },
                 delete: { type: 'boolean' },
               },
-            }
+            },
           },
         },
         Reservation: {
@@ -132,6 +132,14 @@ const options: swaggerJSDoc.Options = {
             'expected_returning_date',
           ],
         },
+        OdometerFuel: {
+          type: 'object',
+          properties: {
+            starting_odometer: { type: 'integer', example: 12000 },
+            fuel_provided: { type: 'integer', example: 50 },
+          },
+          required: ['starting_odometer', 'fuel_provided'],
+        },
         CancelReservation: {
           type: 'object',
           properties: {
@@ -156,11 +164,8 @@ const options: swaggerJSDoc.Options = {
         },
         StartReservation: {
           type: 'object',
-          properties: {
-            starting_odometer: { type: 'integer', example: 12000 },
-            fuel_provided: { type: 'integer', example: 50 },
-          },
-          required: ['starting_odometer', 'fuel_provided'],
+          properties: {},
+          required: [],
         },
         CompleteReservation: {
           type: 'object',
