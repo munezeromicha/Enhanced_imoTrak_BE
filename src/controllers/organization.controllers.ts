@@ -243,13 +243,14 @@ export const getUnitsController = async (
       throw new AppError('You do not have permission to view units', 403);
     }
 
+    const adminAccess = req.user?.position_access.organizations.create;
     const organization_id = req.user.organization_id;
 
     if (!organization_id) {
       throw new AppError('Organization ID not found in user token', 400);
     }
 
-    const units = await getUnitsService(organization_id);
+    const units = await getUnitsService(adminAccess ? undefined : organization_id);
 
     res.status(200).json({ message: 'Getting units successful', data: units });
   } catch (error) {
