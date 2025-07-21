@@ -293,15 +293,18 @@ export const deleteOrganizationService = async ({
 
 export const getSingleUnitService = async ({ unit_id, user }: GetUnitParams) => {
   const unit = await prisma.tbl_unit.findUnique({
-    where: { unit_id }
+    where: { unit_id },
+    include: {
+      positions: true
+    }
   });
 
   if (!unit) {
     throw new AppError('Unit not found', 404);
   }
   const isOwnOrg = unit.organization_id === user.organization_id;
-
-  if (!isOwnOrg) {
+  const isSuperUser = user.position_access?.organizations.create;
+  if (!isOwnOrg && !isSuperUser) {
     throw new AppError('You do not have permission to access this unit', 403);
   }
 
