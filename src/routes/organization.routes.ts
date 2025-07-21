@@ -604,7 +604,33 @@ organizationRoutes.delete(
  *                 message:
  *                   type: string
  *                 data:
- *                   $ref: '#/components/schemas/Unit'
+ *                     type: object
+ *                     properties:
+ *                       unit_id:
+ *                         type: string
+ *                       unit_name:
+ *                         type: string
+ *                       unit_status:
+ *                         type: string
+ *                       organization_id:
+ *                         type: string
+ *                       created_at:
+ *                         type: string
+ *                         format: date
+ *                       positions:
+ *                         type: array
+ *                         items:
+ *                           type: object
+ *                           properties:
+ *                             position_id:
+ *                               type: string
+ *                             position_title:
+ *                               type: string
+ *                             position_status:
+ *                               type: string
+ *                             user_id:
+ *                               type: string
+ *                               nullable: true
  *       403:
  *         description: Forbidden - No access to this unit
  *       404:
