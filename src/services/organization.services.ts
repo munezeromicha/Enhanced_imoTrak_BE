@@ -204,14 +204,13 @@ export async function getPositionsInUnitService({
   return positions;
 }
 
-export async function getUnitsService(organization_id: string) {
+export async function getUnitsService(organization_id?: string) {
   const units = await prisma.tbl_unit.findMany({
-    where: { organization_id },
+    where: organization_id ? { organization_id } : undefined,
     include: {
       positions: true,
     },
   });
-
   return units;
 }
 
