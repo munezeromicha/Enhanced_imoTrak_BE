@@ -31,4 +31,6 @@ jobs:
         with:
           context: .
           push: true
-          tags: ninshuti/imotrak-backend:latest
+          tags: ninshuti/imotrack-backend:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
