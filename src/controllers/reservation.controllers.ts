@@ -8,6 +8,7 @@ import {
   assignVehicleSchema,
   startReservationSchema,
   completeReservationSchema,
+  odometerFuelSchema,
 } from '../schemas/reservation.schema';
 import { z } from 'zod';
 import { RequestStatus } from '@prisma/client';
@@ -78,11 +79,24 @@ export const assignVehicle = async (req: AuthenticatedRequest, res: Response) =>
 export const startReservation = async (req: AuthenticatedRequest, res: Response) => {
   try {
     checkPermission(req, 'update');
-    const { starting_odometer, fuel_provided } = startReservationSchema.parse(req.body);
     const reservedVehicleId = req.params.reservedVehicleId;
     const user_id = req.user.user_id;
-    await reservationService.startReservation(reservedVehicleId, starting_odometer, fuel_provided, user_id);
+    await reservationService.startReservation(reservedVehicleId, user_id);
     res.status(200).json({ message: 'Reservation started' });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    res.status(400).json({ message });
+  }
+};
+
+export const updateOdometerFuel = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    checkPermission(req, 'update');
+    const { starting_odometer, fuel_provided } = odometerFuelSchema.parse(req.body);
+    const reservedVehicleId = req.params.reservedVehicleId;
+    const user_id = req.user.user_id;
+    await reservationService.updateOdometerFuel(reservedVehicleId, starting_odometer, fuel_provided, user_id);
+    res.status(200).json({ message: 'Odometer and fuel updated' });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
     res.status(400).json({ message });

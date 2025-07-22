@@ -139,7 +139,6 @@ async function main() {
  const vehicles = [
   {
     plate_number: 'FLEET001',
-    vehicle_type: VehicleType.SUV,
     transmission_mode: TransmissionMode.AUTOMATIC,
     vehicle_photo: 'patrol1.png',
     vehicle_year: 2019,
@@ -148,7 +147,6 @@ async function main() {
   },
   {
     plate_number: 'FLEET002',
-    vehicle_type: VehicleType.SUV,
     transmission_mode: TransmissionMode.MANUAL,
     vehicle_photo: 'patrol2.png',
     vehicle_year: 2020,
@@ -157,7 +155,6 @@ async function main() {
   },
   {
     plate_number: 'FLEET003',
-    vehicle_type: VehicleType.SUV,
     transmission_mode: TransmissionMode.AUTOMATIC,
     vehicle_photo: 'patrol3.png',
     vehicle_year: 2021,
