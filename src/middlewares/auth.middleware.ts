@@ -2,6 +2,8 @@ import { Request, Response, NextFunction } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { verifyToken } from '../utils/jwt';
 import { AppError } from '../utils/Error';
+import { setRequestContext } from '../context/request-context';
+import { getRequestMeta } from '../utils/get-meta';
 
 const prisma = new PrismaClient();
 
@@ -20,8 +22,7 @@ export async function authenticateToken(
 ) {
   try {
     const authHeader = req.headers.authorization;
-    const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
-
+    const token = authHeader && authHeader.split(' ')[1]; 
     if (!token) {
       throw new AppError('Access token required', 401);
     }
@@ -39,6 +40,12 @@ export async function authenticateToken(
     const decoded = verifyToken(token);
     req.user = decoded;
 
+    // Extract metadata
+    const { ip, userAgent } = getRequestMeta(req);
+    const userId = decoded.user_id;
+
+    // Store in async local storage
+    setRequestContext({ userId, ip, userAgent });
     next();
   } catch (error) {
     if (error instanceof AppError) {
