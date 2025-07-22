@@ -468,3 +468,26 @@ export const updatePositionController = async (
   }
 };
 
+export const getUnitsInOrganization = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { organization_id } = req.params;
+
+    if (!req.user?.position_access?.units?.view || !req.user?.position_access?.organizations.create) {
+      throw new AppError('You do not have permission to view units of this organization', 403);
+    }
+
+    const unit = await getUnitsService(organization_id);
+
+    res.status(200).json({
+      message: 'Unit retrieved successfully',
+      data: unit
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+

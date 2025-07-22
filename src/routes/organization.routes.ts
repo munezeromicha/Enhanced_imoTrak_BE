@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { createOrganizationController, createPositionController, createUnitController, deleteOrganizationController, deletePositionController, deleteUnitController, getOrganizationsController, getPositionsInUnitController, getSingleOrganizationController, getSinglePositionController, getSingleUnitController, getUnitsController, updateOrganizationController, updatePositionController, updateUnitController } from '../controllers/organization.controllers';
+import { createOrganizationController, createPositionController, createUnitController, deleteOrganizationController, deletePositionController, deleteUnitController, getOrganizationsController, getPositionsInUnitController, getSingleOrganizationController, getSinglePositionController, getSingleUnitController, getUnitsController, getUnitsInOrganization, updateOrganizationController, updatePositionController, updateUnitController } from '../controllers/organization.controllers';
 import { authenticateToken } from '../middlewares/auth.middleware';
 import { attachPositionAccess } from '../middlewares/attachPositionAccess';
 import { validateBody } from '../middlewares/bodyValidator';
@@ -891,5 +891,91 @@ organizationRoutes.patch(
   updatePositionController
 );
 
+/**
+ * @swagger
+ * /v2/organizations/{organization_id}/units:
+ *   get:
+ *     summary: Retrieve all units in a specific organization
+ *     tags:
+ *       - Organization
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: organization_id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The UUID of the organization to retrieve units from
+ *     responses:
+ *       200:
+ *         description: List of units retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Unit retrieved successfully
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       unit_id:
+ *                         type: string
+ *                         format: uuid
+ *                       unit_name:
+ *                         type: string
+ *                       created_at:
+ *                         type: string
+ *                         format: date-time
+ *                       organization_id:
+ *                         type: string
+ *                         format: uuid
+ *                       status:
+ *                         type: string
+ *                         enum: [ACTIVE, INACTIVE, DELETED, SUSPENDED]
+ *                       positions:
+ *                         type: array
+ *                         items:
+ *                           type: object
+ *                           properties:
+ *                             position_id:
+ *                               type: string
+ *                             position_name:
+ *                               type: string
+ *                             position_description:
+ *                               type: string
+ *                             position_access:
+ *                               type: object
+ *                             created_at:
+ *                               type: string
+ *                               format: date-time
+ *                             position_status:
+ *                               type: string
+ *       403:
+ *         description: Forbidden - User does not have permission to view units of this organization
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: You do not have permission to view units of this organization
+ *       401:
+ *         description: Unauthorized - Invalid or missing token
+ *       500:
+ *         description: Internal server error
+ */
 
+
+organizationRoutes.get(
+  '/:organizations_id/units', 
+  authenticateToken,
+  attachPositionAccess,
+  getUnitsInOrganization
+);
 export default organizationRoutes;
