@@ -216,7 +216,10 @@ export async function getUnitsService(organization_id?: string) {
 
 export const getSingleOrganizationService = async ({ organization_id, user }: GetOrgParams) => {
   const organization = await prisma.tbl_organizations.findUnique({
-    where: { organization_id }
+    where: { organization_id },
+    include: {
+      units: true
+    }
   });
 
   if (!organization) {

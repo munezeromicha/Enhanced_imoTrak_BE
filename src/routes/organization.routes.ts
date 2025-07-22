@@ -455,7 +455,65 @@ organizationRoutes.delete(
  *                 message:
  *                   type: string
  *                 data:
- *                   $ref: '#/components/schemas/Organization'
+ *                   type: object
+ *                   properties:
+ *                     organization_id:
+ *                       type: string
+ *                       format: uuid
+ *                     organization_name:
+ *                       type: string
+ *                     street_address:
+ *                       type: string
+ *                     organization_phone:
+ *                       type: string
+ *                     organization_email:
+ *                       type: string
+ *                     organization_logo:
+ *                       type: string
+ *                       format: uri
+ *                     created_at:
+ *                       type: string
+ *                       format: date-time
+ *                     organization_customId:
+ *                       type: string
+ *                     organization_status:
+ *                       type: string
+ *                     units:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           unit_id:
+ *                             type: string
+ *                             format: uuid
+ *                           unit_name:
+ *                             type: string
+ *                           created_at:
+ *                             type: string
+ *                             format: date-time
+ *                           organization_id:
+ *                             type: string
+ *                             format: uuid
+ *                           status:
+ *                             type: string
+ *             example:
+ *               message: Organization retrieved successfully
+ *               data:
+ *                 organization_id: "88c42823-4039-4017-b6c1-162c8c1346e3"
+ *                 organization_name: "Hab~Jass Shop"
+ *                 street_address: "kigali"
+ *                 organization_phone: "0786779666"
+ *                 organization_email: "habibundayishimiye@gmail.com"
+ *                 organization_logo: "https://res.cloudinary.com/daxuxhhxr/image/upload/v1752835554/Imotrak/organization_logo/go9uhbjur4givgnzjf9a.png"
+ *                 created_at: "2025-07-18T10:45:55.103Z"
+ *                 organization_customId: "ORG-20250718-AZIPLG"
+ *                 organization_status: "ACTIVE"
+ *                 units:
+ *                   - unit_id: "1ba03d12-eef4-4371-88f8-079a3df4eab8"
+ *                     unit_name: "Jass"
+ *                     created_at: "2025-07-18T10:47:45.007Z"
+ *                     organization_id: "88c42823-4039-4017-b6c1-162c8c1346e3"
+ *                     status: "ACTIVE"
  *       401:
  *         description: Unauthorized
  *       403:
