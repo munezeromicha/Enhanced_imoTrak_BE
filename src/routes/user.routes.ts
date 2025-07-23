@@ -3,7 +3,7 @@ import { authenticateToken } from '../middlewares/auth.middleware';
 import { attachPositionAccess } from '../middlewares/attachPositionAccess';
 import { validateBody } from '../middlewares/bodyValidator';
 import { createUserSchema } from '../schemas/user.schema';
-import { createUserController, getUsersGroupedByUnitsController } from '../controllers/user.controllers';
+import { createUserController, getUsersWithPositionsController } from '../controllers/user.controllers';
 
 const usersRoutes = Router();
 
@@ -91,46 +91,75 @@ usersRoutes.post(
  * @swagger
  * /v2/users/:
  *   get:
- *     summary: Get users grouped by units in the same organization
+ *     summary: Get users and their positions, units, and organizations
  *     tags:
  *       - Users
  *     security:
  *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: organization_id
+ *         schema:
+ *           type: string
+ *         description: Optional organization ID to filter users by organization
  *     responses:
  *       200:
- *         description: List of users grouped by their units
+ *         description: List of users with their positions, units, and organizations
  *         content:
  *           application/json:
  *             schema:
- *               type: array
- *               items:
- *                 type: object
- *                 properties:
- *                   unit_id:
- *                     type: string
- *                   unit_name:
- *                     type: string
- *                   users:
- *                     type: array
- *                     items:
- *                       type: object
- *                       properties:
- *                         user_id:
- *                           type: string
- *                         first_name:
- *                           type: string
- *                         last_name:
- *                           type: string
- *                         email:
- *                           type: string
- *                         user_gender:
- *                           type: string
- *                         user_phone:
- *                           type: string
- *                         position_id:
- *                           type: string
- *                         position_name:
- *                           type: string
+ *               type: object
+ *               properties:
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       user_id:
+ *                         type: string
+ *                       first_name:
+ *                         type: string
+ *                       last_name:
+ *                         type: string
+ *                       email:
+ *                         type: string
+ *                       user_gender:
+ *                         type: string
+ *                         enum: [MALE, FEMALE]
+ *                       user_phone:
+ *                         type: string
+ *                       positions:
+ *                         type: array
+ *                         items:
+ *                           type: object
+ *                           properties:
+ *                             position_id:
+ *                               type: string
+ *                             position_name:
+ *                               type: string
+ *                             position_description:
+ *                               type: string
+ *                             position_status:
+ *                               type: string
+ *                               enum: [ACTIVE, INACTIVE, DELETED, SUSPENDED]
+ *                             unit:
+ *                               type: object
+ *                               properties:
+ *                                 unit_id:
+ *                                   type: string
+ *                                 unit_name:
+ *                                   type: string
+ *                                 organization:
+ *                                   type: object
+ *                                   properties:
+ *                                     organization_id:
+ *                                       type: string
+ *                                     organization_name:
+ *                                       type: string
+ *                                     organization_email:
+ *                                       type: string
+ *                                     organization_phone:
+ *                                       type: string
  *       403:
  *         description: Forbidden - Access denied
  */
@@ -139,7 +168,7 @@ usersRoutes.get(
   '/',
   authenticateToken,
   attachPositionAccess,
-  getUsersGroupedByUnitsController
+  getUsersWithPositionsController
 );
 
 export default usersRoutes;

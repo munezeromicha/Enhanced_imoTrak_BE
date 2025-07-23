@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { createUserService, getUsersGroupedByUnitsService } from '../services/user.services';
+import { createUserService, getUsersWithPositionsService } from '../services/user.services';
 import { AppError } from '../utils/Error';
 import { position_accesses } from '../types/access';
 
@@ -65,7 +65,7 @@ export const createUserController = async (
   }
 };
 
-export const getUsersGroupedByUnitsController = async (
+export const getUsersWithPositionsController = async (
   req: Request & { user?: any },
   res: Response,
   next: NextFunction
@@ -75,7 +75,14 @@ export const getUsersGroupedByUnitsController = async (
       throw new AppError('You do not have permission to view users', 403);
     }
 
-    const result = await getUsersGroupedByUnitsService(req.user.organization_id);
+    const adminAccess = req.user?.position_access.organizations.create;
+    const organization_id = req.user.organization_id;
+
+    if (!organization_id) {
+      throw new AppError('Organization ID not found in user token', 400);
+    }
+
+    const result = await getUsersWithPositionsService(adminAccess ? undefined : organization_id);
 
     res.status(200).json({ data: result });
   } catch (error) {
