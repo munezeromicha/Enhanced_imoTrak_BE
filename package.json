@@ -22,6 +22,7 @@
   },
   "homepage": "https://github.com/binaryhubrw/Imotrak-Backside#readme",
   "devDependencies": {
+    "@types/archiver": "^6.0.3",
     "@types/argon2": "^0.14.1",
     "@types/cors": "^2.8.18",
     "@types/dotenv": "^6.1.1",
@@ -39,9 +40,11 @@
   },
   "dependencies": {
     "@prisma/client": "^6.11.1",
+    "archiver": "^7.0.1",
     "argon2": "^0.43.0",
     "cloudinary": "^2.7.0",
     "cors": "^2.8.5",
+    "cron": "^4.3.2",
     "dotenv": "^16.5.0",
     "express": "^5.1.0",
     "helmet": "^8.1.0",
