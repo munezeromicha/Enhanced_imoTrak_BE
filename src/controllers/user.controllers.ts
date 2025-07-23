@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { createUserService, getUsersWithPositionsService } from '../services/user.services';
+import { createUserService, getSingleUserWithPositionsService, getUsersWithPositionsService } from '../services/user.services';
 import { AppError } from '../utils/Error';
 import { position_accesses } from '../types/access';
 
@@ -87,6 +87,29 @@ export const getUsersWithPositionsController = async (
     res.status(200).json({ 
       message:"User retrieved successfully",
       data: result 
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getSingleUserWithPositionsController = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    if (!req.user?.position_access.users.view) {
+      throw new AppError('You do not have permission to view users', 403);
+    }
+
+    const { user_id } = req.params;
+
+    const result = await getSingleUserWithPositionsService(user_id);
+
+    res.status(200).json({
+      message: 'User retrieved successfully',
+      data: result,
     });
   } catch (error) {
     next(error);

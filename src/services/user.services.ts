@@ -2,6 +2,7 @@ import { PrismaClient } from '@prisma/client';
 import { sendUserCredentialsEmail } from '../utils/sendCredentials';
 import { generateRandomPassword } from '../utils/password';
 import argon2 from 'argon2';
+import { AppError } from '../utils/Error';
 
 const prisma = new PrismaClient();
 
@@ -173,3 +174,66 @@ export const getUsersWithPositionsService = async (organization_id?: string) => 
   }));
 };
 
+export const getSingleUserWithPositionsService = async (user_id: string) => {
+  const user = await prisma.tbl_users.findUnique({
+    where: { user_id },
+    select: {
+      user_id: true,
+      first_name: true,
+      last_name: true,
+      user_gender: true,
+      user_phone: true,
+      auth: {
+        select: {
+          email: true,
+        },
+      },
+      positions: {
+        select: {
+          position_id: true,
+          position_name: true,
+          position_description: true,
+          position_status: true,
+          unit: {
+            select: {
+              unit_id: true,
+              unit_name: true,
+              organization: {
+                select: {
+                  organization_id: true,
+                  organization_name: true,
+                  organization_email: true,
+                  organization_phone: true,
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  });
+
+  if (!user) {
+    throw new AppError('User not found', 404);
+  }
+
+  return {
+    user_id: user.user_id,
+    first_name: user.first_name,
+    last_name: user.last_name,
+    email: user.auth?.email,
+    user_gender: user.user_gender,
+    user_phone: user.user_phone,
+    positions: user.positions.map((pos) => ({
+      position_id: pos.position_id,
+      position_name: pos.position_name,
+      position_description: pos.position_description,
+      position_status: pos.position_status,
+      unit: {
+        unit_id: pos.unit.unit_id,
+        unit_name: pos.unit.unit_name,
+        organization: pos.unit.organization,
+      },
+    })),
+  };
+};
