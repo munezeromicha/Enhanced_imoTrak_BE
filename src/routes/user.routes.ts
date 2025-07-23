@@ -110,6 +110,9 @@ usersRoutes.post(
  *             schema:
  *               type: object
  *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Users retrieved successfully
  *                 data:
  *                   type: array
  *                   items:
