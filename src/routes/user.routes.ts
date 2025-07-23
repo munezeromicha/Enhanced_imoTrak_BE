@@ -267,19 +267,21 @@ usersRoutes.get(
  * @swagger
  * /v2/users/{user_id}:
  *   patch:
- *     summary: Update a user's personal profile fields
+ *     summary: Update an existing user's personal profile information
  *     tags:
  *       - Users
  *     security:
  *       - bearerAuth: []
  *     parameters:
- *       - name: user_id
- *         in: path
+ *       - in: path
+ *         name: user_id
  *         required: true
  *         schema:
  *           type: string
+ *           format: uuid
  *         description: The ID of the user to update
  *     requestBody:
+ *       description: Fields to update in user profile (partial allowed)
  *       required: true
  *       content:
  *         application/json:
@@ -294,6 +296,7 @@ usersRoutes.get(
  *                 type: string
  *               user_phone:
  *                 type: string
+ *                 description: Must be 10 to 15 characters
  *               user_gender:
  *                 type: string
  *                 enum: [MALE, FEMALE]
@@ -312,12 +315,67 @@ usersRoutes.get(
  *               properties:
  *                 message:
  *                   type: string
+ *                   example: User updated successfully
  *                 data:
- *                   $ref: '#/components/schemas/User'
+ *                   type: object
+ *                   properties:
+ *                     user_id:
+ *                       type: string
+ *                       format: uuid
+ *                     first_name:
+ *                       type: string
+ *                     last_name:
+ *                       type: string
+ *                     email:
+ *                       type: string
+ *                       format: email
+ *                     user_gender:
+ *                       type: string
+ *                       enum: [MALE, FEMALE]
+ *                     user_phone:
+ *                       type: string
+ *                     positions:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           position_id:
+ *                             type: string
+ *                             format: uuid
+ *                           position_name:
+ *                             type: string
+ *                           position_description:
+ *                             type: string
+ *                           position_status:
+ *                             type: string
+ *                             enum: [ACTIVE, INACTIVE, DELETED, SUSPENDED]
+ *                           unit:
+ *                             type: object
+ *                             properties:
+ *                               unit_id:
+ *                                 type: string
+ *                                 format: uuid
+ *                               unit_name:
+ *                                 type: string
+ *                               organization:
+ *                                 type: object
+ *                                 properties:
+ *                                   organization_id:
+ *                                     type: string
+ *                                     format: uuid
+ *                                   organization_name:
+ *                                     type: string
+ *                                   organization_email:
+ *                                     type: string
+ *                                     format: email
+ *                                   organization_phone:
+ *                                     type: string
+ *       400:
+ *         description: Invalid request or user not found
  *       403:
- *         description: Unauthorized access
- *       404:
- *         description: User not found
+ *         description: Forbidden - no permission to update user
+ *       500:
+ *         description: Internal server error
  */
 
 usersRoutes.patch(

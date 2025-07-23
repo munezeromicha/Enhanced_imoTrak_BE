@@ -60,9 +60,7 @@ export async function createUserService(data: CreateUserPayload) {
   const password = generateRandomPassword(10);
   const hashedPassword = await argon2.hash(password);
 
-  // Step 2: Run all write operations inside a transaction
   const result = await prisma.$transaction(async (tx) => {
-    // Create auth record
     const auth = await tx.tbl_auth.create({
       data: {
         email,
