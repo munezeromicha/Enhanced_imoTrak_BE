@@ -1,4 +1,3 @@
-// src/controllers/reservation.controllers.ts
 import { Request, Response } from 'express';
 import * as reservationService from '../services/reservation.services';
 import {
