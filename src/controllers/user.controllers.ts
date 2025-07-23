@@ -84,7 +84,10 @@ export const getUsersWithPositionsController = async (
 
     const result = await getUsersWithPositionsService(adminAccess ? undefined : organization_id);
 
-    res.status(200).json({ data: result });
+    res.status(200).json({ 
+      message:"User retrieved successfully",
+      data: result 
+    });
   } catch (error) {
     next(error);
   }
