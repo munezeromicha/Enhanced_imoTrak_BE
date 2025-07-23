@@ -973,7 +973,7 @@ organizationRoutes.patch(
 
 
 organizationRoutes.get(
-  '/:organizations_id/units', 
+  '/:organization_id/units', 
   authenticateToken,
   attachPositionAccess,
   getUnitsInOrganization
