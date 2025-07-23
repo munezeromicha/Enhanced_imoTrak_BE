@@ -2,8 +2,8 @@ import { Router } from 'express';
 import { authenticateToken } from '../middlewares/auth.middleware';
 import { attachPositionAccess } from '../middlewares/attachPositionAccess';
 import { validateBody } from '../middlewares/bodyValidator';
-import { createUserSchema } from '../schemas/user.schema';
-import { createUserController, getSingleUserWithPositionsController, getUsersWithPositionsController } from '../controllers/user.controllers';
+import { createUserSchema, updateUserSchema } from '../schemas/user.schema';
+import { createUserController, getSingleUserWithPositionsController, getUsersWithPositionsController, updateUserController } from '../controllers/user.controllers';
 
 const usersRoutes = Router();
 
@@ -262,5 +262,71 @@ usersRoutes.get(
   attachPositionAccess,
   getSingleUserWithPositionsController
 );
+
+/**
+ * @swagger
+ * /v2/users/{user_id}:
+ *   patch:
+ *     summary: Update a user's personal profile fields
+ *     tags:
+ *       - Users
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - name: user_id
+ *         in: path
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The ID of the user to update
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               first_name:
+ *                 type: string
+ *               last_name:
+ *                 type: string
+ *               user_nid:
+ *                 type: string
+ *               user_phone:
+ *                 type: string
+ *               user_gender:
+ *                 type: string
+ *                 enum: [MALE, FEMALE]
+ *               user_dob:
+ *                 type: string
+ *                 format: date
+ *               street_address:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: User updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   $ref: '#/components/schemas/User'
+ *       403:
+ *         description: Unauthorized access
+ *       404:
+ *         description: User not found
+ */
+
+usersRoutes.patch(
+  '/:user_id',
+  authenticateToken,
+  attachPositionAccess,
+  validateBody(updateUserSchema),
+  updateUserController
+);
+
 
 export default usersRoutes;
