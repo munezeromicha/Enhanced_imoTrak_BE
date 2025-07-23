@@ -60,9 +60,7 @@ export async function createUserService(data: CreateUserPayload) {
   const password = generateRandomPassword(10);
   const hashedPassword = await argon2.hash(password);
 
-  // Step 2: Run all write operations inside a transaction
   const result = await prisma.$transaction(async (tx) => {
-    // Create auth record
     const auth = await tx.tbl_auth.create({
       data: {
         email,
@@ -235,5 +233,93 @@ export const getSingleUserWithPositionsService = async (user_id: string) => {
         organization: pos.unit.organization,
       },
     })),
+  };
+};
+
+export const updateUserService = async (
+  user_id: string,
+  data: Partial<Omit<CreateUserPayload, 'position_id' | 'email' | 'requester_org_id' | 'hasOrgCreateAccess'>>,
+  requester_org_id: string,
+  hasGlobalAccess: boolean
+) => {
+  const user = await prisma.tbl_users.findUnique({
+    where: { user_id },
+    include: {
+      auth: true,
+      positions: {
+        select: {
+          position_id: true,
+          position_name: true,
+          position_description: true,
+          position_status: true,
+          unit: {
+            select: {
+              unit_id: true,
+              unit_name: true,
+              organization: {
+                select: {
+                  organization_id: true,
+                  organization_name: true,
+                  organization_email: true,
+                  organization_phone: true,
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  });
+
+  if (!user) throw new AppError('User not found', 404);
+
+  // If not global access, verify org
+  if (!hasGlobalAccess) {
+    const belongsToOrg = user.positions.some(
+      (pos) => pos.unit.organization.organization_id === requester_org_id
+    );
+    if (!belongsToOrg) {
+      throw new AppError('You do not have permission to update this user', 403);
+    }
+  }
+
+  const updated = await prisma.tbl_users.update({
+    where: { user_id },
+    data,
+    include: {
+      auth: true,
+      positions: {
+        select: {
+          position_id: true,
+          position_name: true,
+          position_description: true,
+          position_status: true,
+          unit: {
+            select: {
+              unit_id: true,
+              unit_name: true,
+              organization: {
+                select: {
+                  organization_id: true,
+                  organization_name: true,
+                  organization_email: true,
+                  organization_phone: true,
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  });
+
+  return {
+    user_id: updated.user_id,
+    first_name: updated.first_name,
+    last_name: updated.last_name,
+    email: updated.auth?.email,
+    user_gender: updated.user_gender,
+    user_phone: updated.user_phone,
+    positions: updated.positions,
   };
 };

@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { createUserService, getSingleUserWithPositionsService, getUsersWithPositionsService } from '../services/user.services';
+import { createUserService, getSingleUserWithPositionsService, getUsersWithPositionsService, updateUserService } from '../services/user.services';
 import { AppError } from '../utils/Error';
 import { position_accesses } from '../types/access';
 
@@ -109,6 +109,31 @@ export const getSingleUserWithPositionsController = async (
 
     res.status(200).json({
       message: 'User retrieved successfully',
+      data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const updateUserController = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    if (!req.user?.position_access.users.update) {
+      throw new AppError('You do not have permission to update users', 403);
+    }
+
+    const { user_id } = req.params;
+    const org_id = req.user.organization_id;
+    const hasGlobalAccess = req.user.position_access.organizations.create;
+
+    const result = await updateUserService(user_id, req.body, org_id, hasGlobalAccess);
+
+    res.status(200).json({
+      message: 'User updated successfully',
       data: result,
     });
   } catch (error) {
