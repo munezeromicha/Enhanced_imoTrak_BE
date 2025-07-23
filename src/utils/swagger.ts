@@ -16,7 +16,7 @@ const options: swaggerJSDoc.Options = {
     },
     servers: [
       { url: `http://localhost:${PORT}` },
-      { url: 'https://imotrak-backside-lah2.onrender.com' },
+      { url: 'https://imoteack.onrender.com' },
     ],
     components: {
       securitySchemes: {
