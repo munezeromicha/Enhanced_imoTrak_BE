@@ -5,6 +5,7 @@ import usersRoutes from "./user.routes";
 import vehicleRoutes from "./vehicle.routes";
 import reservationRoutes from "./reservation.routes"
 import issueRoutes from "./vehicleIssue.routes";
+import notificationRoutes from './notification.routes';
 
 const routes = Router();
 
@@ -14,5 +15,6 @@ routes.use('/users', usersRoutes);
 routes.use('/', vehicleRoutes);
 routes.use('/reservations', reservationRoutes);
 routes.use('/issues', issueRoutes);
+routes.use('/notifications', notificationRoutes);
 
 export default routes;

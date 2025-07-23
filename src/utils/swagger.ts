@@ -16,7 +16,7 @@ const options: swaggerJSDoc.Options = {
     },
     servers: [
       { url: `http://localhost:${PORT}` },
-      { url: 'https://imotrak-backside-lah2.onrender.com' },
+      { url: 'https://imoteack.onrender.com' },
     ],
     components: {
       securitySchemes: {
@@ -173,6 +173,16 @@ const options: swaggerJSDoc.Options = {
             returned_odometer: { type: 'integer', example: 12500 },
           },
           required: ['returned_odometer'],
+        },
+        Notification: {
+          type: 'object',
+          properties: {
+            notification_id: { type: 'string', format: 'uuid' },
+            user_id: { type: 'string', format: 'uuid' },
+            notification_title: { type: 'string' },
+            notification_message: { type: 'string' },
+            created_at: { type: 'string', format: 'date-time' },
+          },
         },
       },
     },

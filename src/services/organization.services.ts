@@ -393,7 +393,7 @@ export const getSinglePositionService = async ({ position_id, user }: GetSingleP
   const positionOrgId = position.unit.organization_id;
 
   // If user has no global org access, restrict to same org
-  if (user.organization_id !== positionOrgId) {
+  if (user.organization_id !== positionOrgId && !user.position_access?.organizations.create) {
     throw new AppError('You do not have permission to view this position', 403);
   }
 
