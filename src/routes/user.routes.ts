@@ -3,7 +3,7 @@ import { authenticateToken } from '../middlewares/auth.middleware';
 import { attachPositionAccess } from '../middlewares/attachPositionAccess';
 import { validateBody } from '../middlewares/bodyValidator';
 import { createUserSchema } from '../schemas/user.schema';
-import { createUserController, getUsersWithPositionsController } from '../controllers/user.controllers';
+import { createUserController, getSingleUserWithPositionsController, getUsersWithPositionsController } from '../controllers/user.controllers';
 
 const usersRoutes = Router();
 
@@ -172,6 +172,95 @@ usersRoutes.get(
   authenticateToken,
   attachPositionAccess,
   getUsersWithPositionsController
+);
+
+/**
+ * @swagger
+ * /v2/users/{user_id}:
+ *   get:
+ *     summary: Get a single user's profile with positions, unit, and organization
+ *     tags:
+ *       - Users
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - name: user_id
+ *         in: path
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID of the user to retrieve
+ *     responses:
+ *       200:
+ *         description: User retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: User retrieved successfully
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     user_id:
+ *                       type: string
+ *                     first_name:
+ *                       type: string
+ *                     last_name:
+ *                       type: string
+ *                     email:
+ *                       type: string
+ *                       format: email
+ *                     user_gender:
+ *                       type: string
+ *                       enum: [MALE, FEMALE]
+ *                     user_phone:
+ *                       type: string
+ *                     positions:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           position_id:
+ *                             type: string
+ *                           position_name:
+ *                             type: string
+ *                           position_description:
+ *                             type: string
+ *                           position_status:
+ *                             type: string
+ *                             enum: [ACTIVE, INACTIVE, DELETED, SUSPENDED]
+ *                           unit:
+ *                             type: object
+ *                             properties:
+ *                               unit_id:
+ *                                 type: string
+ *                               unit_name:
+ *                                 type: string
+ *                               organization:
+ *                                 type: object
+ *                                 properties:
+ *                                   organization_id:
+ *                                     type: string
+ *                                   organization_name:
+ *                                     type: string
+ *                                   organization_email:
+ *                                     type: string
+ *                                   organization_phone:
+ *                                     type: string
+ *       403:
+ *         description: Forbidden - Access denied
+ *       404:
+ *         description: User not found
+ */
+
+usersRoutes.get(
+  '/:user_id',
+  authenticateToken,
+  attachPositionAccess,
+  getSingleUserWithPositionsController
 );
 
 export default usersRoutes;
