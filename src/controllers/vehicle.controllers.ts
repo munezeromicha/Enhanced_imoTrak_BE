@@ -44,7 +44,6 @@ export async function deleteVehicleModelController(req: Request, res: Response, 
   } catch (error) { next(error); }
 }
 
-// Vehicle Controllers
 export async function createVehicleController(req: Request, res: Response, next: NextFunction) {
   try {
     let vehiclePhotoUrl = req.body.vehicle_photo;

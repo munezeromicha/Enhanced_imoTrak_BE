@@ -45,6 +45,12 @@ export interface position_accesses {
     update: boolean;
     delete: boolean;
   };
+  vehicleIssues: {
+    report: boolean;
+    view: boolean;
+    update: boolean;
+    delete: boolean;
+  };
 }
 
 export interface AuthenticatedUser {
