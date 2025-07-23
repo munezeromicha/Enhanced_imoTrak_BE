@@ -425,7 +425,7 @@ export const getSinglePositionController = async (
   try {
     const { position_id } = req.params;
 
-    if (!req.user?.position_access?.positions?.view) {
+    if (!req.user?.position_access?.positions?.view && !req.user?.position_access.organizations.create) {
       throw new AppError('You do not have permission to view positions', 403);
     }
 
