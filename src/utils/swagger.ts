@@ -174,6 +174,16 @@ const options: swaggerJSDoc.Options = {
           },
           required: ['returned_odometer'],
         },
+        Notification: {
+          type: 'object',
+          properties: {
+            notification_id: { type: 'string', format: 'uuid' },
+            user_id: { type: 'string', format: 'uuid' },
+            notification_title: { type: 'string' },
+            notification_message: { type: 'string' },
+            created_at: { type: 'string', format: 'date-time' },
+          },
+        },
       },
     },
   },

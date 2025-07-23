@@ -24,6 +24,7 @@ async function main() {
     users: { create: false, view: false, update: false, delete: false },
     vehicleModels: { create: true, view: true, viewSingle: true, update: true, delete: true },
     vehicles: { create: true, view: true, viewSingle: true, update: true, delete: true },
+    reservations: { create: true, view: true, update: true, delete: true },
   };
 
   // ======= 1. SuperAdmin for Tekinova hub =======
@@ -321,6 +322,74 @@ async function main() {
       data: { vehicle_status: 'OCCUPIED' },
     });
   }
+
+  // ======= 4b. Reservation User for Fleet Corp =======
+  const fleetReservationUserAccess = {
+    organizations: { create: false, view: false, update: false, delete: false },
+    units: { create: false, view: false, update: false, delete: false },
+    positions: { create: false, view: false, update: false, delete: false },
+    users: { create: false, view: false, update: false, delete: false },
+    vehicleModels: { create: false, view: false, viewSingle: false, update: false, delete: false },
+    vehicles: { create: false, view: true, viewSingle: true, update: false, delete: false },
+    reservations: { create: true, view: true, update: true, delete: true },
+  };
+
+  const fleetReservationUnit = await prisma.tbl_unit.upsert({
+    where: {
+      unit_name_organization_id: {
+        unit_name: 'Reservation Unit',
+        organization_id: fleetOrg.organization_id,
+      },
+    },
+    update: {},
+    create: {
+      unit_name: 'Reservation Unit',
+      organization_id: fleetOrg.organization_id,
+    },
+  });
+
+  const fleetReservationPosition = await prisma.tbl_position.upsert({
+    where: {
+      position_name_unit_id: {
+        position_name: 'Reservation User',
+        unit_id: fleetReservationUnit.unit_id,
+      },
+    },
+    update: {},
+    create: {
+      position_name: 'Reservation User',
+      position_description: 'Can make and manage reservations.',
+      position_access: fleetReservationUserAccess,
+      unit_id: fleetReservationUnit.unit_id,
+    },
+  });
+
+  const fleetReservationPassword = await argon2.hash('fleetreservationpassword');
+  const fleetReservationAuth = await prisma.tbl_auth.create({
+    data: {
+      email: 'munezeromicha2000@gmail.com',
+      password: fleetReservationPassword,
+    },
+  });
+
+  const fleetReservationUser = await prisma.tbl_users.create({
+    data: {
+      first_name: 'Fleet',
+      last_name: 'ReservationUser',
+      user_nid: '1112333344445000',
+      user_phone: '250788229833',
+      user_dob: new Date('1993-03-15'),
+      user_gender: 'MALE',
+      user_photo: 'https://avatars.githubusercontent.com/u/122959151?v=4',
+      street_address: 'Fleet Reservation Street',
+      auth_id: fleetReservationAuth.auth_id,
+    },
+  });
+
+  await prisma.tbl_position.update({
+    where: { position_id: fleetReservationPosition.position_id },
+    data: { user_id: fleetReservationUser.user_id },
+  });
 
   console.log('✅ Seeding completed successfully.');
 }

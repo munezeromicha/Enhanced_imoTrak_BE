@@ -1,5 +1,6 @@
 // src/services/reservation.services.ts
 import { PrismaClient, RequestStatus } from '@prisma/client';
+import { createNotification } from './notification.service';
 const prisma = new PrismaClient();
 
 export async function createReservation(data: {
@@ -21,6 +22,29 @@ export async function createReservation(data: {
       reservation_status: RequestStatus.UNDER_REVIEW,
     },
   });
+  // Notify approvers in the same org
+  const user = await prisma.tbl_users.findUnique({ where: { user_id: data.user_id }, include: { positions: { include: { unit: { include: { organization: true } } } } } });
+  const orgId = user?.positions[0]?.unit.organization.organization_id;
+  if (orgId) {
+    // Find all users with approve/reject/cancel access in this org
+    const approverPositions = await prisma.tbl_position.findMany({
+      where: {
+        unit: { organization_id: orgId },
+        position_access: { path: ['reservations', 'update'], equals: true },
+      },
+      include: { user: { include: { auth: true } } },
+    });
+    for (const pos of approverPositions) {
+      if (pos.user) {
+        await createNotification({
+          user_id: pos.user.user_id,
+          notification_title: 'New Reservation Request',
+          notification_message: `A new reservation request has been submitted and requires your review.`,
+          email: pos.user.auth?.email || undefined,
+        });
+      }
+    }
+  }
   return reservation;
 }
 
@@ -39,7 +63,7 @@ export async function cancelReservation(reservationId: string, reason: string, u
     throw new Error('Not authorized to cancel this reservation');
   }
 
-  return prisma.tbl_reservations.update({
+  const updated = await prisma.tbl_reservations.update({
     where: { reservation_id: reservationId },
     data: {
       reservation_status: RequestStatus.CANCELED,
@@ -47,6 +71,15 @@ export async function cancelReservation(reservationId: string, reason: string, u
       reviewed_at: new Date(),
     },
   });
+  // Notify requester
+  const requester = await prisma.tbl_users.findUnique({ where: { user_id: reservation.user_id }, include: { auth: true } });
+  await createNotification({
+    user_id: reservation.user_id,
+    notification_title: 'Reservation Canceled',
+    notification_message: `Your reservation request has been canceled. Reason: ${reason || 'N/A'}`,
+    email: requester?.auth?.email || undefined,
+  });
+  return updated;
 }
 
 export async function updateReservationStatus(reservationId: string, status: RequestStatus, reviewerId: string, reason?: string) {
@@ -64,7 +97,7 @@ export async function updateReservationStatus(reservationId: string, status: Req
     throw new Error('Reason is required for rejection or cancellation');
   }
 
-  return prisma.tbl_reservations.update({
+  const updated = await prisma.tbl_reservations.update({
     where: { reservation_id: reservationId },
     data: {
       reservation_status: status,
@@ -72,6 +105,29 @@ export async function updateReservationStatus(reservationId: string, status: Req
       reviewed_at: new Date(),
     },
   });
+  // Notify requester
+  const requester = await prisma.tbl_users.findUnique({ where: { user_id: reservation.user_id }, include: { auth: true } });
+  let title = '';
+  let message = '';
+  if (status === RequestStatus.APPROVED) {
+    title = 'Reservation Approved';
+    message = 'Your reservation request has been approved.';
+  } else if (status === RequestStatus.REJECTED) {
+    title = 'Reservation Rejected';
+    message = `Your reservation request has been rejected. Reason: ${reason || 'N/A'}`;
+  } else if (status === RequestStatus.CANCELED) {
+    title = 'Reservation Canceled';
+    message = `Your reservation request has been canceled. Reason: ${reason || 'N/A'}`;
+  }
+  if (title && requester) {
+    await createNotification({
+      user_id: reservation.user_id,
+      notification_title: title,
+      notification_message: message,
+      email: requester?.auth?.email || undefined,
+    });
+  }
+  return updated;
 }
 
 export async function assignVehicle(reservationId: string, vehicleId: string, reviewerId: string) {
