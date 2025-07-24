@@ -44,6 +44,20 @@ export const positionAccessSchema = z.object({
     view: z.boolean(),
     update: z.boolean(),
     delete: z.boolean(),
+    cancel: z.boolean(),
+    approve: z.boolean(),
+    assignVehicle: z.boolean(),
+    odometerFuel: z.boolean(),
+    start: z.boolean(),
+    complete: z.boolean(),
+    viewOwn: z.boolean(),
+    updateReason: z.boolean(),
+  }),
+  vehicleIssues: z.object({
+    report: z.boolean(),
+    view: z.boolean(),
+    update: z.boolean(),
+    delete: z.boolean(),
   }),
 });
 

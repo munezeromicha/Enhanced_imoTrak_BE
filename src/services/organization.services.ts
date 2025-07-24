@@ -1,6 +1,6 @@
 import { OrgStatus, PrismaClient, tbl_organizations } from '@prisma/client';
 import { AppError } from '../utils/Error';
-import { AuthenticatedUser } from '../types/access';
+import { AuthenticatedUser, position_accesses } from '../types/access';
 const prisma = new PrismaClient();
 
 interface CreateOrgPayload {
@@ -62,7 +62,7 @@ interface UpdatePositionParams {
   updateData: {
     position_name?: string;
     position_description?: string;
-    position_access?: object;
+    position_access?: any;
   };
   user: AuthenticatedUser;
 }
