@@ -218,6 +218,16 @@ usersRoutes.get(
  *                       enum: [MALE, FEMALE]
  *                     user_phone:
  *                       type: string
+ *                     street_address:
+ *                       type: string
+ *                     user_dob:
+ *                       type: string
+ *                       format: date-time
+ *                     user_nid:
+ *                       type: string
+ *                     user_photo:
+ *                       type: string
+ *                       nullable: true
  *                     positions:
  *                       type: array
  *                       items:

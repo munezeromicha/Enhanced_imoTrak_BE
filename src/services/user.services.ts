@@ -181,6 +181,10 @@ export const getSingleUserWithPositionsService = async (user_id: string) => {
       last_name: true,
       user_gender: true,
       user_phone: true,
+      street_address: true,
+      user_dob: true,
+      user_nid: true,
+      user_photo: true,
       auth: {
         select: {
           email: true,
@@ -215,25 +219,9 @@ export const getSingleUserWithPositionsService = async (user_id: string) => {
     throw new AppError('User not found', 404);
   }
 
-  return {
-    user_id: user.user_id,
-    first_name: user.first_name,
-    last_name: user.last_name,
-    email: user.auth?.email,
-    user_gender: user.user_gender,
-    user_phone: user.user_phone,
-    positions: user.positions.map((pos) => ({
-      position_id: pos.position_id,
-      position_name: pos.position_name,
-      position_description: pos.position_description,
-      position_status: pos.position_status,
-      unit: {
-        unit_id: pos.unit.unit_id,
-        unit_name: pos.unit.unit_name,
-        organization: pos.unit.organization,
-      },
-    })),
-  };
+  const {auth, ...resp} = user; 
+
+  return {email:auth.email, ...resp};
 };
 
 export const updateUserService = async (
@@ -245,7 +233,11 @@ export const updateUserService = async (
   const user = await prisma.tbl_users.findUnique({
     where: { user_id },
     include: {
-      auth: true,
+      auth: {
+        select: {
+          email: true
+        }
+      },
       positions: {
         select: {
           position_id: true,
@@ -270,6 +262,7 @@ export const updateUserService = async (
       },
     },
   });
+
 
   if (!user) throw new AppError('User not found', 404);
 
