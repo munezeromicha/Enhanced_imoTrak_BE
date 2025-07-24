@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { createOrganizationController, createPositionController, createUnitController, deleteOrganizationController, deletePositionController, deleteUnitController, getOrganizationsController, getPositionsInUnitController, getSingleOrganizationController, getSinglePositionController, getSingleUnitController, getUnitsController, getUnitsInOrganization, updateOrganizationController, updatePositionController, updateUnitController } from '../controllers/organization.controllers';
+import { createOrganizationController, createPositionController, createUnitController, deleteOrganizationController, deletePositionController, deleteUnitController, getOrganizationsController, getPositionsController, getPositionsInUnitController, getSingleOrganizationController, getSinglePositionController, getSingleUnitController, getUnitsController, getUnitsInOrganization, updateOrganizationController, updatePositionController, updateUnitController } from '../controllers/organization.controllers';
 import { authenticateToken } from '../middlewares/auth.middleware';
 import { attachPositionAccess } from '../middlewares/attachPositionAccess';
 import { validateBody } from '../middlewares/bodyValidator';
@@ -425,108 +425,6 @@ organizationRoutes.delete(
   authenticateToken,
   attachPositionAccess,
   deletePositionController
-);
-
-/**
- * @swagger
- * /v2/organizations/{organization_id}:
- *   get:
- *     summary: Get a specific organization by ID
- *     tags:
- *       - Organization
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: organization_id
- *         required: true
- *         schema:
- *           type: string
- *           format: uuid
- *         description: ID of the organization
- *     responses:
- *       200:
- *         description: Organization retrieved successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 message:
- *                   type: string
- *                 data:
- *                   type: object
- *                   properties:
- *                     organization_id:
- *                       type: string
- *                       format: uuid
- *                     organization_name:
- *                       type: string
- *                     street_address:
- *                       type: string
- *                     organization_phone:
- *                       type: string
- *                     organization_email:
- *                       type: string
- *                     organization_logo:
- *                       type: string
- *                       format: uri
- *                     created_at:
- *                       type: string
- *                       format: date-time
- *                     organization_customId:
- *                       type: string
- *                     organization_status:
- *                       type: string
- *                     units:
- *                       type: array
- *                       items:
- *                         type: object
- *                         properties:
- *                           unit_id:
- *                             type: string
- *                             format: uuid
- *                           unit_name:
- *                             type: string
- *                           created_at:
- *                             type: string
- *                             format: date-time
- *                           organization_id:
- *                             type: string
- *                             format: uuid
- *                           status:
- *                             type: string
- *             example:
- *               message: Organization retrieved successfully
- *               data:
- *                 organization_id: "88c42823-4039-4017-b6c1-162c8c1346e3"
- *                 organization_name: "Hab~Jass Shop"
- *                 street_address: "kigali"
- *                 organization_phone: "0786779666"
- *                 organization_email: "habibundayishimiye@gmail.com"
- *                 organization_logo: "https://res.cloudinary.com/daxuxhhxr/image/upload/v1752835554/Imotrak/organization_logo/go9uhbjur4givgnzjf9a.png"
- *                 created_at: "2025-07-18T10:45:55.103Z"
- *                 organization_customId: "ORG-20250718-AZIPLG"
- *                 organization_status: "ACTIVE"
- *                 units:
- *                   - unit_id: "1ba03d12-eef4-4371-88f8-079a3df4eab8"
- *                     unit_name: "Jass"
- *                     created_at: "2025-07-18T10:47:45.007Z"
- *                     organization_id: "88c42823-4039-4017-b6c1-162c8c1346e3"
- *                     status: "ACTIVE"
- *       401:
- *         description: Unauthorized
- *       403:
- *         description: Forbidden
- *       404:
- *         description: Organization not found
- */
-
-organizationRoutes.get(
-  '/:organization_id',
-  authenticateToken,
-  attachPositionAccess,
-  getSingleOrganizationController
 );
 
 /**
@@ -971,11 +869,204 @@ organizationRoutes.patch(
  *         description: Internal server error
  */
 
-
 organizationRoutes.get(
   '/:organization_id/units', 
   authenticateToken,
   attachPositionAccess,
   getUnitsInOrganization
 );
+
+/**
+ * @swagger
+ * /v2/organizations/positions:
+ *   get:
+ *     summary: Get all positions (optionally filtered by organization)
+ *     tags:
+ *       - Position
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Positions retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: positions retrieved successfully
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       position_id:
+ *                         type: string
+ *                       position_name:
+ *                         type: string
+ *                       position_description:
+ *                         type: string
+ *                       position_access:
+ *                         type: object
+ *                         description: JSON object defining access permissions
+ *                       created_at:
+ *                         type: string
+ *                         format: date-time
+ *                       user_id:
+ *                         type: string
+ *                         nullable: true
+ *                       unit_id:
+ *                         type: string
+ *                       position_status:
+ *                         type: string
+ *                       unit:
+ *                         type: object
+ *                         properties:
+ *                           unit_id:
+ *                             type: string
+ *                           unit_name:
+ *                             type: string
+ *                           created_at:
+ *                             type: string
+ *                             format: date-time
+ *                           organization_id:
+ *                             type: string
+ *                           status:
+ *                             type: string
+ *                           organization:
+ *                             type: object
+ *                             properties:
+ *                               organization_id:
+ *                                 type: string
+ *                               organization_name:
+ *                                 type: string
+ *                               street_address:
+ *                                 type: string
+ *                               organization_phone:
+ *                                 type: string
+ *                               organization_email:
+ *                                 type: string
+ *                               organization_logo:
+ *                                 type: string
+ *                               created_at:
+ *                                 type: string
+ *                                 format: date-time
+ *                               organization_customId:
+ *                                 type: string
+ *                               organization_status:
+ *                                 type: string
+ *       500:
+ *         description: Server error
+ */
+
+organizationRoutes.get(
+  '/positions',
+  authenticateToken,
+  attachPositionAccess,
+  getPositionsController
+);
+
+/**
+ * @swagger
+ * /v2/organizations/{organization_id}:
+ *   get:
+ *     summary: Get a specific organization by ID
+ *     tags:
+ *       - Organization
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: organization_id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: ID of the organization
+ *     responses:
+ *       200:
+ *         description: Organization retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     organization_id:
+ *                       type: string
+ *                       format: uuid
+ *                     organization_name:
+ *                       type: string
+ *                     street_address:
+ *                       type: string
+ *                     organization_phone:
+ *                       type: string
+ *                     organization_email:
+ *                       type: string
+ *                     organization_logo:
+ *                       type: string
+ *                       format: uri
+ *                     created_at:
+ *                       type: string
+ *                       format: date-time
+ *                     organization_customId:
+ *                       type: string
+ *                     organization_status:
+ *                       type: string
+ *                     units:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           unit_id:
+ *                             type: string
+ *                             format: uuid
+ *                           unit_name:
+ *                             type: string
+ *                           created_at:
+ *                             type: string
+ *                             format: date-time
+ *                           organization_id:
+ *                             type: string
+ *                             format: uuid
+ *                           status:
+ *                             type: string
+ *             example:
+ *               message: Organization retrieved successfully
+ *               data:
+ *                 organization_id: "88c42823-4039-4017-b6c1-162c8c1346e3"
+ *                 organization_name: "Hab~Jass Shop"
+ *                 street_address: "kigali"
+ *                 organization_phone: "0786779666"
+ *                 organization_email: "habibundayishimiye@gmail.com"
+ *                 organization_logo: "https://res.cloudinary.com/daxuxhhxr/image/upload/v1752835554/Imotrak/organization_logo/go9uhbjur4givgnzjf9a.png"
+ *                 created_at: "2025-07-18T10:45:55.103Z"
+ *                 organization_customId: "ORG-20250718-AZIPLG"
+ *                 organization_status: "ACTIVE"
+ *                 units:
+ *                   - unit_id: "1ba03d12-eef4-4371-88f8-079a3df4eab8"
+ *                     unit_name: "Jass"
+ *                     created_at: "2025-07-18T10:47:45.007Z"
+ *                     organization_id: "88c42823-4039-4017-b6c1-162c8c1346e3"
+ *                     status: "ACTIVE"
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden
+ *       404:
+ *         description: Organization not found
+ */
+
+organizationRoutes.get(
+  '/:organization_id',
+  authenticateToken,
+  attachPositionAccess,
+  getSingleOrganizationController
+);
+
 export default organizationRoutes;

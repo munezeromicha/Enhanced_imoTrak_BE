@@ -428,3 +428,24 @@ export const updatePositionService = async ({
   return updatedPosition;
 };
 
+export async function getPositionsService(organization_id?: string) {
+  const positions = await prisma.tbl_position.findMany({
+    where: organization_id
+      ? {
+          unit: {
+            organization_id: organization_id,
+          },
+        }
+      : undefined,
+    include: {
+      unit: {
+        include: {
+          organization: true,
+        },
+      },
+    },
+  });
+
+  return positions;
+}
+
