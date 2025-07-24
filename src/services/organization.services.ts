@@ -416,7 +416,7 @@ export const updatePositionService = async ({
     throw new AppError('Position not found', 404);
   }
 
-  if (position.unit.organization_id !== user.organization_id) {
+  if (position.unit.organization_id !== user.organization_id && !user.position_access?.organizations.create) {
     throw new AppError('You can only update positions within your organization', 403);
   }
 
