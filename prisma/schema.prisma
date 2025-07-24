@@ -101,7 +101,6 @@ model tbl_vehicle_models {
 model tbl_vehicles {
   vehicle_id        String                  @id @default(uuid())
   plate_number      String                  @unique
-  vehicle_type      VehicleType
   transmission_mode TransmissionMode
   vehicle_model_id  String
   vehicle_photo     String
