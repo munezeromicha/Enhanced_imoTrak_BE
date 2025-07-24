@@ -191,6 +191,15 @@ const options: swaggerJSDoc.Options = {
             created_at: { type: 'string', format: 'date-time' },
           },
         },
+        vehicleIssues: {
+          type: 'object',
+          properties: {
+            report: { type: 'boolean' },
+            view: { type: 'boolean' },
+            update: { type: 'boolean' },
+            delete: { type: 'boolean' },
+          },
+        },
       },
     },
   },

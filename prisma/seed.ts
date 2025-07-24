@@ -29,6 +29,12 @@ async function main() {
       viewOwn: false,
       updateReason: false,
     },
+    vehicleIssues: {
+      report: false,
+      view: false,
+      update: false,
+      delete: false,
+    },
   };
 
   const fleetManagerAccess = {
@@ -51,6 +57,12 @@ async function main() {
       complete: true,
       viewOwn: true,
       updateReason: true,
+    },
+    vehicleIssues: {
+      report: true,
+      view: true,
+      update: true,
+      delete: true,
     },
   };
 
