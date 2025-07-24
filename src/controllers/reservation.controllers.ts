@@ -137,4 +137,16 @@ export const deleteReservation = async (req: AuthenticatedRequest, res: Response
     const message = error instanceof Error ? error.message : 'Unknown error';
     res.status(400).json({ message });
   }
+};
+
+export const getMyReservations = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    checkPermission(req, 'view');
+    const user_id = req.user.user_id;
+    const reservations = await reservationService.getReservationsByUserId(user_id);
+    res.status(200).json({ data: reservations });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    res.status(400).json({ message });
+  }
 }; 

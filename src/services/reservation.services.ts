@@ -35,7 +35,7 @@ export async function createReservation(data: {
       include: { user: { include: { auth: true } } },
     });
     for (const pos of approverPositions) {
-      if (pos.user) {
+      if (pos.user && pos.user.user_id !== data.user_id) { // skip requester
         await createNotification({
           user_id: pos.user.user_id,
           notification_title: 'New Reservation Request',
@@ -256,5 +256,16 @@ export async function deleteReservation(reservationId: string) {
   // Optionally: check if reservation exists and its status before deleting
   return prisma.tbl_reservations.delete({
     where: { reservation_id: reservationId },
+  });
+}
+
+export async function getReservationsByUserId(userId: string) {
+  return prisma.tbl_reservations.findMany({
+    where: { user_id: userId },
+    include: {
+      user: true,
+      reserved_vehicles: true,
+    },
+    orderBy: { created_at: 'desc' },
   });
 } 

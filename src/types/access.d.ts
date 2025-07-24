@@ -41,9 +41,16 @@ export interface position_accesses {
   };
   reservations: {
     create: boolean;
-    view: boolean;
-    update: boolean;
+    view: boolean; 
+    update: boolean; 
     delete: boolean;
+    cancel: boolean; 
+    approve: boolean; 
+    assignVehicle: boolean; 
+    odometerFuel: boolean; 
+    start: boolean; 
+    complete: boolean; 
+    viewOwn: boolean; 
   };
   vehicleIssues: {
     report: boolean;
