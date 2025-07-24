@@ -149,4 +149,21 @@ export const getMyReservations = async (req: AuthenticatedRequest, res: Response
     const message = error instanceof Error ? error.message : 'Unknown error';
     res.status(400).json({ message });
   }
+};
+
+export const updateReservationReason = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    checkPermission(req, 'updateReason');
+    const { reason } = req.body;
+    if (!reason || typeof reason !== 'string' || reason.trim() === '') {
+      return res.status(400).json({ message: 'Reason is required' });
+    }
+    const reservationId = req.params.id;
+    const user_id = req.user.user_id;
+    const updated = await reservationService.updateReservationReason(reservationId, reason, user_id);
+    res.status(200).json({ message: 'Reason updated', data: updated });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    res.status(400).json({ message });
+  }
 }; 
