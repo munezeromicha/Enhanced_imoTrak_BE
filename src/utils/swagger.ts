@@ -103,6 +103,16 @@ const options: swaggerJSDoc.Options = {
                 updateReason: { type: 'boolean' },
               },
             },
+            vehicleIssues: {
+              type: 'object',
+              properties: {
+                report: { type: 'boolean' },
+                view: { type: 'boolean' },
+                update: { type: 'boolean' },
+                delete: { type: 'boolean' },
+              },
+              required: ['report', 'view', 'update', 'delete'],
+            },
           },
         },
         Reservation: {
