@@ -48,10 +48,6 @@ model tbl_audit_logs {
   ip_address String
   user_agent String
   user       tbl_users @relation(fields: [user_id], references: [user_id])
-
-  @@index([user_id])
-  @@index([record_id])
-  @@index([timestamp])
 }
 
 model tbl_notifications {
@@ -105,6 +101,7 @@ model tbl_vehicle_models {
 model tbl_vehicles {
   vehicle_id        String                  @id @default(uuid())
   plate_number      String                  @unique
+  vehicle_type      VehicleType
   transmission_mode TransmissionMode
   vehicle_model_id  String
   vehicle_photo     String
@@ -163,6 +160,8 @@ model tbl_position {
 
 model tbl_vehicle_issues {
   issue_id            String                @id @default(uuid())
+  issue_title         String
+  issue_status        IssueStatus          @default(OPEN)
   issue_description   String
   issue_date          DateTime              @default(now())
   created_at          DateTime              @default(now())
@@ -238,4 +237,9 @@ enum RequestStatus {
 enum PostitionStatus {
   ACTIVE
   INACTIVE
+}
+
+enum IssueStatus {
+  OPEN
+  CLOSED
 }

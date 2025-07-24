@@ -1,29 +1,61 @@
 import { Request, Response } from 'express';
 import * as issueService from '../services/vehicleIssue.service';
+import { position_accesses } from '../types/access';
+import { AppError } from '../utils/Error';
 
-export const getAll = async (_req: Request, res: Response) => {
+interface AuthenticatedRequest extends Request {
+  user?: {
+    user_id: string;
+    email: string;
+    position_id: string;
+    organization_id: string;
+    position_access: position_accesses;
+  };
+}
+
+export const getAll = async (req: AuthenticatedRequest, res: Response) => {
+  if (!req.user?.position_access?.vehicleIssues?.view) {
+    throw new AppError('Access denied. U are not allowed to view vehicle issues.', 403);
+  }
   const issues = await issueService.getAllIssues();
   res.json(issues);
 };
 
-export const getById = async (req: Request, res: Response) => {
+export const getById = async (req: AuthenticatedRequest, res: Response) => {
+  if (!req.user?.position_access?.vehicleIssues?.view) {
+    throw new AppError('Access denied. U are not allowed to view this vehicle issue.', 403);
+  }
   const issue = await issueService.getIssueById(req.params.id);
   if (!issue) return res.status(404).json({ message: 'Issue not found' });
   res.json(issue);
 };
 
-export const create = async (req: Request, res: Response) => {
-  const { issue_description, reserved_vehicle_id } = req.body;
-  const newIssue = await issueService.createIssue({ issue_description, reserved_vehicle_id });
+export const create = async (req: AuthenticatedRequest, res: Response) => {
+  if (!req.user?.position_access?.vehicleIssues?.report) {
+    throw new AppError('Access denied. U are not allowed to create vehicle issues.', 403);
+  }
+  const { issue_title, issue_description, reserved_vehicle_id, issue_date } = req.body;
+  const newIssue = await issueService.createIssue({ issue_title, issue_description, reserved_vehicle_id, issue_date });
   res.status(201).json(newIssue);
 };
 
-export const update = async (req: Request, res: Response) => {
+export const update = async (req: AuthenticatedRequest, res: Response) => {
+  if (!req.user?.position_access?.vehicleIssues?.update) {
+    throw new AppError('Access denied. U are not allowed to edit vehicle issues.', 403);
+  }
+  const issue = await issueService.getIssueById(req.params.id);
+
+  if (issue?.issue_status === 'CLOSED') {
+    throw new AppError('Cannot update a closed issue.', 400);
+  }
   const updatedIssue = await issueService.updateIssue(req.params.id, req.body);
   res.json(updatedIssue);
 };
 
-export const remove = async (req: Request, res: Response) => {
+export const remove = async (req: AuthenticatedRequest, res: Response) => {
+  if (!req.user?.position_access?.vehicleIssues?.delete) {
+    throw new AppError('Access denied. U are not allowed to delete vehicle issues.', 403);
+  }
   await issueService.deleteIssue(req.params.id);
   res.status(204).send();
 };
