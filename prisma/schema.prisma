@@ -164,6 +164,7 @@ model tbl_vehicle_issues {
   issue_description   String
   issue_date          DateTime              @default(now())
   created_at          DateTime              @default(now())
+  updated_at          DateTime?             @default(now())
   reserved_vehicle_id String
   reserved_vehicle    tbl_reserved_vehicles @relation(fields: [reserved_vehicle_id], references: [reserved_vehicle_id])
 }

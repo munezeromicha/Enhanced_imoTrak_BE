@@ -14,6 +14,34 @@ const issueRoutes = Router();
 
 /**
  * @swagger
+ * components:
+ *   schemas:
+ *     VehicleIssue:
+ *       type: object
+ *       properties:
+ *         id:
+ *           type: string
+ *         issue_title:
+ *           type: string
+ *         issue_status:
+ *           type: string
+ *         issue_description:
+ *           type: string
+ *         reserved_vehicle_id:
+ *           type: string
+ *         issue_date:
+ *           type: string
+ *           format: date-time
+ *         createdAt:
+ *           type: string
+ *           format: date-time
+ *         updatedAt:
+ *           type: string
+ *           format: date-time
+ */
+
+/**
+ * @swagger
  * /v2/issues:
  *   get:
  *     summary: Get all reported vehicle issues
@@ -74,13 +102,23 @@ issueRoutes.get('/:id', controller.getById);
  *           schema:
  *             type: object
  *             required:
+ *               - issue_title
  *               - issue_description
  *               - reserved_vehicle_id
+ *               - issue_status
+ *               - issue_date
  *             properties:
+ *               issue_title:
+ *                 type: string
  *               issue_description:
  *                 type: string
  *               reserved_vehicle_id:
  *                 type: string
+ *               issue_status:
+ *                 type: string
+ *               issue_date:
+ *                 type: string
+ *                 format: date-time
  *     responses:
  *       201:
  *         description: Issue created successfully
@@ -113,6 +151,8 @@ issueRoutes.post('/', controller.create);
  *           schema:
  *             type: object
  *             properties:
+ *               issue_title:
+ *                 type: string
  *               issue_description:
  *                 type: string
  *               reserved_vehicle_id:
