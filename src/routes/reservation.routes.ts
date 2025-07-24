@@ -10,6 +10,7 @@ import {
   getAllReservations,
   deleteReservation,
   updateOdometerFuel,
+  getMyReservations,
 } from '../controllers/reservation.controllers';
 import { validateBody } from '../middlewares/bodyValidator';
 import {
@@ -321,6 +322,37 @@ router.get(
   authenticateToken,
   attachPositionAccess,
   withAuthUser(getAllReservations)
+);
+
+/**
+ * @openapi
+ * /v2/reservations/my:
+ *   get:
+ *     summary: Get reservations for the authenticated user
+ *     security:
+ *       - bearerAuth: []
+ *     tags:
+ *       - Reservations
+ *     responses:
+ *       200:
+ *         description: List of user's reservations
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Reservation'
+ *       400:
+ *         description: Bad request
+ */
+router.get(
+  '/my',
+  authenticateToken,
+  attachPositionAccess,
+  withAuthUser(getMyReservations)
 );
 
 /**
