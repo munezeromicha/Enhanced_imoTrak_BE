@@ -130,6 +130,21 @@ export async function updateReservationStatus(reservationId: string, status: Req
   return updated;
 }
 
+export async function updateReservationReason(reservationId: string, reason: string, userId: string) {
+  // Optionally: check if user is allowed to update the reason (enforced in controller)
+  const reservation = await prisma.tbl_reservations.findUnique({ where: { reservation_id: reservationId } });
+  if (!reservation) throw new Error('Reservation not found');
+  // Only allow update if reservation is REJECTED or CANCELED
+  if (!(reservation.reservation_status === RequestStatus.REJECTED || reservation.reservation_status === RequestStatus.CANCELED)) {
+    throw new Error('Can only update reason for rejected or canceled reservations');
+  }
+  const updated = await prisma.tbl_reservations.update({
+    where: { reservation_id: reservationId },
+    data: { rejection_comment: reason },
+  });
+  return updated;
+}
+
 export async function assignVehicle(reservationId: string, vehicleId: string, reviewerId: string) {
   // Permission check: reviewer only (enforced in controller)
   // Only assign if reservation is APPROVED and vehicle is AVAILABLE

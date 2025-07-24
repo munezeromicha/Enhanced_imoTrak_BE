@@ -51,6 +51,7 @@ export interface position_accesses {
     start: boolean; 
     complete: boolean; 
     viewOwn: boolean; 
+    updateReason: boolean;
   };
   vehicleIssues: {
     report: boolean;

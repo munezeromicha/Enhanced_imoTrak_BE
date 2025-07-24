@@ -15,6 +15,20 @@ async function main() {
     users: { create: true, view: true, update: true, delete: true },
     vehicleModels: { create: false, view: false, viewSingle: false, update: false, delete: false },
     vehicles: { create: false, view: false, viewSingle: false, update: false, delete: false },
+    reservations: {
+      create: false,
+      view: false,
+      update: false,
+      delete: false,
+      cancel: false,
+      approve: false,
+      assignVehicle: false,
+      odometerFuel: false,
+      start: false,
+      complete: false,
+      viewOwn: false,
+      updateReason: false,
+    },
   };
 
   const fleetManagerAccess = {
@@ -24,7 +38,20 @@ async function main() {
     users: { create: false, view: false, update: false, delete: false },
     vehicleModels: { create: true, view: true, viewSingle: true, update: true, delete: true },
     vehicles: { create: true, view: true, viewSingle: true, update: true, delete: true },
-    reservations: { create: true, view: true, update: true, delete: true },
+    reservations: {
+      create: true,
+      view: true,
+      update: true,
+      delete: true,
+      cancel: true,
+      approve: true,
+      assignVehicle: true,
+      odometerFuel: true,
+      start: true,
+      complete: true,
+      viewOwn: true,
+      updateReason: true,
+    },
   };
 
   // ======= 1. SuperAdmin for Tekinova hub =======

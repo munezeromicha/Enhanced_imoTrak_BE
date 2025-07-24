@@ -11,6 +11,7 @@ import {
   deleteReservation,
   updateOdometerFuel,
   getMyReservations,
+  updateReservationReason,
 } from '../controllers/reservation.controllers';
 import { validateBody } from '../middlewares/bodyValidator';
 import {
@@ -292,6 +293,49 @@ router.post('/:reservedVehicleId/start', authenticateToken, attachPositionAccess
  *         description: Bad request
  */
 router.post('/:reservedVehicleId/complete', authenticateToken, attachPositionAccess, validateBody(completeReservationSchema), withAuthUser(completeReservation));
+
+/**
+ * @openapi
+ * /v2/reservations/{id}/reason:
+ *   patch:
+ *     summary: Update the rejection/cancellation reason for a reservation
+ *     security:
+ *       - bearerAuth: []
+ *     tags:
+ *       - Reservations
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               reason:
+ *                 type: string
+ *                 example: "Updated reason for rejection or cancellation."
+ *     responses:
+ *       200:
+ *         description: Reason updated
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   $ref: '#/components/schemas/Reservation'
+ *       400:
+ *         description: Bad request
+ */
+router.patch('/:id/reason', authenticateToken, attachPositionAccess, withAuthUser(updateReservationReason));
 
 /**
  * @openapi
