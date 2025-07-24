@@ -11,6 +11,7 @@ import {
   deleteUnitService,
   getOrganizationsService,
   getPositionsInUnitService,
+  getPositionsService,
   getSingleOrganizationService,
   getSinglePositionService,
   getSingleUnitService,
@@ -491,3 +492,22 @@ export const getUnitsInOrganization = async (
   }
 };
 
+export const getPositionsController = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    if (!req.user?.position_access?.positions?.view) {
+      throw new AppError('You do not have permission to view units of this organization', 403);
+    }
+    
+    const result = await getPositionsService (req.user?.position_access?.organizations.create? undefined : req.user.organization_id);
+    return res.status(200).json({
+      message: 'positions retrieved successfully',
+      data: result
+    })
+  } catch (error) {
+    next(error)
+  }
+}
