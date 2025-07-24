@@ -325,7 +325,7 @@ export const updateUnitService = async ({ unit_id, user, data }: UpdateUnitParam
 
   const userOrgId = user.organization_id;
 
-  if (!userOrgId || unit.organization_id !== userOrgId) {
+  if (!userOrgId || unit.organization_id !== userOrgId && !user.position_access?.organizations.create) {
     throw new AppError('You can only update units within your organization', 403);
   }
 
