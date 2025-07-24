@@ -14,7 +14,7 @@ export const vehicleSchema = z.object({
   plate_number: z.string().min(1),
   transmission_mode: z.enum(['MANUAL', 'AUTOMATIC', 'SEMI_AUTOMATIC']),
   vehicle_model_id: z.string().uuid(),
-  // vehicle_type: z.enum(['AMBULANCE', 'SEDAN', 'SUV', 'TRUCK', 'VAN', 'MOTORCYCLE', 'BUS', 'OTHER']),
+  vehicle_type: z.enum(['AMBULANCE', 'SEDAN', 'SUV', 'TRUCK', 'VAN', 'MOTORCYCLE', 'BUS', 'OTHER']),
   vehicle_photo: z.string().min(1),
   vehicle_year: z.number().int().min(1900),
   vehicle_capacity: z.number().int().min(1),

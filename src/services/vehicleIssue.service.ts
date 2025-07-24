@@ -8,6 +8,15 @@ export const getAllIssues = async () => {
 export const getIssueById = async (id: string) => {
   return prisma.tbl_vehicle_issues.findUnique({
     where: { issue_id: id },
+    select: {
+      issue_id: true,
+      issue_title: true,
+      issue_description: true,
+      issue_date: true,
+      created_at: true,
+      reserved_vehicle_id: true,
+      issue_status: true,
+    },
   });
 };
 

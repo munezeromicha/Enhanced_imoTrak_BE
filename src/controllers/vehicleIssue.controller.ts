@@ -43,6 +43,11 @@ export const update = async (req: AuthenticatedRequest, res: Response) => {
   if (!req.user?.position_access?.vehicleIssues?.update) {
     throw new AppError('Access denied. U are not allowed to edit vehicle issues.', 403);
   }
+  const issue = await issueService.getIssueById(req.params.id);
+
+  if (issue?.issue_status === 'CLOSED') {
+    throw new AppError('Cannot update a closed issue.', 400);
+  }
   const updatedIssue = await issueService.updateIssue(req.params.id, req.body);
   res.json(updatedIssue);
 };
