@@ -84,7 +84,10 @@ export async function cancelReservation(reservationId: string, reason: string, u
 
 export async function updateReservationStatus(reservationId: string, status: RequestStatus, reviewerId: string, reason?: string) {
   // Permission check: reviewer only (enforced in controller)
-  const reservation = await prisma.tbl_reservations.findUnique({ where: { reservation_id: reservationId } });
+  const reservation = await prisma.tbl_reservations.findUnique({
+    where: { reservation_id: reservationId },
+    include: { reserved_vehicles: true },
+  });
   if (!reservation) throw new Error('Reservation not found');
 
   // Only allow status update if not already COMPLETED or CANCELED
@@ -97,10 +100,31 @@ export async function updateReservationStatus(reservationId: string, status: Req
     throw new Error('Reason is required for rejection or cancellation');
   }
 
+  let newStatus = status;
+  // Enhancement: If status is APPROVED, check if all conditions are met to auto-move to IN_PROGRESS
+  if (status === RequestStatus.APPROVED) {
+    const now = new Date();
+    const departureMet = now >= reservation.departure_date;
+    const vehiclesAssigned = reservation.reserved_vehicles.length > 0;
+    const allOdometerFuelSet = reservation.reserved_vehicles.length > 0 && reservation.reserved_vehicles.every(rv => rv.starting_odometer > 0 && rv.fuel_provided !== null);
+    if (departureMet && vehiclesAssigned && allOdometerFuelSet) {
+      newStatus = RequestStatus.IN_PROGRESS;
+    }
+  }
+
+  // Enhancement: If status is COMPLETED, check all reserved vehicles have returned_odometer
+  if (status === RequestStatus.COMPLETED) {
+    const reservedVehicles = await prisma.tbl_reserved_vehicles.findMany({ where: { reservation_id: reservationId } });
+    const allReturned = reservedVehicles.length > 0 && reservedVehicles.every(rv => rv.returned_odometer !== null);
+    if (!allReturned) {
+      throw new Error('All reserved vehicles must have returned_odometer to complete reservation');
+    }
+  }
+
   const updated = await prisma.tbl_reservations.update({
     where: { reservation_id: reservationId },
     data: {
-      reservation_status: status,
+      reservation_status: newStatus,
       rejection_comment: reason,
       reviewed_at: new Date(),
     },
@@ -109,15 +133,21 @@ export async function updateReservationStatus(reservationId: string, status: Req
   const requester = await prisma.tbl_users.findUnique({ where: { user_id: reservation.user_id }, include: { auth: true } });
   let title = '';
   let message = '';
-  if (status === RequestStatus.APPROVED) {
+  if (newStatus === RequestStatus.APPROVED) {
     title = 'Reservation Approved';
     message = 'Your reservation request has been approved.';
-  } else if (status === RequestStatus.REJECTED) {
+  } else if (newStatus === RequestStatus.IN_PROGRESS) {
+    title = 'Reservation In Progress';
+    message = 'Your reservation is now in progress.';
+  } else if (newStatus === RequestStatus.REJECTED) {
     title = 'Reservation Rejected';
     message = `Your reservation request has been rejected. Reason: ${reason || 'N/A'}`;
-  } else if (status === RequestStatus.CANCELED) {
+  } else if (newStatus === RequestStatus.CANCELED) {
     title = 'Reservation Canceled';
     message = `Your reservation request has been canceled. Reason: ${reason || 'N/A'}`;
+  } else if (newStatus === RequestStatus.COMPLETED) {
+    title = 'Reservation Completed';
+    message = 'Your reservation has been completed.';
   }
   if (title && requester) {
     await createNotification({
