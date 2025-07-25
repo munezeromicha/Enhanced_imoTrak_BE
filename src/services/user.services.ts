@@ -175,16 +175,7 @@ export const getUsersWithPositionsService = async (organization_id?: string) => 
 export const getSingleUserWithPositionsService = async (user_id: string) => {
   const user = await prisma.tbl_users.findUnique({
     where: { user_id },
-    select: {
-      user_id: true,
-      first_name: true,
-      last_name: true,
-      user_gender: true,
-      user_phone: true,
-      street_address: true,
-      user_dob: true,
-      user_nid: true,
-      user_photo: true,
+    include:{
       auth: {
         select: {
           email: true,
@@ -212,8 +203,10 @@ export const getSingleUserWithPositionsService = async (user_id: string) => {
           },
         },
       },
-    },
+    }
   });
+
+  console.log(user);
 
   if (!user) {
     throw new AppError('User not found', 404);
