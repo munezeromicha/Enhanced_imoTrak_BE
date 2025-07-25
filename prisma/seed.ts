@@ -267,7 +267,20 @@ async function main() {
     users: { create: false, view: false, update: false, delete: false },
     vehicleModels: { create: false, view: false, viewSingle: false, update: false, delete: false },
     vehicles: { create: false, view: true, viewSingle: true, update: false, delete: false },
-    reservations: { create: true, view: true, update: true, delete: true },
+    reservations: {
+    view: false,
+    start: false,
+    cancel: true,
+    create: true,
+    delete: false,
+    update: false,
+    approve: false,
+    viewOwn: true,
+    complete: false,
+    odometerFuel: false,
+    updateReason: true,
+    assignVehicle: false
+  },
   };
 
   const reservationUnit = await prisma.tbl_unit.upsert({

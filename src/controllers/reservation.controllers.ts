@@ -141,7 +141,7 @@ export const deleteReservation = async (req: AuthenticatedRequest, res: Response
 
 export const getMyReservations = async (req: AuthenticatedRequest, res: Response) => {
   try {
-    checkPermission(req, 'view');
+    checkPermission(req, 'viewOwn');
     const user_id = req.user.user_id;
     const reservations = await reservationService.getReservationsByUserId(user_id);
     res.status(200).json({ data: reservations });
