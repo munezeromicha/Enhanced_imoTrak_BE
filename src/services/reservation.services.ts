@@ -147,9 +147,12 @@ export async function updateReservationReason(reservationId: string, reason: str
 
 export async function assignVehicle(reservationId: string, vehicleId: string, reviewerId: string) {
   // Permission check: reviewer only (enforced in controller)
-  // Only assign if reservation is APPROVED and vehicle is AVAILABLE
+  // Only assign if reservation is APPROVED and not IN_PROGRESS
   const reservation = await prisma.tbl_reservations.findUnique({ where: { reservation_id: reservationId } });
   if (!reservation) throw new Error('Reservation not found');
+  if (reservation.reservation_status === RequestStatus.IN_PROGRESS) {
+    throw new Error('Cannot assign vehicle when reservation is in progress');
+  }
   if (reservation.reservation_status !== RequestStatus.APPROVED) {
     throw new Error('Reservation must be approved before assigning a vehicle');
   }
@@ -159,7 +162,7 @@ export async function assignVehicle(reservationId: string, vehicleId: string, re
     throw new Error('Vehicle is not available');
   }
   // Assign vehicle and mark as OCCUPIED
-  const reservedVehicle = await prisma.tbl_reserved_vehicles.create({
+  await prisma.tbl_reserved_vehicles.create({
     data: {
       vehicle_id: vehicleId,
       reservation_id: reservationId,
@@ -170,7 +173,11 @@ export async function assignVehicle(reservationId: string, vehicleId: string, re
     },
   });
   await prisma.tbl_vehicles.update({ where: { vehicle_id: vehicleId }, data: { vehicle_status: 'OCCUPIED' } });
-  return reservedVehicle;
+  // Return all reserved vehicles for this reservation
+  const reservedVehicles = await prisma.tbl_reserved_vehicles.findMany({
+    where: { reservation_id: reservationId },
+  });
+  return reservedVehicles;
 }
 
 export async function startReservation(reservedVehicleId: string, userId: string) {
