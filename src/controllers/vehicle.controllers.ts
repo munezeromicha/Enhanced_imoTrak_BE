@@ -2,10 +2,18 @@ import { Request, Response, NextFunction } from 'express';
 import * as vehicleService from '../services/vehicle.services';
 import { vehicleModelSchema, vehicleModelUpdateSchema, vehicleSchema, vehicleUpdateSchema } from '../schemas/vehicle.schema';
 import { uploadToCloudinary } from '../utils/cloudinary';
+import { AuthenticatedRequest } from '../types/access';
+
+function checkVehiclePermission(req: AuthenticatedRequest, action: keyof AuthenticatedRequest['user']['position_access']['vehicles']) {
+  if (!req.user?.position_access?.vehicles?.[action]) {
+    throw { status: 403, message: `Forbidden: insufficient vehicle permissions for ${String(action)}` };
+  }
+}
 
 // Vehicle Model Controllers
 export async function createVehicleModelController(req: Request, res: Response, next: NextFunction) {
   try {
+    checkVehiclePermission(req as AuthenticatedRequest, 'create');
     const parsed = vehicleModelSchema.safeParse(req.body);
     if (!parsed.success) throw new Error('Invalid input');
     const model = await vehicleService.createVehicleModel(parsed.data);
@@ -15,6 +23,7 @@ export async function createVehicleModelController(req: Request, res: Response, 
 
 export async function getAllVehicleModelsController(req: Request, res: Response, next: NextFunction) {
   try {
+    checkVehiclePermission(req as AuthenticatedRequest, 'view');
     const models = await vehicleService.getAllVehicleModels();
     res.json({ data: models });
   } catch (error) { next(error); }
@@ -22,6 +31,7 @@ export async function getAllVehicleModelsController(req: Request, res: Response,
 
 export async function getVehicleModelByIdController(req: Request, res: Response, next: NextFunction) {
   try {
+    checkVehiclePermission(req as AuthenticatedRequest, 'viewSingle');
     const model = await vehicleService.getVehicleModelById(req.params.id);
     if (!model) return res.status(404).json({ message: 'Vehicle model not found' });
     res.json({ data: model });
@@ -30,6 +40,7 @@ export async function getVehicleModelByIdController(req: Request, res: Response,
 
 export async function updateVehicleModelController(req: Request, res: Response, next: NextFunction) {
   try {
+    checkVehiclePermission(req as AuthenticatedRequest, 'update');
     const parsed = vehicleModelUpdateSchema.safeParse(req.body);
     if (!parsed.success) throw new Error('Invalid input');
     const model = await vehicleService.updateVehicleModel(req.params.id, parsed.data);
@@ -39,6 +50,7 @@ export async function updateVehicleModelController(req: Request, res: Response, 
 
 export async function deleteVehicleModelController(req: Request, res: Response, next: NextFunction) {
   try {
+    checkVehiclePermission(req as AuthenticatedRequest, 'delete');
     await vehicleService.deleteVehicleModel(req.params.id);
     res.json({ message: 'Vehicle model deleted' });
   } catch (error) { next(error); }
@@ -46,6 +58,7 @@ export async function deleteVehicleModelController(req: Request, res: Response, 
 
 export async function createVehicleController(req: Request, res: Response, next: NextFunction) {
   try {
+    checkVehiclePermission(req as AuthenticatedRequest, 'create');
     let vehiclePhotoUrl = req.body.vehicle_photo;
     if (req.file) {
       vehiclePhotoUrl = await uploadToCloudinary(req.file.buffer, 'vehicles');
@@ -67,6 +80,7 @@ export async function createVehicleController(req: Request, res: Response, next:
 
 export async function getAllVehiclesController(req: Request, res: Response, next: NextFunction) {
   try {
+    checkVehiclePermission(req as AuthenticatedRequest, 'view');
     const vehicles = await vehicleService.getAllVehicles();
     res.json({ data: vehicles });
   } catch (error) { next(error); }
@@ -74,6 +88,7 @@ export async function getAllVehiclesController(req: Request, res: Response, next
 
 export async function getVehicleByIdController(req: Request, res: Response, next: NextFunction) {
   try {
+    checkVehiclePermission(req as AuthenticatedRequest, 'viewSingle');
     const vehicle = await vehicleService.getVehicleById(req.params.id);
     if (!vehicle) return res.status(404).json({ message: 'Vehicle not found' });
     res.json({ data: vehicle });
@@ -82,6 +97,7 @@ export async function getVehicleByIdController(req: Request, res: Response, next
 
 export async function updateVehicleController(req: Request, res: Response, next: NextFunction) {
   try {
+    checkVehiclePermission(req as AuthenticatedRequest, 'update');
     const parsed = vehicleUpdateSchema.safeParse(req.body);
     if (!parsed.success) throw new Error('Invalid input');
     const vehicle = await vehicleService.updateVehicle(req.params.id, parsed.data);
@@ -91,6 +107,7 @@ export async function updateVehicleController(req: Request, res: Response, next:
 
 export async function deleteVehicleController(req: Request, res: Response, next: NextFunction) {
   try {
+    checkVehiclePermission(req as AuthenticatedRequest, 'delete');
     await vehicleService.deleteVehicle(req.params.id);
     res.json({ message: 'Vehicle deleted' });
   } catch (error) { next(error); }
