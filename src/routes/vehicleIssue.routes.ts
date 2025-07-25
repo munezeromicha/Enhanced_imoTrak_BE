@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import * as controller from '../controllers/vehicleIssue.controller';
-import { attachPositionAccess } from '../middlewares/attachPositionAccess';
+// import { attachPositionAccess } from '../middlewares/attachPositionAccess';
 import { authenticateToken } from '../middlewares/auth.middleware';
 
 const issueRoutes = Router();
@@ -58,7 +58,7 @@ const issueRoutes = Router();
  *               items:
  *                 $ref: '#/components/schemas/VehicleIssue'
  */
-issueRoutes.get('/', attachPositionAccess, authenticateToken, controller.getAll);
+issueRoutes.get('/', authenticateToken, controller.getAll);
 
 /**
  * @swagger
@@ -85,7 +85,7 @@ issueRoutes.get('/', attachPositionAccess, authenticateToken, controller.getAll)
  *       404:
  *         description: Issue not found
  */
-issueRoutes.get('/:id', controller.getById);
+issueRoutes.get('/:id', authenticateToken,controller.getById);
 
 /**
  * @swagger
@@ -127,7 +127,7 @@ issueRoutes.get('/:id', controller.getById);
  *             schema:
  *               $ref: '#/components/schemas/VehicleIssue'
  */
-issueRoutes.post('/', controller.create);
+issueRoutes.post('/', authenticateToken, controller.create);
 
 /**
  * @swagger
@@ -167,7 +167,7 @@ issueRoutes.post('/', controller.create);
  *       404:
  *         description: Issue not found
  */
-issueRoutes.put('/:id', controller.update);
+issueRoutes.put('/:id', authenticateToken, controller.update);
 
 /**
  * @swagger
@@ -190,6 +190,6 @@ issueRoutes.put('/:id', controller.update);
  *       404:
  *         description: Issue not found
  */
-issueRoutes.delete('/:id', controller.remove);
+issueRoutes.delete('/:id', authenticateToken, controller.remove);
 
 export default issueRoutes;

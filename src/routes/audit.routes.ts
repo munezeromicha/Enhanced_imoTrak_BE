@@ -98,7 +98,7 @@ const historyRoutes = Router();
  *         description: Successfully retrieved audit logs
  */
 historyRoutes.get('/history', authenticateToken, fetchAuditLogs);
-historyRoutes.post('/audit-log', authenticateToken, createAuditLog);
+historyRoutes.post('/history', authenticateToken, createAuditLog);
 
 
 export default historyRoutes;
