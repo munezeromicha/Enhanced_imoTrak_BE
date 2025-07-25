@@ -34,7 +34,7 @@ export const createReservation = async (req: AuthenticatedRequest, res: Response
 
 export const cancelReservation = async (req: AuthenticatedRequest, res: Response) => {
   try {
-    checkPermission(req, 'update');
+    checkPermission(req, 'cancel');
     const { reason } = cancelReservationSchema.parse(req.body);
     const reservationId = req.params.id;
     const user_id = req.user.user_id;
