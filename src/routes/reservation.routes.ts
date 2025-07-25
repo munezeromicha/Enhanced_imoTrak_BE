@@ -55,6 +55,8 @@ const router = Router();
  *             reservation_destination: "Musanze Branch"
  *             departure_date: "2024-08-01T09:00:00Z"
  *             expected_returning_date: "2024-08-01T18:00:00Z"
+ *             description: "Trip to Musanze for business meeting."
+ *             passengers: 4
  *     responses:
  *       201:
  *         description: Reservation created

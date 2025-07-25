@@ -9,6 +9,8 @@ export async function createReservation(data: {
   reservation_destination: string;
   departure_date: string;
   expected_returning_date: string;
+  description: string;
+  passengers: number;
   user_id: string;
 }) {
   const reservation = await prisma.tbl_reservations.create({
@@ -18,6 +20,8 @@ export async function createReservation(data: {
       reservation_destination: data.reservation_destination,
       departure_date: new Date(data.departure_date),
       expected_returning_date: new Date(data.expected_returning_date),
+      description: data.description,
+      passengers: data.passengers,
       user_id: data.user_id,
       reservation_status: RequestStatus.UNDER_REVIEW,
     },

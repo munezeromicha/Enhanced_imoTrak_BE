@@ -7,6 +7,8 @@ export const createReservationSchema = z.object({
   reservation_destination: z.string(),
   departure_date: z.string().datetime(),
   expected_returning_date: z.string().datetime(),
+  description: z.string().min(1),
+  passengers: z.number().int().min(1),
 });
 
 export const cancelReservationSchema = z.object({

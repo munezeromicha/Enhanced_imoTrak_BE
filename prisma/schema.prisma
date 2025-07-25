@@ -86,6 +86,8 @@ model tbl_reservations {
   reservation_destination String
   departure_date          DateTime
   expected_returning_date DateTime
+  description             String   @default("")
+  passengers              Int      @default(0)
   reservation_status      RequestStatus           @default(UNDER_REVIEW)
   reviewed_at             DateTime?
   rejection_comment       String?
