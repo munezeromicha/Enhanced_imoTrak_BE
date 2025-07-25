@@ -63,7 +63,7 @@ export const updateReservationStatus = async (req: AuthenticatedRequest, res: Re
 
 export const assignVehicle = async (req: AuthenticatedRequest, res: Response) => {
   try {
-    checkPermission(req, 'update');
+    checkPermission(req, 'assignVehicle');
     const { vehicle_id } = assignVehicleSchema.parse(req.body);
     const reservationId = req.params.id;
     const reviewerId = req.user.user_id;
@@ -77,7 +77,7 @@ export const assignVehicle = async (req: AuthenticatedRequest, res: Response) =>
 
 export const startReservation = async (req: AuthenticatedRequest, res: Response) => {
   try {
-    checkPermission(req, 'update');
+    checkPermission(req, 'start');
     const reservedVehicleId = req.params.reservedVehicleId;
     const user_id = req.user.user_id;
     await reservationService.startReservation(reservedVehicleId, user_id);
@@ -90,7 +90,7 @@ export const startReservation = async (req: AuthenticatedRequest, res: Response)
 
 export const updateOdometerFuel = async (req: AuthenticatedRequest, res: Response) => {
   try {
-    checkPermission(req, 'update');
+    checkPermission(req, 'odometerFuel');
     const { starting_odometer, fuel_provided } = odometerFuelSchema.parse(req.body);
     const reservedVehicleId = req.params.reservedVehicleId;
     const user_id = req.user.user_id;
@@ -104,7 +104,7 @@ export const updateOdometerFuel = async (req: AuthenticatedRequest, res: Respons
 
 export const completeReservation = async (req: AuthenticatedRequest, res: Response) => {
   try {
-    checkPermission(req, 'update');
+    checkPermission(req, 'complete');
     const { returned_odometer } = completeReservationSchema.parse(req.body);
     const reservedVehicleId = req.params.reservedVehicleId;
     const user_id = req.user.user_id;
