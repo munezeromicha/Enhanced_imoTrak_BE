@@ -214,6 +214,41 @@ export async function assignVehicle(reservationId: string, vehicleId: string, re
   return reservedVehicles;
 }
 
+export async function assignVehicleWithOdometerFuel(reservationId: string, vehicleId: string, reviewerId: string, startingOdometer: number = 0, fuelProvided: number = 0) {
+  // Permission check: reviewer only (enforced in controller)
+  // Only assign if reservation is APPROVED and not IN_PROGRESS
+  const reservation = await prisma.tbl_reservations.findUnique({ where: { reservation_id: reservationId } });
+  if (!reservation) throw new Error('Reservation not found');
+  if (reservation.reservation_status === RequestStatus.IN_PROGRESS) {
+    throw new Error('Cannot assign vehicle when reservation is in progress');
+  }
+  if (reservation.reservation_status !== RequestStatus.APPROVED) {
+    throw new Error('Reservation must be approved before assigning a vehicle');
+  }
+  const vehicle = await prisma.tbl_vehicles.findUnique({ where: { vehicle_id: vehicleId } });
+  if (!vehicle) throw new Error('Vehicle not found');
+  if (vehicle.vehicle_status !== 'AVAILABLE') {
+    throw new Error('Vehicle is not available');
+  }
+  // Assign vehicle and set odometer/fuel, mark as OCCUPIED
+  await prisma.tbl_reserved_vehicles.create({
+    data: {
+      vehicle_id: vehicleId,
+      reservation_id: reservationId,
+      starting_odometer: startingOdometer,
+      fuel_provided: fuelProvided,
+      returned_odometer: null,
+      returned_date: new Date(0), // Placeholder, will be set on return
+    },
+  });
+  await prisma.tbl_vehicles.update({ where: { vehicle_id: vehicleId }, data: { vehicle_status: 'OCCUPIED' } });
+  // Return all reserved vehicles for this reservation
+  const reservedVehicles = await prisma.tbl_reserved_vehicles.findMany({
+    where: { reservation_id: reservationId },
+  });
+  return reservedVehicles;
+}
+
 export async function startReservation(reservedVehicleId: string, userId: string) {
   // Permission check: only assigned user (enforced in controller)
   // Only allow if reservation is APPROVED and date >= departure_date

@@ -12,6 +12,7 @@ import {
   updateOdometerFuel,
   getMyReservations,
   updateReservationReason,
+  assignVehicleWithOdometerFuel,
 } from '../controllers/reservation.controllers';
 import { validateBody } from '../middlewares/bodyValidator';
 import {
@@ -400,6 +401,63 @@ router.get(
   attachPositionAccess,
   withAuthUser(getMyReservations)
 );
+
+/**
+ * @openapi
+ * /v2/reservations/{id}/assign-vehicle-odometer:
+ *   post:
+ *     summary: Assign a vehicle to a reservation and set odometer/fuel in one call
+ *     security:
+ *       - bearerAuth: []
+ *     tags:
+ *       - Reservations
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               vehicle_id:
+ *                 type: string
+ *                 format: uuid
+ *               starting_odometer:
+ *                 type: integer
+ *                 default: 0
+ *                 example: 0
+ *               fuel_provided:
+ *                 type: integer
+ *                 default: 0
+ *                 example: 0
+ *           example:
+ *             vehicle_id: "c4d5e6f7-1234-5678-9abc-def012345678"
+ *             starting_odometer: 0
+ *             fuel_provided: 0
+ *     responses:
+ *       200:
+ *         description: Vehicle assigned with odometer/fuel
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *       400:
+ *         description: Bad request
+ */
+router.post('/:id/assign-vehicle-odometer', authenticateToken, attachPositionAccess, withAuthUser(assignVehicleWithOdometerFuel));
 
 /**
  * @openapi

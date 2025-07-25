@@ -166,4 +166,27 @@ export const updateReservationReason = async (req: AuthenticatedRequest, res: Re
     const message = error instanceof Error ? error.message : 'Unknown error';
     res.status(400).json({ message });
   }
+};
+
+export const assignVehicleWithOdometerFuel = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    checkPermission(req, 'assignVehicle');
+    const { vehicle_id, starting_odometer = 0, fuel_provided = 0 } = req.body;
+    if (!vehicle_id) {
+      return res.status(400).json({ message: 'vehicle_id is required' });
+    }
+    const reservationId = req.params.id;
+    const reviewerId = req.user.user_id;
+    const reservedVehicles = await reservationService.assignVehicleWithOdometerFuel(
+      reservationId,
+      vehicle_id,
+      reviewerId,
+      starting_odometer,
+      fuel_provided
+    );
+    res.status(200).json({ message: 'Vehicle assigned with odometer/fuel', data: reservedVehicles });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    res.status(400).json({ message });
+  }
 }; 
