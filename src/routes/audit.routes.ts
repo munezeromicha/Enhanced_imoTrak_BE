@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { fetchAuditLogs } from '../controllers/auditController';
+import { fetchAuditLogs, createAuditLog } from '../controllers/auditController';
 import { authenticateToken } from '../middlewares/auth.middleware';
 
 const historyRoutes = Router();
@@ -49,7 +49,7 @@ const historyRoutes = Router();
 
 /**
  * @swagger
- * /audit-logs:
+ * /v2/history:
  *   get:
  *     summary: Retrieve audit logs with optional filters
  *     tags: [Audit Logs]
@@ -97,6 +97,8 @@ const historyRoutes = Router();
  *       200:
  *         description: Successfully retrieved audit logs
  */
-historyRoutes.get('/audit-logs', authenticateToken, fetchAuditLogs);
+historyRoutes.get('/history', authenticateToken, fetchAuditLogs);
+historyRoutes.post('/audit-log', authenticateToken, createAuditLog);
+
 
 export default historyRoutes;

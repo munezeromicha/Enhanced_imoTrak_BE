@@ -48,6 +48,11 @@ model tbl_audit_logs {
   ip_address String
   user_agent String
   user       tbl_users @relation(fields: [user_id], references: [user_id])
+
+  @@index([user_id])
+  @@index([table_name])
+  @@index([record_id])
+
 }
 
 model tbl_notifications {

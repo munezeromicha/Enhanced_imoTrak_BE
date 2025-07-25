@@ -1,7 +1,18 @@
 import { Request, Response } from 'express';
-import getAuditLogs from '../services/auditService';
+import { position_accesses } from '../types/access';
+import { getAuditLogs, updateUserService } from '../services/auditService';
 
+interface AuthenticatedRequest extends Request {
+  user?: {
+    user_id: string;
+    email: string;
+    position_id: string;
+    organization_id: string;
+    position_access: position_accesses;
+  };
+}
 
+// Fetch audit logs with filters and pagination
 export async function fetchAuditLogs(req: Request, res: Response) {
   try {
     const { name, email, organization, startDate, endDate, page, limit } = req.query;
@@ -32,5 +43,31 @@ export async function fetchAuditLogs(req: Request, res: Response) {
       success: false,
       message: 'Internal Server Error',
     });
+  }
+}
+
+// Update user and trigger audit log
+export async function createAuditLog(req: AuthenticatedRequest, res: Response) {
+  try {
+    const actingUserId = req.user?.user_id;
+    const { id } = req.params;
+    const newData = req.body;
+
+    if (!actingUserId) {
+      return res.status(403).json({ message: 'Unauthorized' });
+    }
+
+    const updatedUser = await updateUserService({
+      id,
+      newData,
+      actingUserId,
+      ip_address: req.ip,
+      user_agent: req.headers['user-agent'],
+    });
+
+    return res.json(updatedUser);
+  } catch (error: any) {
+    console.error('Error updating user:', error);
+    return res.status(500).json({ message: error.message || 'Internal Server Error' });
   }
 }
