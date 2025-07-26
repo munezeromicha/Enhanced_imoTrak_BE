@@ -11,7 +11,7 @@ async function main() {
   const fullAdminAccess = {
     organizations: { create: true, view: true, update: true, delete: true },
     units: { create: true, view: true, update: true, delete: true },
-    positions: { create: true, view: true, update: true, delete: true },
+    positions: { create: true, view: true, update: true, delete: true, assignUser: true },
     users: { create: true, view: true, update: true, delete: true },
     vehicleModels: { create: false, view: false, viewSingle: false, update: false, delete: false },
     vehicles: { create: false, view: false, viewSingle: false, update: false, delete: false },
@@ -40,7 +40,7 @@ async function main() {
   const fleetManagerAccess = {
     organizations: { create: false, view: false, update: false, delete: false },
     units: { create: false, view: false, update: false, delete: false },
-    positions: { create: false, view: false, update: false, delete: false },
+    positions: { create: false, view: false, update: false, delete: false, assignUser: false },
     users: { create: false, view: false, update: false, delete: false },
     vehicleModels: { create: true, view: true, viewSingle: true, update: true, delete: true },
     vehicles: { create: true, view: true, viewSingle: true, update: true, delete: true },
@@ -263,7 +263,7 @@ async function main() {
   const reservationUserAccess = {
     organizations: { create: false, view: false, update: false, delete: false },
     units: { create: false, view: false, update: false, delete: false },
-    positions: { create: false, view: false, update: false, delete: false },
+    positions: { create: false, view: false, update: false, delete: false, assignUser: false },
     users: { create: false, view: false, update: false, delete: false },
     vehicleModels: { create: false, view: false, viewSingle: false, update: false, delete: false },
     vehicles: { create: false, view: true, viewSingle: true, update: false, delete: false },

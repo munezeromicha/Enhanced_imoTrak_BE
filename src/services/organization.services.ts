@@ -67,6 +67,12 @@ interface UpdatePositionParams {
   user: AuthenticatedUser;
 }
 
+interface AssignUserToPositionParams {
+  position_id: string;
+  user_email: string;
+  user: AuthenticatedUser;
+}
+
 export async function createOrganizationService(data: CreateOrgPayload) {
   const newOrg = await prisma.tbl_organizations.create({
     data: {
@@ -448,4 +454,47 @@ export async function getPositionsService(organization_id?: string) {
 
   return positions;
 }
+
+export const assignUserToPositionService = async ({
+  position_id,
+  user_email,
+  user,
+}: AssignUserToPositionParams) => {
+  const position = await prisma.tbl_position.findUnique({
+    where: { position_id },
+    include: {
+      unit: true,
+      user: true, 
+    },
+  });
+
+  if (!position) {
+    throw new AppError('Position not found', 404);
+  }
+
+  if (position.user_id) {
+    throw new AppError('Position is already assigned to a user', 409);
+  }
+ 
+
+  if (!user.position_access?.organizations?.create && position.unit.organization_id !== user.organization_id) {
+    throw new AppError('You can only assign users to positions within your organization', 403);
+  }
+
+  const auth = await prisma.tbl_auth.findUnique({
+    where: { email: user_email },
+    include: { user: true },
+  });
+
+  if (!auth || !auth.user || auth.user_status !== 'ACTIVE') {
+    throw new AppError('User with this email not found', 404);
+  }
+
+  const updatedPosition = await prisma.tbl_position.update({
+    where: { position_id },
+    data: { user_id: auth.user.user_id },
+  });
+
+  return updatedPosition;
+};
 

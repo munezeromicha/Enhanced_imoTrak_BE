@@ -18,6 +18,7 @@ export interface position_accesses {
     view: boolean;
     update: boolean;
     delete: boolean;
+    assignUser: boolean;
   };
   users: {
     create: boolean;

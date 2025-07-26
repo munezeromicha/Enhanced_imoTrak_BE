@@ -4,6 +4,7 @@ import { AppError } from '../utils/Error';
 import { generateCustomId } from '../utils/idGenerator';
 import { uploadToCloudinary } from '../utils/cloudinary';
 import {
+  assignUserToPositionService,
   createOrganizationService,
   createPositionService,
   createUnitService,
@@ -511,3 +512,30 @@ export const getPositionsController = async (
     next(error)
   }
 }
+
+export const assignUserToPositionController = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    if (!req.user?.position_access?.positions?.assignUser) {
+      throw new AppError('You do not have permission to assign users to positions', 403);
+    }
+
+    const { position_id } = req.params;
+
+    const updatedPosition = await assignUserToPositionService({
+      position_id,
+      user_email: req.body.email,
+      user: req.user,
+    });
+
+    res.status(200).json({
+      message: 'User assigned to position successfully',
+      data: updatedPosition,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
