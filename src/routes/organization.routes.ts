@@ -1111,7 +1111,36 @@ organizationRoutes.get(
  *                   type: string
  *                   example: User assigned to position successfully
  *                 data:
- *                   $ref: '#/components/schemas/Position'
+ *                   type: object
+ *                   properties:
+ *                     position_id:
+ *                       type: string
+ *                       format: uuid
+ *                       example: f5e955c1-46a3-49fd-89a1-48f16324677b
+ *                     position_name:
+ *                       type: string
+ *                       example: Fleet-Manager
+ *                     position_description:
+ *                       type: string
+ *                       example: Manages all Fleets and reservations in this Unit
+ *                     position_access:
+ *                       $ref: '#/components/schemas/PositionAccess'
+ *                     created_at:
+ *                       type: string
+ *                       format: date-time
+ *                       example: 2025-07-25T09:19:10.203Z
+ *                     user_id:
+ *                       type: string
+ *                       format: uuid
+ *                       example: af1d3fce-b0a1-41fe-a9bd-eac53b132943
+ *                     unit_id:
+ *                       type: string
+ *                       format: uuid
+ *                       example: b38dc9dd-be3f-4a41-a522-540d7a4a0ad7
+ *                     position_status:
+ *                       type: string
+ *                       enum: [ACTIVE, INACTIVE, DELETED, SUSPENDED]
+ *                       example: ACTIVE
  *       403:
  *         description: Forbidden – Not authorized to assign this position
  *       404:
