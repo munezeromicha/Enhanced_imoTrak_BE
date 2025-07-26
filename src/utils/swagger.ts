@@ -55,6 +55,7 @@ const options: swaggerJSDoc.Options = {
                 view: { type: 'boolean' },
                 update: { type: 'boolean' },
                 delete: { type: 'boolean' },
+                assignUser: {type: 'boolean'}
               },
             },
             users: {

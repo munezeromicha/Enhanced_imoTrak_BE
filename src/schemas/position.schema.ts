@@ -18,6 +18,7 @@ export const positionAccessSchema = z.object({
     view: z.boolean(),
     update: z.boolean(),
     delete: z.boolean(),
+    assignUser: z.boolean()
   }),
   users: z.object({
     create: z.boolean(),
@@ -73,4 +74,11 @@ export const updatePositionSchema = z.object({
   position_name: z.string().min(1).optional(),
   position_description: z.string().min(1).optional(),
   position_access: positionAccessSchema.optional(),
+});
+
+export const assignUserToPositionSchema = z.object({
+  email: z
+    .string()
+    .nonempty("Email is required")
+    .email('Invalid email address')
 });

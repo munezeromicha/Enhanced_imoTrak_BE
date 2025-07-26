@@ -101,7 +101,6 @@ export async function createUserService(data: CreateUserPayload) {
   return result;
 }
 
-
 export const getUsersWithPositionsService = async (organization_id?: string) => {
   const users = await prisma.tbl_users.findMany({
     where: organization_id
@@ -205,8 +204,6 @@ export const getSingleUserWithPositionsService = async (user_id: string) => {
       },
     }
   });
-
-  console.log(user);
 
   if (!user) {
     throw new AppError('User not found', 404);
