@@ -176,4 +176,33 @@ export const assignVehicleWithOdometerFuel = async (req: AuthenticatedRequest, r
     const message = error instanceof Error ? error.message : 'Unknown error';
     res.status(400).json({ message });
   }
+};
+
+export const getReservationById = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    // Check if user has view permission or if they own the reservation
+    const hasViewPermission = req.user?.position_access?.reservations?.view;
+    const hasViewOwnPermission = req.user?.position_access?.reservations?.viewOwn;
+    
+    if (!hasViewPermission && !hasViewOwnPermission) {
+      return res.status(403).json({ message: 'Forbidden: insufficient reservation permissions' });
+    }
+    
+    const reservationId = req.params.id;
+    const reservation = await reservationService.getReservationById(reservationId);
+    
+    if (!reservation) {
+      return res.status(404).json({ message: 'Reservation not found' });
+    }
+    
+    // If user only has viewOwn permission, check if they own the reservation
+    if (!hasViewPermission && hasViewOwnPermission && reservation.user_id !== req.user.user_id) {
+      return res.status(403).json({ message: 'Forbidden: can only view own reservations' });
+    }
+    
+    res.status(200).json({ data: reservation });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    res.status(400).json({ message });
+  }
 }; 
