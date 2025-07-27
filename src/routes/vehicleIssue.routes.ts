@@ -54,10 +54,126 @@ const issueRoutes = Router();
  *         content:
  *           application/json:
  *             schema:
- *               type: array
- *               items:
- *                 $ref: '#/components/schemas/VehicleIssue'
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Vehicle issues retrieved successfully.
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       issue_id:
+ *                         type: string
+ *                       issue_title:
+ *                         type: string
+ *                       issue_status:
+ *                         type: string
+ *                       issue_description:
+ *                         type: string
+ *                       issue_date:
+ *                         type: string
+ *                         format: date-time
+ *                       created_at:
+ *                         type: string
+ *                         format: date-time
+ *                       updated_at:
+ *                         type: string
+ *                         format: date-time
+ *                       reserved_vehicle_id:
+ *                         type: string
+ *                       reserved_vehicle:
+ *                         type: object
+ *                         properties:
+ *                           reserved_vehicle_id:
+ *                             type: string
+ *                           vehicle_id:
+ *                             type: string
+ *                           reservation_id:
+ *                             type: string
+ *                           created_at:
+ *                             type: string
+ *                             format: date-time
+ *                           starting_odometer:
+ *                             type: number
+ *                           returned_odometer:
+ *                             type: number
+ *                             nullable: true
+ *                           fuel_provided:
+ *                             type: number
+ *                           returned_date:
+ *                             type: string
+ *                             format: date-time
+ *                           vehicle:
+ *                             type: object
+ *                             properties:
+ *                               vehicle_id:
+ *                                 type: string
+ *                               plate_number:
+ *                                 type: string
+ *                               transmission_mode:
+ *                                 type: string
+ *                               vehicle_model_id:
+ *                                 type: string
+ *                               vehicle_photo:
+ *                                 type: string
+ *                                 format: uri
+ *                               vehicle_year:
+ *                                 type: integer
+ *                               vehicle_capacity:
+ *                                 type: integer
+ *                               vehicle_status:
+ *                                 type: string
+ *                               energy_type:
+ *                                 type: string
+ *                               last_service_date:
+ *                                 type: string
+ *                                 format: date-time
+ *                               created_at:
+ *                                 type: string
+ *                                 format: date-time
+ *                               organization_id:
+ *                                 type: string
+ *                           reservation:
+ *                             type: object
+ *                             properties:
+ *                               reservation_id:
+ *                                 type: string
+ *                               created_at:
+ *                                 type: string
+ *                                 format: date-time
+ *                               reservation_purpose:
+ *                                 type: string
+ *                               start_location:
+ *                                 type: string
+ *                               reservation_destination:
+ *                                 type: string
+ *                               departure_date:
+ *                                 type: string
+ *                                 format: date-time
+ *                               expected_returning_date:
+ *                                 type: string
+ *                                 format: date-time
+ *                               description:
+ *                                 type: string
+ *                               passengers:
+ *                                 type: integer
+ *                               reservation_status:
+ *                                 type: string
+ *                               reviewed_at:
+ *                                 type: string
+ *                                 format: date-time
+ *                               rejection_comment:
+ *                                 type: string
+ *                               user_id:
+ *                                 type: string
+ *       401:
+ *         description: Unauthorized - Invalid or missing token
+ *       500:
+ *         description: Internal server error
  */
+
 issueRoutes.get('/', authenticateToken, attachPositionAccess, controller.getAll);
 
 /**
@@ -81,10 +197,122 @@ issueRoutes.get('/', authenticateToken, attachPositionAccess, controller.getAll)
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/VehicleIssue'
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: issue retrieved successfully
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     issue_id:
+ *                       type: string
+ *                     issue_title:
+ *                       type: string
+ *                     issue_status:
+ *                       type: string
+ *                     issue_description:
+ *                       type: string
+ *                     issue_date:
+ *                       type: string
+ *                       format: date-time
+ *                     created_at:
+ *                       type: string
+ *                       format: date-time
+ *                     updated_at:
+ *                       type: string
+ *                       format: date-time
+ *                     reserved_vehicle_id:
+ *                       type: string
+ *                     reserved_vehicle:
+ *                       type: object
+ *                       properties:
+ *                         reserved_vehicle_id:
+ *                           type: string
+ *                         vehicle_id:
+ *                           type: string
+ *                         reservation_id:
+ *                           type: string
+ *                         created_at:
+ *                           type: string
+ *                           format: date-time
+ *                         starting_odometer:
+ *                           type: number
+ *                         returned_odometer:
+ *                           type: number
+ *                           nullable: true
+ *                         fuel_provided:
+ *                           type: number
+ *                         returned_date:
+ *                           type: string
+ *                           format: date-time
+ *                         vehicle:
+ *                           type: object
+ *                           properties:
+ *                             vehicle_id:
+ *                               type: string
+ *                             plate_number:
+ *                               type: string
+ *                             transmission_mode:
+ *                               type: string
+ *                             vehicle_model_id:
+ *                               type: string
+ *                             vehicle_photo:
+ *                               type: string
+ *                               format: uri
+ *                             vehicle_year:
+ *                               type: integer
+ *                             vehicle_capacity:
+ *                               type: integer
+ *                             vehicle_status:
+ *                               type: string
+ *                             energy_type:
+ *                               type: string
+ *                             last_service_date:
+ *                               type: string
+ *                               format: date-time
+ *                             created_at:
+ *                               type: string
+ *                               format: date-time
+ *                             organization_id:
+ *                               type: string
+ *                         reservation:
+ *                           type: object
+ *                           properties:
+ *                             reservation_id:
+ *                               type: string
+ *                             created_at:
+ *                               type: string
+ *                               format: date-time
+ *                             reservation_purpose:
+ *                               type: string
+ *                             start_location:
+ *                               type: string
+ *                             reservation_destination:
+ *                               type: string
+ *                             departure_date:
+ *                               type: string
+ *                               format: date-time
+ *                             expected_returning_date:
+ *                               type: string
+ *                               format: date-time
+ *                             description:
+ *                               type: string
+ *                             passengers:
+ *                               type: integer
+ *                             reservation_status:
+ *                               type: string
+ *                             reviewed_at:
+ *                               type: string
+ *                               format: date-time
+ *                             rejection_comment:
+ *                               type: string
+ *                             user_id:
+ *                               type: string
  *       404:
  *         description: Issue not found
  */
+
 issueRoutes.get('/:id', authenticateToken, attachPositionAccess, controller.getById);
 
 /**
