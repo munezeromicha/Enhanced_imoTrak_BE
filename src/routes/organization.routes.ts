@@ -728,8 +728,74 @@ organizationRoutes.delete(
  *               properties:
  *                 message:
  *                   type: string
+ *                   example: Position retrieved successfully
  *                 data:
- *                   $ref: '#/components/schemas/Position'
+ *                   type: object
+ *                   properties:
+ *                     position_id:
+ *                       type: string
+ *                     position_name:
+ *                       type: string
+ *                     position_description:
+ *                       type: string
+ *                     position_access:
+ *                       $ref: '#/components/schemas/PositionAccess'
+ *                     created_at:
+ *                       type: string
+ *                       format: date-time
+ *                     user_id:
+ *                       type: string
+ *                     unit_id:
+ *                       type: string
+ *                     position_status:
+ *                       type: string
+ *                     unit:
+ *                       type: object
+ *                       properties:
+ *                         organization_id:
+ *                           type: string
+ *                     user:
+ *                       type: object
+ *                       properties:
+ *                         user_id:
+ *                           type: string
+ *                         first_name:
+ *                           type: string
+ *                         last_name:
+ *                           type: string
+ *                         user_nid:
+ *                           type: string
+ *                         user_phone:
+ *                           type: string
+ *                         created_at:
+ *                           type: string
+ *                           format: date-time
+ *                         user_dob:
+ *                           type: string
+ *                           format: date-time
+ *                         user_photo:
+ *                           type: string
+ *                           nullable: true
+ *                         user_gender:
+ *                           type: string
+ *                         street_address:
+ *                           type: string
+ *                         auth_id:
+ *                           type: string
+ *                         auth:
+ *                           type: object
+ *                           properties:
+ *                             auth_id:
+ *                               type: string
+ *                             email:
+ *                               type: string
+ *                             password:
+ *                               type: string
+ *                             updated_at:
+ *                               type: string
+ *                               nullable: true
+ *                             user_status:
+ *                               type: string
  *       401:
  *         description: Unauthorized
  *       403:

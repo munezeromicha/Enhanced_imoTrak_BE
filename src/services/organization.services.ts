@@ -388,6 +388,11 @@ export const getSinglePositionService = async ({ position_id, user }: GetSingleP
         select: {
           organization_id: true
         }
+      },
+      user: {
+        include: {
+          auth: true
+        }
       }
     }
   });
