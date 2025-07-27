@@ -1,9 +1,10 @@
 // auth.routes.ts
 import { Router } from 'express';
-import { loginController, loginWithPositionController, logoutController, updatePasswordController } from '../controllers/auth.controllers';
+import { forgotPasswordController, loginController, loginWithPositionController, logoutController, updatePasswordController } from '../controllers/auth.controllers';
 import { authenticateToken } from '../middlewares/auth.middleware';
 import { validateBody } from '../middlewares/bodyValidator';
 import { updatePasswordSchema } from '../schemas/auth.schema';
+import { assignUserToPositionSchema } from '../schemas/position.schema';
 
 const authRoutes = Router();
 
@@ -357,6 +358,69 @@ authRoutes.patch(
     validateBody(updatePasswordSchema),
     updatePasswordController
 );
+
+/**
+ * @swagger
+ * /v2/auth/forgot-password:
+ *   post:
+ *     summary: Reset password for a user account
+ *     description: Generates a new random password and emails it to the user if the account exists and is active.
+ *     tags:
+ *       - Auth
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 example: user@example.com
+ *     responses:
+ *       200:
+ *         description: Password reset successful
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Password reset successful
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     email:
+ *                       type: string
+ *                       format: email
+ *                       example: user@example.com
+ *       404:
+ *         description: Account not found or inactive
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Account not found
+ *       400:
+ *         description: Request body validation failed
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Invalid request body
+ */
+
+authRoutes.post('/forgot-password', validateBody(assignUserToPositionSchema), forgotPasswordController)
 
 authRoutes.post('/:position_id', loginWithPositionController);
 

@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { loginUser, loginWithPosition, logoutUser, updatePasswordService } from '../services/auth.services';
+import { forgotPasswordService, loginUser, loginWithPosition, logoutUser, updatePasswordService } from '../services/auth.services';
 import { loginSchema } from '../schemas/auth.schema';
 import { AppError } from '../utils/Error';
 import { position_accesses } from '../types/access';
@@ -93,3 +93,15 @@ export const updatePasswordController = async ( req: AuthenticatedRequest, res: 
     next(error)
   }
 }
+
+export const forgotPasswordController = async ( req: Request, res: Response, next: NextFunction) => {
+  try {
+    await forgotPasswordService(req.body.email);
+    return res.status(200).json({
+      message: 'Password reset successful',
+      data: {email: req.body.email}
+    });
+  } catch (error) {
+    next(error)
+  }
+};

@@ -3,6 +3,8 @@ import * as argon2 from 'argon2';
 import jwt from 'jsonwebtoken';
 import { AppError } from '../utils/Error';
 import { signToken, verifyToken } from '../utils/jwt'
+import { generateRandomPassword } from '../utils/password';
+import { sendForgotPasswordEmail } from '../utils/sendCredentials';
 
 const prisma = new PrismaClient();
 
@@ -214,4 +216,27 @@ export const updatePasswordService = async (inputs: UpdatePasswordPayload) => {
   const {password, ...safeRes} = updates
 
   return safeRes;
+}
+
+export const forgotPasswordService = async ( email: string ) => {
+  const account = await prisma.tbl_auth.findUnique({
+    where: {email}
+  });
+
+  if(!account || account.user_status !== 'ACTIVE')
+    throw new AppError('Account not found', 404)
+
+  const newPassword = generateRandomPassword();
+  await prisma.tbl_auth.update({
+    where: {email},
+    data: {password: await argon2.hash(newPassword)}
+  });
+  
+  try {
+    await sendForgotPasswordEmail(email, newPassword);
+  } catch (error) {
+    console.error('Failed to send email:', error);
+  }
+
+  return;
 }
