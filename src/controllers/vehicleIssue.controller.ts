@@ -13,12 +13,27 @@ interface AuthenticatedRequest extends Request {
   };
 }
 
+
 export const getAll = async (req: AuthenticatedRequest, res: Response) => {
-  if (!req.user?.position_access?.vehicleIssues?.view) {
-    throw new AppError('Access denied. U are not allowed to view vehicle issues.', 403);
+  try {
+    if (!req.user?.position_access?.vehicleIssues?.view) {
+      throw new AppError('Access denied. You are not allowed to view vehicle issues.', 403);
+    }
+
+    const issues = await issueService.getAllIssues();
+
+    res.status(200).json({
+      message: 'Vehicle issues retrieved successfully.',
+      data: issues,
+    });
+
+  } catch (err: any) {
+    const status = err instanceof AppError ? err.statusCode : 500;
+    res.status(status).json({
+      message: err.message || 'Something went wrong.',
+      data: null,
+    });
   }
-  const issues = await issueService.getAllIssues();
-  res.json(issues);
 };
 
 export const getById = async (req: AuthenticatedRequest, res: Response) => {
