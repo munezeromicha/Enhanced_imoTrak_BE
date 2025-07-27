@@ -59,7 +59,7 @@ export const create = async (req: AuthenticatedRequest, res: Response) => {
     throw new AppError('Access denied. U are not allowed to create vehicle issues.', 403);
   }
   const { issue_title, issue_description, reserved_vehicle_id, issue_date } = req.body;
-  const newIssue = await issueService.createIssue({ issue_title, issue_description, reserved_vehicle_id, issue_date });
+  const newIssue = await issueService.createIssue({ issue_title, issue_description, reserved_vehicle_id, issue_date }, req.user);
   res.status(201).json(newIssue);
 };
 
@@ -72,7 +72,7 @@ export const update = async (req: AuthenticatedRequest, res: Response) => {
   if (issue?.issue_status === 'CLOSED') {
     throw new AppError('Cannot update a closed issue.', 400);
   }
-  const updatedIssue = await issueService.updateIssue(req.params.id, req.body);
+  const updatedIssue = await issueService.updateIssue(req.params.id, req.body, req.user);
   res.json(updatedIssue);
 };
 
