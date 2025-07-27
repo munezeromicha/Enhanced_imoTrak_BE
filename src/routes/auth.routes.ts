@@ -1,7 +1,9 @@
 // auth.routes.ts
 import { Router } from 'express';
-import { loginController, loginWithPositionController, logoutController } from '../controllers/auth.controllers';
+import { loginController, loginWithPositionController, logoutController, updatePasswordController } from '../controllers/auth.controllers';
 import { authenticateToken } from '../middlewares/auth.middleware';
+import { validateBody } from '../middlewares/bodyValidator';
+import { updatePasswordSchema } from '../schemas/auth.schema';
 
 const authRoutes = Router();
 
@@ -269,6 +271,92 @@ authRoutes.post('/login', loginController);
  *           type: string
  */
 authRoutes.post('/logout', authenticateToken, logoutController);
+
+/**
+ * @swagger
+ * /v2/auth/update-password:
+ *   patch:
+ *     summary: Update the authenticated user's password
+ *     description: Allows a logged-in user to update their password by providing their current password and a new one.
+ *     tags:
+ *       - Auth
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - currentPassword
+ *               - newPassword
+ *             properties:
+ *               currentPassword:
+ *                 type: string
+ *                 example: old_password123
+ *               newPassword:
+ *                 type: string
+ *                 example: new_secure_password456
+ *     responses:
+ *       200:
+ *         description: Password updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Password updated successfully
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     auth_id:
+ *                       type: string
+ *                       format: uuid
+ *                       example: 0b35ee08-af58-4a22-b85f-fbd6c5160454
+ *                     email:
+ *                       type: string
+ *                       format: email
+ *                       example: superadmin@tekinova.rw
+ *                     updated_at:
+ *                       type: string
+ *                       nullable: true
+ *                       format: date-time
+ *                       example: null
+ *                     user_status:
+ *                       type: string
+ *                       enum: [ACTIVE, INACTIVE, SUSPENDED]
+ *                       example: ACTIVE
+ *       401:
+ *         description: Invalid current password
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Invalid credentials
+ *       404:
+ *         description: User not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Account not found
+ */
+
+authRoutes.patch(
+    '/update-password',
+    authenticateToken,
+    validateBody(updatePasswordSchema),
+    updatePasswordController
+);
 
 authRoutes.post('/:position_id', loginWithPositionController);
 
