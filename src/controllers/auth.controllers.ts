@@ -1,7 +1,18 @@
 import { Request, Response, NextFunction } from 'express';
-import { loginUser, loginWithPosition, logoutUser } from '../services/auth.services';
+import { loginUser, loginWithPosition, logoutUser, updatePasswordService } from '../services/auth.services';
 import { loginSchema } from '../schemas/auth.schema';
 import { AppError } from '../utils/Error';
+import { position_accesses } from '../types/access';
+
+interface AuthenticatedRequest extends Request {
+  user?: {
+    user_id: string;
+    email: string;
+    position_id: string;
+    organization_id: string;
+    position_access?: position_accesses;
+  };
+}
 
 
 export async function loginController(req: Request, res: Response, next: NextFunction) {
@@ -68,5 +79,17 @@ export async function logoutController(req: Request, res: Response, next: NextFu
     });
   } catch (error) {
     next(error);
+  }
+}
+
+export const updatePasswordController = async ( req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  try {
+    const updates = await updatePasswordService({email: req.user?.email, ...req.body});
+    return res.status(200).json({
+      message: 'Password updated successfully',
+      data: updates
+    });
+  } catch(error) {
+    next(error)
   }
 }

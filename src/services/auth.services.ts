@@ -2,9 +2,15 @@ import { PrismaClient } from '@prisma/client';
 import * as argon2 from 'argon2';
 import jwt from 'jsonwebtoken';
 import { AppError } from '../utils/Error';
-import { signToken, verifyToken } from '../utils/jwt';
+import { signToken, verifyToken } from '../utils/jwt'
 
 const prisma = new PrismaClient();
+
+interface UpdatePasswordPayload {
+  email: string;
+  currentPassword: string;
+  newPassword: string;
+}
 
 export async function loginUser(email: string, password: string) {
   // Find auth + user + positions + units + organizations
@@ -184,4 +190,28 @@ async function cleanupExpiredTokens(): Promise<void> {
   } catch (error) {
     console.error('Error cleaning up expired tokens:', error);
   }
+}
+
+export const updatePasswordService = async (inputs: UpdatePasswordPayload) => {
+  const user = await prisma.tbl_auth.findUnique({
+    where: { email: inputs.email}
+  });
+
+  if (!user || !user.password)
+    throw new AppError("Account not found", 404);
+
+  if (!await argon2.verify(user?.password, inputs.currentPassword))
+    throw new AppError("Invalid credentials", 401);
+
+  const updates = await prisma.tbl_auth.update({
+    where: { email: inputs.email},
+    data: {
+      password: await argon2.hash(inputs.newPassword),
+      updated_at: new Date().toISOString()
+    }
+  });
+
+  const {password, ...safeRes} = updates
+
+  return safeRes;
 }
