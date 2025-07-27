@@ -4,7 +4,7 @@ import jwt from 'jsonwebtoken';
 import { AppError } from '../utils/Error';
 import { signToken, verifyToken } from '../utils/jwt'
 import { generateRandomPassword } from '../utils/password';
-import { sendUserCredentialsEmail } from '../utils/sendCredentials';
+import { sendForgotPasswordEmail } from '../utils/sendCredentials';
 
 const prisma = new PrismaClient();
 
@@ -233,7 +233,7 @@ export const forgotPasswordService = async ( email: string ) => {
   });
   
   try {
-    await sendUserCredentialsEmail(email, newPassword);
+    await sendForgotPasswordEmail(email, newPassword);
   } catch (error) {
     console.error('Failed to send email:', error);
   }
