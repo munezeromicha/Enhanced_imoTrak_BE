@@ -249,34 +249,6 @@ export async function assignVehicleWithOdometerFuel(reservationId: string, vehic
   return reservedVehicles;
 }
 
-export async function startReservation(reservedVehicleId: string, userId: string) {
-  // Permission check: only assigned user (enforced in controller)
-  // Only allow if reservation is APPROVED and date >= departure_date
-  const reservedVehicle = await prisma.tbl_reserved_vehicles.findUnique({
-    where: { reserved_vehicle_id: reservedVehicleId },
-    include: { reservation: true },
-  });
-  if (!reservedVehicle) throw new Error('Reserved vehicle not found');
-  const reservation = reservedVehicle.reservation;
-  if (!reservation) throw new Error('Reservation not found');
-  if (reservation.reservation_status !== RequestStatus.APPROVED) {
-    throw new Error('Reservation must be approved to start');
-  }
-  if (reservation.user_id !== userId) {
-    throw new Error('Not authorized to start this reservation');
-  }
-  const now = new Date();
-  if (now < reservation.departure_date) {
-    throw new Error('Cannot start reservation before departure date');
-  }
-  // Only update reservation status
-  await prisma.tbl_reservations.update({
-    where: { reservation_id: reservation.reservation_id },
-    data: { reservation_status: RequestStatus.IN_PROGRESS },
-  });
-  return true;
-}
-
 export async function updateOdometerFuel(reservedVehicleId: string, startingOdometer: number, fuelProvided: number, userId: string) {
   // Permission check: only assigned user (enforced in controller)
   const reservedVehicle = await prisma.tbl_reserved_vehicles.findUnique({
@@ -314,7 +286,7 @@ export async function completeReservation(reservedVehicleId: string, returnedOdo
   if (reservation.reservation_status !== RequestStatus.IN_PROGRESS) {
     throw new Error('Reservation must be IN_PROGRESS to complete');
   }
-  // Update reserved vehicle, reservation status, and vehicle status
+  // Update reserved vehicle and vehicle status
   await prisma.tbl_reserved_vehicles.update({
     where: { reserved_vehicle_id: reservedVehicleId },
     data: {
@@ -322,14 +294,19 @@ export async function completeReservation(reservedVehicleId: string, returnedOdo
       returned_date: new Date(),
     },
   });
-  await prisma.tbl_reservations.update({
-    where: { reservation_id: reservation.reservation_id },
-    data: { reservation_status: RequestStatus.COMPLETED },
-  });
   await prisma.tbl_vehicles.update({
     where: { vehicle_id: reservedVehicle.vehicle_id },
     data: { vehicle_status: 'AVAILABLE' },
   });
+  // Check if all reserved vehicles have returned_odometer set
+  const allReserved = await prisma.tbl_reserved_vehicles.findMany({ where: { reservation_id: reservation.reservation_id } });
+  const allReturned = allReserved.length > 0 && allReserved.every(rv => rv.returned_odometer !== null);
+  if (allReturned) {
+    await prisma.tbl_reservations.update({
+      where: { reservation_id: reservation.reservation_id },
+      data: { reservation_status: RequestStatus.COMPLETED },
+    });
+  }
   return true;
 }
 

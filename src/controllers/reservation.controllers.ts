@@ -75,19 +75,6 @@ export const assignVehicle = async (req: AuthenticatedRequest, res: Response) =>
   }
 };
 
-export const startReservation = async (req: AuthenticatedRequest, res: Response) => {
-  try {
-    checkPermission(req, 'start');
-    const reservedVehicleId = req.params.reservedVehicleId;
-    const user_id = req.user.user_id;
-    await reservationService.startReservation(reservedVehicleId, user_id);
-    res.status(200).json({ message: 'Reservation started' });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unknown error';
-    res.status(400).json({ message });
-  }
-};
-
 export const updateOdometerFuel = async (req: AuthenticatedRequest, res: Response) => {
   try {
     checkPermission(req, 'odometerFuel');

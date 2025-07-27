@@ -130,7 +130,7 @@ model tbl_reserved_vehicles {
   starting_odometer   Int
   returned_odometer   Int?
   fuel_provided       Int?
-  returned_date       DateTime
+  returned_date       DateTime?
   reservation         tbl_reservations     @relation(fields: [reservation_id], references: [reservation_id])
   vehicle             tbl_vehicles         @relation(fields: [vehicle_id], references: [vehicle_id])
   isuues              tbl_vehicle_issues[]

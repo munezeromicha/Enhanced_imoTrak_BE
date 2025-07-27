@@ -5,7 +5,6 @@ import {
   cancelReservation,
   updateReservationStatus,
   assignVehicle,
-  startReservation,
   completeReservation,
   getAllReservations,
   deleteReservation,
@@ -238,32 +237,6 @@ router.post('/:id/assign-vehicle', authenticateToken, attachPositionAccess, vali
  *         description: Bad request
  */
 router.post('/:reservedVehicleId/odometer-fuel', authenticateToken, attachPositionAccess, validateBody(odometerFuelSchema), withAuthUser(updateOdometerFuel));
-
-/**
- * @openapi
- * /v2/reservations/{reservedVehicleId}/start:
- *   post:
- *     summary: Start a reservation (vehicle pickup)
- *     security:
- *       - bearerAuth: []
- *     tags:
- *       - Reservations
- *     parameters:
- *       - in: path
- *         name: reservedVehicleId
- *         required: true
- *         schema:
- *           type: string
- *           format: uuid
- *     requestBody:
- *       required: false
- *     responses:
- *       200:
- *         description: Reservation started
- *       400:
- *         description: Bad request
- */
-router.post('/:reservedVehicleId/start', authenticateToken, attachPositionAccess, validateBody(startReservationSchema), withAuthUser(startReservation));
 
 /**
  * @openapi
