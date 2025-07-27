@@ -449,6 +449,11 @@ export async function getPositionsService(organization_id?: string) {
           organization: true,
         },
       },
+      user: {
+        include: {
+          auth: true
+        }
+      }
     },
   });
 
