@@ -909,8 +909,7 @@ organizationRoutes.get(
  *                       position_description:
  *                         type: string
  *                       position_access:
- *                         type: object
- *                         description: JSON object defining access permissions
+ *                         $ref: '#/components/schemas/PositionAccess'
  *                       created_at:
  *                         type: string
  *                         format: date-time
@@ -921,6 +920,7 @@ organizationRoutes.get(
  *                         type: string
  *                       position_status:
  *                         type: string
+ *                         example: ACTIVE
  *                       unit:
  *                         type: object
  *                         properties:
@@ -935,6 +935,7 @@ organizationRoutes.get(
  *                             type: string
  *                           status:
  *                             type: string
+ *                             example: ACTIVE
  *                           organization:
  *                             type: object
  *                             properties:
@@ -957,6 +958,51 @@ organizationRoutes.get(
  *                                 type: string
  *                               organization_status:
  *                                 type: string
+ *                       user:
+ *                         type: object
+ *                         properties:
+ *                           user_id:
+ *                             type: string
+ *                           first_name:
+ *                             type: string
+ *                           last_name:
+ *                             type: string
+ *                           user_nid:
+ *                             type: string
+ *                           user_phone:
+ *                             type: string
+ *                           created_at:
+ *                             type: string
+ *                             format: date-time
+ *                           user_dob:
+ *                             type: string
+ *                             format: date
+ *                           user_photo:
+ *                             type: string
+ *                             nullable: true
+ *                           user_gender:
+ *                             type: string
+ *                             enum: [MALE, FEMALE]
+ *                           street_address:
+ *                             type: string
+ *                           auth_id:
+ *                             type: string
+ *                           auth:
+ *                             type: object
+ *                             properties:
+ *                               auth_id:
+ *                                 type: string
+ *                               email:
+ *                                 type: string
+ *                               password:
+ *                                 type: string
+ *                               updated_at:
+ *                                 type: string
+ *                                 format: date-time
+ *                                 nullable: true
+ *                               user_status:
+ *                                 type: string
+ *                                 enum: [ACTIVE, INACTIVE, SUSPENDED]
  *       500:
  *         description: Server error
  */
