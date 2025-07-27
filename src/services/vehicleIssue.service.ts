@@ -2,7 +2,11 @@ import { PrismaClient,  tbl_vehicle_issues } from '@prisma/client';
 const prisma = new PrismaClient();
 
 export const getAllIssues = async () => {
-  return prisma.tbl_vehicle_issues.findMany();
+  const issues = await prisma.tbl_vehicle_issues.findMany();
+  if (!issues || issues.length === 0) {
+    throw new Error('No vehicle issues found');
+  }
+  return issues;
 };
 
 export const getIssueById = async (id: string) => {

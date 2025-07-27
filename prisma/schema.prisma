@@ -52,7 +52,6 @@ model tbl_audit_logs {
   @@index([user_id])
   @@index([table_name])
   @@index([record_id])
-
 }
 
 model tbl_notifications {
@@ -86,8 +85,8 @@ model tbl_reservations {
   reservation_destination String
   departure_date          DateTime
   expected_returning_date DateTime
-  description             String   @default("")
-  passengers              Int      @default(0)
+  description             String                  @default("")
+  passengers              Int                     @default(0)
   reservation_status      RequestStatus           @default(UNDER_REVIEW)
   reviewed_at             DateTime?
   rejection_comment       String?
@@ -167,7 +166,7 @@ model tbl_position {
 model tbl_vehicle_issues {
   issue_id            String                @id @default(uuid())
   issue_title         String
-  issue_status        IssueStatus          @default(OPEN)
+  issue_status        IssueStatus           @default(OPEN)
   issue_description   String
   issue_date          DateTime              @default(now())
   created_at          DateTime              @default(now())
