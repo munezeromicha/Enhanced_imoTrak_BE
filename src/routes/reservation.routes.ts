@@ -13,6 +13,8 @@ import {
   updateReservationReason,
   assignVehicleWithOdometerFuel,
   getReservationById,
+  assignMultipleVehicles,
+  assignMultipleVehiclesWithOdometerFuel,
 } from '../controllers/reservation.controllers';
 import { validateBody } from '../middlewares/bodyValidator';
 import {
@@ -20,6 +22,8 @@ import {
   cancelReservationSchema,
   updateReservationStatusSchema,
   assignVehicleSchema,
+  assignMultipleVehiclesSchema,
+  assignMultipleVehiclesWithOdometerFuelSchema,
   startReservationSchema,
   completeReservationSchema,
   odometerFuelSchema,
@@ -205,6 +209,101 @@ router.patch('/:id/status', authenticateToken, attachPositionAccess, validateBod
  *         description: Bad request
  */
 router.post('/:id/assign-vehicle', authenticateToken, attachPositionAccess, validateBody(assignVehicleSchema), withAuthUser(assignVehicle));
+
+/**
+ * @openapi
+ * /v2/reservations/{id}/assign-multiple-vehicles:
+ *   post:
+ *     summary: Assign multiple vehicles to a reservation at once
+ *     security:
+ *       - bearerAuth: []
+ *     tags:
+ *       - Reservations
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               vehicle_ids:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                   format: uuid
+ *                 minItems: 1
+ *                 example: ["c4d5e6f7-1234-5678-9abc-def012345678", "d5e6f7a8-2345-6789-abcd-ef0123456789"]
+ *           example:
+ *             vehicle_ids: ["c4d5e6f7-1234-5678-9abc-def012345678", "d5e6f7a8-2345-6789-abcd-ef0123456789"]
+ *     responses:
+ *       200:
+ *         description: Multiple vehicles assigned
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "2 vehicle(s) assigned successfully"
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       reserved_vehicle_id:
+ *                         type: string
+ *                         format: uuid
+ *                       vehicle_id:
+ *                         type: string
+ *                         format: uuid
+ *                       vehicle:
+ *                         type: object
+ *                         properties:
+ *                           vehicle_name:
+ *                             type: string
+ *                           vehicle_model:
+ *                             type: string
+ *                           license_plate:
+ *                             type: string
+ *                           vehicle_status:
+ *                             type: string
+ *             example:
+ *               message: "2 vehicle(s) assigned successfully"
+ *               data:
+ *                 - reserved_vehicle_id: "d5e6f7a8-2345-6789-abcd-ef0123456789"
+ *                   vehicle_id: "c4d5e6f7-1234-5678-9abc-def012345678"
+ *                   vehicle:
+ *                     vehicle_name: "Toyota Land Cruiser"
+ *                     vehicle_model: "Land Cruiser 2020"
+ *                     license_plate: "RAB123A"
+ *                     vehicle_status: "OCCUPIED"
+ *                 - reserved_vehicle_id: "e6f7a8b9-3456-7890-bcde-f1234567890a"
+ *                   vehicle_id: "d5e6f7a8-2345-6789-abcd-ef0123456789"
+ *                   vehicle:
+ *                     vehicle_name: "Toyota Hilux"
+ *                     vehicle_model: "Hilux 2021"
+ *                     license_plate: "RAB456B"
+ *                     vehicle_status: "OCCUPIED"
+ *       400:
+ *         description: Bad request
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Vehicles not available: c4d5e6f7-1234-5678-9abc-def012345678"
+ */
+router.post('/:id/assign-multiple-vehicles', authenticateToken, attachPositionAccess, validateBody(assignMultipleVehiclesSchema), withAuthUser(assignMultipleVehicles));
 
 /**
  * @openapi
@@ -432,6 +531,125 @@ router.get(
  *         description: Bad request
  */
 router.post('/:id/assign-vehicle-odometer', authenticateToken, attachPositionAccess, withAuthUser(assignVehicleWithOdometerFuel));
+
+/**
+ * @openapi
+ * /v2/reservations/{id}/assign-multiple-vehicles-odometer:
+ *   post:
+ *     summary: Assign multiple vehicles to a reservation and set odometer/fuel in one call
+ *     security:
+ *       - bearerAuth: []
+ *     tags:
+ *       - Reservations
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               vehicles:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *                   properties:
+ *                     vehicle_id:
+ *                       type: string
+ *                       format: uuid
+ *                     starting_odometer:
+ *                       type: integer
+ *                       default: 0
+ *                       example: 12000
+ *                     fuel_provided:
+ *                       type: integer
+ *                       default: 0
+ *                       example: 50
+ *                 minItems: 1
+ *           example:
+ *             vehicles:
+ *               - vehicle_id: "c4d5e6f7-1234-5678-9abc-def012345678"
+ *                 starting_odometer: 12000
+ *                 fuel_provided: 50
+ *               - vehicle_id: "d5e6f7a8-2345-6789-abcd-ef0123456789"
+ *                 starting_odometer: 13000
+ *                 fuel_provided: 60
+ *     responses:
+ *       200:
+ *         description: Multiple vehicles assigned with odometer/fuel
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "2 vehicle(s) assigned successfully with odometer/fuel"
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       reserved_vehicle_id:
+ *                         type: string
+ *                         format: uuid
+ *                       vehicle_id:
+ *                         type: string
+ *                         format: uuid
+ *                       starting_odometer:
+ *                         type: integer
+ *                       fuel_provided:
+ *                         type: integer
+ *                       vehicle:
+ *                         type: object
+ *                         properties:
+ *                           vehicle_name:
+ *                             type: string
+ *                           vehicle_model:
+ *                             type: string
+ *                           license_plate:
+ *                             type: string
+ *                           vehicle_status:
+ *                             type: string
+ *             example:
+ *               message: "2 vehicle(s) assigned successfully with odometer/fuel"
+ *               data:
+ *                 - reserved_vehicle_id: "d5e6f7a8-2345-6789-abcd-ef0123456789"
+ *                   vehicle_id: "c4d5e6f7-1234-5678-9abc-def012345678"
+ *                   starting_odometer: 12000
+ *                   fuel_provided: 50
+ *                   vehicle:
+ *                     vehicle_name: "Toyota Land Cruiser"
+ *                     vehicle_model: "Land Cruiser 2020"
+ *                     license_plate: "RAB123A"
+ *                     vehicle_status: "OCCUPIED"
+ *                 - reserved_vehicle_id: "e6f7a8b9-3456-7890-bcde-f1234567890a"
+ *                   vehicle_id: "d5e6f7a8-2345-6789-abcd-ef0123456789"
+ *                   starting_odometer: 13000
+ *                   fuel_provided: 60
+ *                   vehicle:
+ *                     vehicle_name: "Toyota Hilux"
+ *                     vehicle_model: "Hilux 2021"
+ *                     license_plate: "RAB456B"
+ *                     vehicle_status: "OCCUPIED"
+ *       400:
+ *         description: Bad request
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Vehicles not available: c4d5e6f7-1234-5678-9abc-def012345678"
+ */
+router.post('/:id/assign-multiple-vehicles-odometer', authenticateToken, attachPositionAccess, validateBody(assignMultipleVehiclesWithOdometerFuelSchema), withAuthUser(assignMultipleVehiclesWithOdometerFuel));
 
 /**
  * @openapi
