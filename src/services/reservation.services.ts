@@ -336,4 +336,18 @@ export async function getReservationsByUserId(userId: string) {
     },
     orderBy: { created_at: 'desc' },
   });
+}
+
+export async function getReservationById(reservationId: string) {
+  return prisma.tbl_reservations.findUnique({
+    where: { reservation_id: reservationId },
+    include: {
+      user: true,
+      reserved_vehicles: {
+        include: {
+          vehicle: true,
+        },
+      },
+    },
+  });
 } 

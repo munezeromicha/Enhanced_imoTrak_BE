@@ -12,6 +12,7 @@ import {
   getMyReservations,
   updateReservationReason,
   assignVehicleWithOdometerFuel,
+  getReservationById,
 } from '../controllers/reservation.controllers';
 import { validateBody } from '../middlewares/bodyValidator';
 import {
@@ -431,6 +432,70 @@ router.get(
  *         description: Bad request
  */
 router.post('/:id/assign-vehicle-odometer', authenticateToken, attachPositionAccess, withAuthUser(assignVehicleWithOdometerFuel));
+
+/**
+ * @openapi
+ * /v2/reservations/{id}:
+ *   get:
+ *     summary: Get a single reservation by ID with all details
+ *     security:
+ *       - bearerAuth: []
+ *     tags:
+ *       - Reservations
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     responses:
+ *       200:
+ *         description: Reservation details
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 data:
+ *                   $ref: '#/components/schemas/Reservation'
+ *             example:
+ *               data:
+ *                 reservation_id: "b3b1c2d3-e4f5-6789-abcd-1234567890ef"
+ *                 reservation_purpose: "Business meeting"
+ *                 start_location: "Kigali HQ"
+ *                 reservation_destination: "Musanze Branch"
+ *                 departure_date: "2024-08-01T09:00:00Z"
+ *                 expected_returning_date: "2024-08-01T18:00:00Z"
+ *                 description: "Trip to Musanze for business meeting."
+ *                 passengers: 4
+ *                 reservation_status: "APPROVED"
+ *                 created_at: "2024-08-01T08:00:00Z"
+ *                 reviewed_at: "2024-08-01T10:00:00Z"
+ *                 rejection_comment: null
+ *                 user:
+ *                   user_id: "a1b2c3d4-e5f6-7890-abcd-1234567890ab"
+ *                   first_name: "John"
+ *                   last_name: "Doe"
+ *                   email: "john.doe@example.com"
+ *                 reserved_vehicles:
+ *                   - reserved_vehicle_id: "d5e6f7a8-2345-6789-abcd-ef0123456789"
+ *                     starting_odometer: 12000
+ *                     fuel_provided: 50
+ *                     returned_odometer: null
+ *                     returned_date: null
+ *                     vehicle:
+ *                       vehicle_id: "c4d5e6f7-1234-5678-9abc-def012345678"
+ *                       vehicle_name: "Toyota Land Cruiser"
+ *                       vehicle_model: "Land Cruiser 2020"
+ *                       vehicle_status: "OCCUPIED"
+ *                       license_plate: "RAB123A"
+ *       404:
+ *         description: Reservation not found
+ *       403:
+ *         description: Forbidden - insufficient permissions
+ */
+router.get('/:id', authenticateToken, attachPositionAccess, withAuthUser(getReservationById));
 
 /**
  * @openapi
