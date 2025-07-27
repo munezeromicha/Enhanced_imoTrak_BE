@@ -5,6 +5,8 @@ import {
   cancelReservationSchema,
   updateReservationStatusSchema,
   assignVehicleSchema,
+  assignMultipleVehiclesSchema,
+  assignMultipleVehiclesWithOdometerFuelSchema,
   startReservationSchema,
   completeReservationSchema,
   odometerFuelSchema,
@@ -75,6 +77,23 @@ export const assignVehicle = async (req: AuthenticatedRequest, res: Response) =>
   }
 };
 
+export const assignMultipleVehicles = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    checkPermission(req, 'assignVehicle');
+    const { vehicle_ids } = assignMultipleVehiclesSchema.parse(req.body);
+    const reservationId = req.params.id;
+    const reviewerId = req.user.user_id;
+    const reservedVehicles = await reservationService.assignMultipleVehicles(reservationId, vehicle_ids, reviewerId);
+    res.status(200).json({ 
+      message: `${vehicle_ids.length} vehicle(s) assigned successfully`, 
+      data: reservedVehicles 
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    res.status(400).json({ message });
+  }
+};
+
 export const updateOdometerFuel = async (req: AuthenticatedRequest, res: Response) => {
   try {
     checkPermission(req, 'odometerFuel');
@@ -106,7 +125,8 @@ export const completeReservation = async (req: AuthenticatedRequest, res: Respon
 export const getAllReservations = async (req: AuthenticatedRequest, res: Response) => {
   try {
     checkPermission(req, 'view');
-    const reservations = await reservationService.getAllReservations();
+    const userId = req.user.user_id;
+    const reservations = await reservationService.getAllReservations(userId);
     res.status(200).json({ data: reservations });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
@@ -172,6 +192,27 @@ export const assignVehicleWithOdometerFuel = async (req: AuthenticatedRequest, r
       fuel_provided
     );
     res.status(200).json({ message: 'Vehicle assigned with odometer/fuel', data: reservedVehicles });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    res.status(400).json({ message });
+  }
+};
+
+export const assignMultipleVehiclesWithOdometerFuel = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    checkPermission(req, 'assignVehicle');
+    const { vehicles } = assignMultipleVehiclesWithOdometerFuelSchema.parse(req.body);
+    const reservationId = req.params.id;
+    const reviewerId = req.user.user_id;
+    const reservedVehicles = await reservationService.assignMultipleVehiclesWithOdometerFuel(
+      reservationId,
+      vehicles,
+      reviewerId
+    );
+    res.status(200).json({ 
+      message: `${vehicles.length} vehicle(s) assigned successfully with odometer/fuel`, 
+      data: reservedVehicles 
+    });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
     res.status(400).json({ message });

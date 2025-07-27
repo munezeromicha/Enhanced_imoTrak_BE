@@ -81,7 +81,8 @@ export async function createVehicleController(req: Request, res: Response, next:
 export async function getAllVehiclesController(req: Request, res: Response, next: NextFunction) {
   try {
     checkVehiclePermission(req as AuthenticatedRequest, 'view');
-    const vehicles = await vehicleService.getAllVehicles();
+    const userId = (req as AuthenticatedRequest).user.user_id;
+    const vehicles = await vehicleService.getAllVehicles(userId);
     res.json({ data: vehicles });
   } catch (error) { next(error); }
 }

@@ -24,6 +24,18 @@ export const assignVehicleSchema = z.object({
   vehicle_id: z.string().min(1),
 });
 
+export const assignMultipleVehiclesSchema = z.object({
+  vehicle_ids: z.array(z.string().min(1)).min(1),
+});
+
+export const assignMultipleVehiclesWithOdometerFuelSchema = z.object({
+  vehicles: z.array(z.object({
+    vehicle_id: z.string().min(1),
+    starting_odometer: z.number().int().min(0).default(0),
+    fuel_provided: z.number().int().min(0).default(0),
+  })).min(1),
+});
+
 export const startReservationSchema = z.object({});
 
 export const odometerFuelSchema = z.object({
