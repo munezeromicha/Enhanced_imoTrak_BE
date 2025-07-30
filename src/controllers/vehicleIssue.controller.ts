@@ -28,11 +28,7 @@ export const getAll = async (req: AuthenticatedRequest, res: Response, next: Nex
     });
 
   } catch (err: any) {
-    const status = err instanceof AppError ? err.statusCode : 500;
-    res.status(status).json({
-      message: err.message || 'Something went wrong.',
-      data: null,
-    });
+    next(err);
   }
 };
 
