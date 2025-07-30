@@ -81,13 +81,13 @@ export async function createVehicleController(req: Request, res: Response, next:
     let vehiclePhotoUrl = req.body.vehicle_photo;
     if (req.file) {
       vehiclePhotoUrl = await uploadToCloudinary(req.file.buffer, 'vehicles');
+    }else{
+      return res.status(400).json({ message: 'Vehicle photo is required' });
     }
     // Parse/convert fields as needed for multipart/form-data
     const parsedBody = {
       ...req.body,
       vehicle_photo: vehiclePhotoUrl,
-      vehicle_year: req.body.vehicle_year ? parseInt(req.body.vehicle_year, 10) : undefined,
-      vehicle_capacity: req.body.vehicle_capacity ? parseInt(req.body.vehicle_capacity, 10) : undefined,
     };
     const data = { ...parsedBody, vehicle_status: parsedBody.vehicle_status ?? 'AVAILABLE', vehicle_photo: vehiclePhotoUrl };
     const vehicle = await vehicleService.createVehicle(data);
