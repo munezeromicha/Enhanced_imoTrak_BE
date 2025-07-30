@@ -13,7 +13,9 @@ import {
 } from '../controllers/vehicle.controllers';
 import { authenticateToken } from '../middlewares/auth.middleware';
 import { attachPositionAccess } from '../middlewares/attachPositionAccess';
+import { validateBody } from '../middlewares/bodyValidator';
 import { upload } from '../middlewares/multer';
+import { vehicleModelSchema, vehicleModelUpdateSchema, vehicleSchema, vehicleUpdateSchema } from '../schemas/vehicle.schema';
 
 const router = Router();
 
@@ -323,17 +325,17 @@ const router = Router();
  */
 
 // Vehicle Models CRUD
-router.post('/vehicle-models', authenticateToken, attachPositionAccess, createVehicleModelController);
+router.post('/vehicle-models', authenticateToken, attachPositionAccess, validateBody(vehicleModelSchema), createVehicleModelController);
 router.get('/vehicle-models', authenticateToken, attachPositionAccess, getAllVehicleModelsController);
 router.get('/vehicle-models/:id', authenticateToken, attachPositionAccess, getVehicleModelByIdController);
-router.put('/vehicle-models/:id', authenticateToken, attachPositionAccess, updateVehicleModelController);
+router.put('/vehicle-models/:id', authenticateToken, attachPositionAccess, validateBody(vehicleModelUpdateSchema), updateVehicleModelController);
 router.delete('/vehicle-models/:id', authenticateToken, attachPositionAccess, deleteVehicleModelController);
 
 // Vehicles CRUD
-router.post('/vehicles', authenticateToken, attachPositionAccess, upload.single('vehicle_photo'), createVehicleController);
+router.post('/vehicles', authenticateToken, attachPositionAccess, upload.single('vehicle_photo'), validateBody(vehicleSchema), createVehicleController);
 router.get('/vehicles', authenticateToken, attachPositionAccess, getAllVehiclesController);
 router.get('/vehicles/:id', authenticateToken, attachPositionAccess, getVehicleByIdController);
-router.put('/vehicles/:id', authenticateToken, attachPositionAccess, updateVehicleController);
+router.put('/vehicles/:id', authenticateToken, attachPositionAccess, validateBody(vehicleUpdateSchema), updateVehicleController);
 router.delete('/vehicles/:id', authenticateToken, attachPositionAccess, deleteVehicleController);
 
 export default router; 
