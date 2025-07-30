@@ -22,9 +22,6 @@ export const getAllIssues = async ( user: AuthenticatedUser) => {
       }
     }
   });
-  if (!issues || issues.length === 0) {
-    throw new AppError('No vehicle issues found', 404);
-  }
   return issues;
 };
 
