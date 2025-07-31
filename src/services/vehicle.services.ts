@@ -31,33 +31,11 @@ export async function createVehicle(data: Omit<tbl_vehicles, 'vehicle_id' | 'cre
   return prisma.tbl_vehicles.create({ data });
 }
 
-export async function getAllVehicles(userId: string) {
-  // Get user's organization
-  const user = await prisma.tbl_users.findUnique({
-    where: { user_id: userId },
-    include: {
-      positions: {
-        include: {
-          unit: {
-            include: {
-              organization: true,
-            },
-          },
-        },
-      },
-    },
-  });
-
-  if (!user || !user.positions.length) {
-    throw new Error('User not found or has no position');
-  }
-
-  const orgId = user.positions[0].unit.organization.organization_id;
-
-  // Get all vehicles from the same organization
+export async function getAllVehicles(organizationId: string) {
+  // Get all vehicles from the specified organization
   return prisma.tbl_vehicles.findMany({
     where: {
-      organization_id: orgId,
+      organization_id: organizationId,
     },
     include: { 
       organization: true, 
