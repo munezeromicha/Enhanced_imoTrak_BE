@@ -231,6 +231,7 @@ enum TransmissionMode {
 enum RequestStatus {
   UNDER_REVIEW
   CANCELED
+  ACCEPTED
   APPROVED
   REJECTED
   IN_PROGRESS

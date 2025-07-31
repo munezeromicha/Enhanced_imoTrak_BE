@@ -105,8 +105,14 @@ export async function updateReservationStatus(reservationId: string, status: Req
   }
 
   let newStatus = status;
-  // Enhancement: If status is APPROVED, check if all conditions are met to auto-move to IN_PROGRESS
+  
+  // Enhancement: If status is APPROVED, set to ACCEPTED instead
   if (status === RequestStatus.APPROVED) {
+    newStatus = RequestStatus.ACCEPTED;
+  }
+  
+  // Enhancement: If status is ACCEPTED, check if all conditions are met to auto-move to IN_PROGRESS
+  if (status === RequestStatus.ACCEPTED) {
     const now = new Date();
     const departureMet = now >= reservation.departure_date;
     const vehiclesAssigned = reservation.reserved_vehicles.length > 0;
@@ -137,9 +143,9 @@ export async function updateReservationStatus(reservationId: string, status: Req
   const requester = await prisma.tbl_users.findUnique({ where: { user_id: reservation.user_id }, include: { auth: true } });
   let title = '';
   let message = '';
-  if (newStatus === RequestStatus.APPROVED) {
-    title = 'Reservation Approved';
-    message = 'Your reservation request has been approved.';
+  if (newStatus === RequestStatus.ACCEPTED) {
+    title = 'Reservation Accepted';
+    message = 'Your reservation request has been accepted. Vehicles can now be assigned.';
   } else if (newStatus === RequestStatus.IN_PROGRESS) {
     title = 'Reservation In Progress';
     message = 'Your reservation is now in progress.';
@@ -181,32 +187,42 @@ export async function updateReservationReason(reservationId: string, reason: str
 
 export async function assignVehicle(reservationId: string, vehicleId: string, reviewerId: string) {
   // Permission check: reviewer only (enforced in controller)
-  // Only assign if reservation is APPROVED and not IN_PROGRESS
+  // Only assign if reservation is ACCEPTED and not IN_PROGRESS
   const reservation = await prisma.tbl_reservations.findUnique({ where: { reservation_id: reservationId } });
   if (!reservation) throw new Error('Reservation not found');
   if (reservation.reservation_status === RequestStatus.IN_PROGRESS) {
     throw new Error('Cannot assign vehicle when reservation is in progress');
   }
-  if (reservation.reservation_status !== RequestStatus.APPROVED) {
-    throw new Error('Reservation must be approved before assigning a vehicle');
+  if (reservation.reservation_status !== RequestStatus.ACCEPTED) {
+    throw new Error('Reservation must be accepted before assigning a vehicle');
   }
   const vehicle = await prisma.tbl_vehicles.findUnique({ where: { vehicle_id: vehicleId } });
   if (!vehicle) throw new Error('Vehicle not found');
   if (vehicle.vehicle_status !== 'AVAILABLE') {
     throw new Error('Vehicle is not available');
   }
-  // Assign vehicle and mark as OCCUPIED
-  await prisma.tbl_reserved_vehicles.create({
-    data: {
-      vehicle_id: vehicleId,
-      reservation_id: reservationId,
-      starting_odometer: 0, // Will be set when reservation is IN_PROGRESS
-      returned_odometer: null,
-      fuel_provided: null,
-      returned_date: new Date(0), // Placeholder, will be set on return
-    },
+  
+  // Assign vehicle and mark as OCCUPIED, then update reservation status to APPROVED
+  await prisma.$transaction(async (tx) => {
+    await tx.tbl_reserved_vehicles.create({
+      data: {
+        vehicle_id: vehicleId,
+        reservation_id: reservationId,
+        starting_odometer: 0, // Will be set when reservation is IN_PROGRESS
+        returned_odometer: null,
+        fuel_provided: null,
+        returned_date: new Date(0), // Placeholder, will be set on return
+      },
+    });
+    await tx.tbl_vehicles.update({ where: { vehicle_id: vehicleId }, data: { vehicle_status: 'OCCUPIED' } });
+    
+    // Update reservation status to APPROVED after vehicle assignment
+    await tx.tbl_reservations.update({
+      where: { reservation_id: reservationId },
+      data: { reservation_status: RequestStatus.APPROVED },
+    });
   });
-  await prisma.tbl_vehicles.update({ where: { vehicle_id: vehicleId }, data: { vehicle_status: 'OCCUPIED' } });
+  
   // Return all reserved vehicles for this reservation
   const reservedVehicles = await prisma.tbl_reserved_vehicles.findMany({
     where: { reservation_id: reservationId },
@@ -216,14 +232,14 @@ export async function assignVehicle(reservationId: string, vehicleId: string, re
 
 export async function assignMultipleVehicles(reservationId: string, vehicleIds: string[], reviewerId: string) {
   // Permission check: reviewer only (enforced in controller)
-  // Only assign if reservation is APPROVED and not IN_PROGRESS
+  // Only assign if reservation is ACCEPTED and not IN_PROGRESS
   const reservation = await prisma.tbl_reservations.findUnique({ where: { reservation_id: reservationId } });
   if (!reservation) throw new Error('Reservation not found');
   if (reservation.reservation_status === RequestStatus.IN_PROGRESS) {
     throw new Error('Cannot assign vehicles when reservation is in progress');
   }
-  if (reservation.reservation_status !== RequestStatus.APPROVED) {
-    throw new Error('Reservation must be approved before assigning vehicles');
+  if (reservation.reservation_status !== RequestStatus.ACCEPTED) {
+    throw new Error('Reservation must be accepted before assigning vehicles');
   }
 
   // Check if all vehicles exist and are available
@@ -241,7 +257,7 @@ export async function assignMultipleVehicles(reservationId: string, vehicleIds: 
     throw new Error(`Vehicles not available: ${unavailableIds.join(', ')}`);
   }
 
-  // Assign all vehicles in a transaction
+  // Assign all vehicles in a transaction and update reservation status to APPROVED
   const reservedVehicles = await prisma.$transaction(async (tx) => {
     const createdReservedVehicles = [];
     
@@ -265,6 +281,12 @@ export async function assignMultipleVehicles(reservationId: string, vehicleIds: 
       });
     }
     
+    // Update reservation status to APPROVED after vehicle assignment
+    await tx.tbl_reservations.update({
+      where: { reservation_id: reservationId },
+      data: { reservation_status: RequestStatus.APPROVED },
+    });
+    
     return createdReservedVehicles;
   });
 
@@ -281,14 +303,14 @@ export async function assignMultipleVehicles(reservationId: string, vehicleIds: 
 
 export async function assignMultipleVehiclesWithOdometerFuel(reservationId: string, vehiclesData: Array<{vehicle_id: string, starting_odometer: number, fuel_provided: number}>, reviewerId: string) {
   // Permission check: reviewer only (enforced in controller)
-  // Only assign if reservation is APPROVED and not IN_PROGRESS
+  // Only assign if reservation is ACCEPTED and not IN_PROGRESS
   const reservation = await prisma.tbl_reservations.findUnique({ where: { reservation_id: reservationId } });
   if (!reservation) throw new Error('Reservation not found');
   if (reservation.reservation_status === RequestStatus.IN_PROGRESS) {
     throw new Error('Cannot assign vehicles when reservation is in progress');
   }
-  if (reservation.reservation_status !== RequestStatus.APPROVED) {
-    throw new Error('Reservation must be approved before assigning vehicles');
+  if (reservation.reservation_status !== RequestStatus.ACCEPTED) {
+    throw new Error('Reservation must be accepted before assigning vehicles');
   }
 
   const vehicleIds = vehiclesData.map(v => v.vehicle_id);
@@ -308,7 +330,7 @@ export async function assignMultipleVehiclesWithOdometerFuel(reservationId: stri
     throw new Error(`Vehicles not available: ${unavailableIds.join(', ')}`);
   }
 
-  // Assign all vehicles with odometer/fuel in a transaction
+  // Assign all vehicles with odometer/fuel in a transaction and update reservation status to APPROVED
   const reservedVehicles = await prisma.$transaction(async (tx) => {
     const createdReservedVehicles = [];
     
@@ -332,6 +354,12 @@ export async function assignMultipleVehiclesWithOdometerFuel(reservationId: stri
       });
     }
     
+    // Update reservation status to APPROVED after vehicle assignment
+    await tx.tbl_reservations.update({
+      where: { reservation_id: reservationId },
+      data: { reservation_status: RequestStatus.APPROVED },
+    });
+    
     return createdReservedVehicles;
   });
 
@@ -348,32 +376,42 @@ export async function assignMultipleVehiclesWithOdometerFuel(reservationId: stri
 
 export async function assignVehicleWithOdometerFuel(reservationId: string, vehicleId: string, reviewerId: string, startingOdometer: number = 0, fuelProvided: number = 0) {
   // Permission check: reviewer only (enforced in controller)
-  // Only assign if reservation is APPROVED and not IN_PROGRESS
+  // Only assign if reservation is ACCEPTED and not IN_PROGRESS
   const reservation = await prisma.tbl_reservations.findUnique({ where: { reservation_id: reservationId } });
   if (!reservation) throw new Error('Reservation not found');
   if (reservation.reservation_status === RequestStatus.IN_PROGRESS) {
     throw new Error('Cannot assign vehicle when reservation is in progress');
   }
-  if (reservation.reservation_status !== RequestStatus.APPROVED) {
-    throw new Error('Reservation must be approved before assigning a vehicle');
+  if (reservation.reservation_status !== RequestStatus.ACCEPTED) {
+    throw new Error('Reservation must be accepted before assigning a vehicle');
   }
   const vehicle = await prisma.tbl_vehicles.findUnique({ where: { vehicle_id: vehicleId } });
   if (!vehicle) throw new Error('Vehicle not found');
   if (vehicle.vehicle_status !== 'AVAILABLE') {
     throw new Error('Vehicle is not available');
   }
-  // Assign vehicle and set odometer/fuel, mark as OCCUPIED
-  await prisma.tbl_reserved_vehicles.create({
-    data: {
-      vehicle_id: vehicleId,
-      reservation_id: reservationId,
-      starting_odometer: startingOdometer,
-      fuel_provided: fuelProvided,
-      returned_odometer: null,
-      returned_date: new Date(0), // Placeholder, will be set on return
-    },
+  
+  // Assign vehicle and set odometer/fuel, mark as OCCUPIED, then update reservation status to APPROVED
+  await prisma.$transaction(async (tx) => {
+    await tx.tbl_reserved_vehicles.create({
+      data: {
+        vehicle_id: vehicleId,
+        reservation_id: reservationId,
+        starting_odometer: startingOdometer,
+        fuel_provided: fuelProvided,
+        returned_odometer: null,
+        returned_date: new Date(0), // Placeholder, will be set on return
+      },
+    });
+    await tx.tbl_vehicles.update({ where: { vehicle_id: vehicleId }, data: { vehicle_status: 'OCCUPIED' } });
+    
+    // Update reservation status to APPROVED after vehicle assignment
+    await tx.tbl_reservations.update({
+      where: { reservation_id: reservationId },
+      data: { reservation_status: RequestStatus.APPROVED },
+    });
   });
-  await prisma.tbl_vehicles.update({ where: { vehicle_id: vehicleId }, data: { vehicle_status: 'OCCUPIED' } });
+  
   // Return all reserved vehicles for this reservation
   const reservedVehicles = await prisma.tbl_reserved_vehicles.findMany({
     where: { reservation_id: reservationId },
