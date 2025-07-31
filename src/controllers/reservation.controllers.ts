@@ -125,8 +125,8 @@ export const completeReservation = async (req: AuthenticatedRequest, res: Respon
 export const getAllReservations = async (req: AuthenticatedRequest, res: Response) => {
   try {
     checkPermission(req, 'view');
-    const userId = req.user.user_id;
-    const reservations = await reservationService.getAllReservations(userId);
+    const organizationId = req.user.organization_id;
+    const reservations = await reservationService.getAllReservations(organizationId);
     res.status(200).json({ data: reservations });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';

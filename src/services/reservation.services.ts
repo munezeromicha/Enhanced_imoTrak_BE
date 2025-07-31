@@ -442,37 +442,15 @@ export async function completeReservation(reservedVehicleId: string, returnedOdo
   return true;
 }
 
-export async function getAllReservations(userId: string) {
-  // Get user's organization
-  const user = await prisma.tbl_users.findUnique({
-    where: { user_id: userId },
-    include: {
-      positions: {
-        include: {
-          unit: {
-            include: {
-              organization: true,
-            },
-          },
-        },
-      },
-    },
-  });
-
-  if (!user || !user.positions.length) {
-    throw new Error('User not found or has no position');
-  }
-
-  const orgId = user.positions[0].unit.organization.organization_id;
-
-  // Get all reservations from users in the same organization
+export async function getAllReservations(organizationId: string) {
+  // Get all reservations from users in the specified organization
   return prisma.tbl_reservations.findMany({
     where: {
       user: {
         positions: {
           some: {
             unit: {
-              organization_id: orgId,
+              organization_id: organizationId,
             },
           },
         },
