@@ -112,15 +112,15 @@ export async function updateReservationStatus(reservationId: string, status: Req
   }
   
   // Enhancement: If status is ACCEPTED, check if all conditions are met to auto-move to IN_PROGRESS
-  if (status === RequestStatus.ACCEPTED) {
-    const now = new Date();
-    const departureMet = now >= reservation.departure_date;
-    const vehiclesAssigned = reservation.reserved_vehicles.length > 0;
-    const allOdometerFuelSet = reservation.reserved_vehicles.length > 0 && reservation.reserved_vehicles.every(rv => rv.starting_odometer > 0 && rv.fuel_provided !== null);
-    if (departureMet && vehiclesAssigned && allOdometerFuelSet) {
-      newStatus = RequestStatus.IN_PROGRESS;
-    }
-  }
+  // if (status === RequestStatus.ACCEPTED) {
+  //   const now = new Date();
+  //   const departureMet = now >= reservation.departure_date;
+  //   const vehiclesAssigned = reservation.reserved_vehicles.length > 0;
+  //   const allOdometerFuelSet = reservation.reserved_vehicles.length > 0 && reservation.reserved_vehicles.every(rv => rv.starting_odometer > 0 && rv.fuel_provided !== null);
+  //   if (departureMet && vehiclesAssigned && allOdometerFuelSet) {
+  //     newStatus = RequestStatus.IN_PROGRESS;
+  //   }
+  // }
 
   // Enhancement: If status is COMPLETED, check all reserved vehicles have returned_odometer
   if (status === RequestStatus.COMPLETED) {
@@ -453,8 +453,8 @@ export async function completeReservation(reservedVehicleId: string, returnedOdo
   if (reservation.user_id !== userId) {
     throw new Error('Not authorized to complete this reservation');
   }
-  if (reservation.reservation_status !== RequestStatus.IN_PROGRESS) {
-    throw new Error('Reservation must be IN_PROGRESS to complete');
+  if (reservation.reservation_status !== RequestStatus.APPROVED) {
+    throw new Error('Reservation must be APPROVED to complete');
   }
   // Update reserved vehicle and vehicle status
   await prisma.tbl_reserved_vehicles.update({
