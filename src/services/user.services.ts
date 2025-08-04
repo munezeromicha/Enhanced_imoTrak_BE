@@ -307,8 +307,8 @@ export const updateUserService = async (
   };
 };
 
-export const unVerfiedUserServices = async (organization_id: string) => {
-  const users = await prisma.tbl_users.findMany({
+export const getUnverifiedUsersService = async (organization_id: string) => {
+  return await prisma.tbl_users.findMany({
     where: {
       auth: {
         is_verified: false,
@@ -357,6 +357,56 @@ export const unVerfiedUserServices = async (organization_id: string) => {
       },
     },
   });
+};
 
-  return users;
+export const getSingleUnverifiedUserService = async (organization_id: string) => {
+  return await prisma.tbl_users.findFirst({
+    where: {
+      auth: {
+        is_verified: false,
+      },
+      positions: {
+        some: {
+          unit: {
+            organization_id,
+          },
+        },
+      },
+    },
+    select: {
+      user_id: true,
+      first_name: true,
+      last_name: true,
+      user_gender: true,
+      user_phone: true,
+      auth: {
+        select: {
+          email: true,
+          is_verified: true,
+        },
+      },
+      positions: {
+        select: {
+          position_id: true,
+          position_name: true,
+          position_description: true,
+          position_status: true,
+          unit: {
+            select: {
+              unit_id: true,
+              unit_name: true,
+              organization: {
+                select: {
+                  organization_id: true,
+                  organization_name: true,
+                  organization_email: true,
+                  organization_phone: true,
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  });
 };
