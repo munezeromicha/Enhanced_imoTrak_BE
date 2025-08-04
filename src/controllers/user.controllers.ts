@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { createUserService, getSingleUserWithPositionsService, getUsersWithPositionsService, unVerfiedUserServices, updateUserService } from '../services/user.services';
+import { createUserService, getSingleUserWithPositionsService, getUnverifiedUsersService, getUsersWithPositionsService, getSingleUnverifiedUserService, updateUserService } from '../services/user.services';
 import { AppError } from '../utils/Error';
 import { position_accesses } from '../types/access';
 
@@ -185,7 +185,8 @@ export const getAllUnverifiedUsersController = async (
       throw new AppError('Organization has to be specified', 404);
     }
 
-    const users = await unVerfiedUserServices(organization_id);
+    const users = await getUnverifiedUsersService(organization_id);
+
 
     res.status(200).json({
       message: 'Users retrieved successfully',
@@ -195,6 +196,7 @@ export const getAllUnverifiedUsersController = async (
     next(error);
   }
 };
+
 export const getSingleUnverifiedUserController = async (
   req: AuthenticatedRequest,
   res: Response,
@@ -205,16 +207,16 @@ export const getSingleUnverifiedUserController = async (
       throw new AppError('You do not have permission to view users', 403);
     }
 
-    const { organization_id } = req.params;
+    const { organization_id, user_id } = req.params;
 
-    if (!organization_id) {
-      throw new AppError('Organization has to be specified', 404);
+    if (!organization_id || !user_id) {
+      throw new AppError('Organization ID and User ID must be specified', 404);
     }
 
-    const [user] = await unVerfiedUserServices(organization_id);
+    const user = await getSingleUnverifiedUserService(organization_id, user_id);
 
     if (!user) {
-      throw new AppError('No unverified user found', 404);
+      throw new AppError('Unverified user not found', 404);
     }
 
     if (user.auth?.is_verified) {
@@ -229,3 +231,4 @@ export const getSingleUnverifiedUserController = async (
     next(error);
   }
 };
+

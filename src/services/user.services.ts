@@ -359,9 +359,13 @@ export const getUnverifiedUsersService = async (organization_id: string) => {
   });
 };
 
-export const getSingleUnverifiedUserService = async (organization_id: string) => {
+export const getSingleUnverifiedUserService = async (
+  organization_id: string,
+  user_id: string
+) => {
   return await prisma.tbl_users.findFirst({
     where: {
+      user_id,
       auth: {
         is_verified: false,
       },
@@ -410,3 +414,4 @@ export const getSingleUnverifiedUserService = async (organization_id: string) =>
     },
   });
 };
+
