@@ -263,15 +263,15 @@ export async function assignMultipleVehicles(reservationId: string, vehicleIds: 
     
     for (const vehicleId of vehicleIds) {
       const reservedVehicle = await tx.tbl_reserved_vehicles.create({
-        data: {
-          vehicle_id: vehicleId,
-          reservation_id: reservationId,
-          starting_odometer: 0, // Will be set when reservation is IN_PROGRESS
-          returned_odometer: null,
-          fuel_provided: null,
-          returned_date: new Date(0), // Placeholder, will be set on return
-        },
-      });
+    data: {
+      vehicle_id: vehicleId,
+      reservation_id: reservationId,
+      starting_odometer: 0, // Will be set when reservation is IN_PROGRESS
+      returned_odometer: null,
+      fuel_provided: null,
+      returned_date: new Date(0), // Placeholder, will be set on return
+    },
+  });
       createdReservedVehicles.push(reservedVehicle);
       
       // Update vehicle status to OCCUPIED

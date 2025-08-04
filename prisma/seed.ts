@@ -173,6 +173,7 @@ async function main() {
       vehicle_model_name: 'Nissan Patrol',
       vehicle_type: 'SUV',
       manufacturer_name: 'Nissan',
+      vehicle_capacity: 5,
     },
   });
 
@@ -182,7 +183,6 @@ async function main() {
     transmission_mode: TransmissionMode.AUTOMATIC,
     vehicle_photo: 'patrol1.png',
     vehicle_year: 2019,
-    vehicle_capacity: 5,
     energy_type: 'Petrol',
   },
   {
@@ -190,7 +190,6 @@ async function main() {
     transmission_mode: TransmissionMode.MANUAL,
     vehicle_photo: 'patrol2.png',
     vehicle_year: 2020,
-    vehicle_capacity: 7,
     energy_type: 'Diesel',
   },
   {
@@ -198,7 +197,6 @@ async function main() {
     transmission_mode: TransmissionMode.AUTOMATIC,
     vehicle_photo: 'patrol3.png',
     vehicle_year: 2021,
-    vehicle_capacity: 5,
     energy_type: 'Diesel',
   },
 ];
