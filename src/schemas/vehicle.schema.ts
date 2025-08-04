@@ -6,6 +6,7 @@ export const vehicleModelSchema = z.object({
     'AMBULANCE', 'SEDAN', 'SUV', 'TRUCK', 'VAN', 'MOTORCYCLE', 'BUS', 'OTHER'
   ]),
   manufacturer_name: z.string().min(1),
+  vehicle_capacity: z.coerce.number().int().min(1),
 });
 
 export const vehicleModelUpdateSchema = vehicleModelSchema.partial();
@@ -17,7 +18,6 @@ export const vehicleSchema = z.object({
   // vehicle_type: z.enum(['AMBULANCE', 'SEDAN', 'SUV', 'TRUCK', 'VAN', 'MOTORCYCLE', 'BUS', 'OTHER']),
   // vehicle_photo: z.string().min(1),
   vehicle_year: z.coerce.number().int().min(1900),
-  vehicle_capacity: z.coerce.number().int().min(1),
   vehicle_status: z.enum(['AVAILABLE', 'OCCUPIED', 'MAINTENANCE', 'OUT_OF_SERVICE']).optional(),
   energy_type: z.string().min(1),
   last_service_date: z.string().datetime().optional(),

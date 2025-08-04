@@ -99,6 +99,7 @@ model tbl_vehicle_models {
   vehicle_model_id   String         @id @default(uuid())
   vehicle_model_name String         @unique
   vehicle_type       VehicleType
+  vehicle_capacity   Int            @default(0) 
   manufacturer_name  String
   created_at         DateTime       @default(now())
   vehicles           tbl_vehicles[]
@@ -111,7 +112,7 @@ model tbl_vehicles {
   vehicle_model_id  String
   vehicle_photo     String
   vehicle_year      Int
-  vehicle_capacity  Int
+  
   vehicle_status    VehicleStatus           @default(AVAILABLE)
   energy_type       String
   last_service_date DateTime                @default(now())

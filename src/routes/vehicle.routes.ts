@@ -37,6 +37,7 @@ const router = Router();
  *         - vehicle_model_name
  *         - vehicle_type
  *         - manufacturer_name
+ *         - vehicle_capacity
  *       properties:
  *         vehicle_model_id:
  *           type: string
@@ -47,6 +48,9 @@ const router = Router();
  *           enum: [AMBULANCE, SEDAN, SUV, TRUCK, VAN, MOTORCYCLE, BUS, OTHER]
  *         manufacturer_name:
  *           type: string
+ *         vehicle_capacity:
+ *           type: integer
+ *           example: 15
  *         created_at:
  *           type: string
  *           format: date-time
@@ -54,12 +58,10 @@ const router = Router();
  *       type: object
  *       required:
  *         - plate_number
- *         - vehicle_type
  *         - transmission_mode
  *         - vehicle_model_id
  *         - vehicle_photo
  *         - vehicle_year
- *         - vehicle_capacity
  *         - energy_type
  *         - organization_id
  *       properties:
@@ -67,9 +69,6 @@ const router = Router();
  *           type: string
  *         plate_number:
  *           type: string
- *         vehicle_type:
- *           type: string
- *           enum: [AMBULANCE, SEDAN, SUV, TRUCK, VAN, MOTORCYCLE, BUS, OTHER]
  *         transmission_mode:
  *           type: string
  *           enum: [MANUAL, AUTOMATIC, SEMI_AUTOMATIC]
@@ -78,8 +77,6 @@ const router = Router();
  *         vehicle_photo:
  *           type: string
  *         vehicle_year:
- *           type: integer
- *         vehicle_capacity:
  *           type: integer
  *         vehicle_status:
  *           type: string
@@ -113,6 +110,7 @@ const router = Router();
  *             vehicle_model_name: "Toyota Hiace"
  *             vehicle_type: "VAN"
  *             manufacturer_name: "Toyota"
+ *             vehicle_capacity: 15
  *     responses:
  *       201:
  *         description: Vehicle model created
@@ -230,9 +228,6 @@ const router = Router();
  *               vehicle_year:
  *                 type: integer
  *                 example: 2018
- *               vehicle_capacity:
- *                 type: integer
- *                 example: 15
  *               energy_type:
  *                 type: string
  *                 example: Diesel
