@@ -3,7 +3,7 @@ import { authenticateToken } from '../middlewares/auth.middleware';
 import { attachPositionAccess } from '../middlewares/attachPositionAccess';
 import { validateBody } from '../middlewares/bodyValidator';
 import { createUserSchema, updateUserSchema } from '../schemas/user.schema';
-import { createUserController, getSingleUserWithPositionsController, getUsersWithPositionsController, unVerfiedUserController, updateUserController } from '../controllers/user.controllers';
+import { createUserController, getAllUnverifiedUsersController, getSingleUnverifiedUserController, getSingleUserWithPositionsController, getUsersWithPositionsController, updateUserController } from '../controllers/user.controllers';
 
 const usersRoutes = Router();
 
@@ -483,7 +483,7 @@ usersRoutes.patch(
   '/unverified/:organization_id',
   authenticateToken,
   attachPositionAccess,
-  unVerfiedUserController
+  getAllUnverifiedUsersController
 );
 
 /**
@@ -573,7 +573,7 @@ usersRoutes.get(
   '/unverified/:organization_id/:user_id',
   authenticateToken,
   attachPositionAccess,
-  unVerfiedUserController
+  getSingleUnverifiedUserController
 );
 
 export default usersRoutes;

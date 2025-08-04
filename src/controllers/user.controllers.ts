@@ -169,7 +169,7 @@ export const updateUserController = async (
   }
 };
 
-export const unVerfiedUserController = async (
+export const getAllUnverifiedUsersController = async (
   req: AuthenticatedRequest,
   res: Response,
   next: NextFunction
@@ -181,13 +181,43 @@ export const unVerfiedUserController = async (
 
     const { organization_id } = req.params;
 
-    const [user] = await unVerfiedUserServices(organization_id) as UnverifiedUser[];
+    if (!organization_id) {
+      throw new AppError('Organization has to be specified', 404);
+    }
+
+    const users = await unVerfiedUserServices(organization_id);
+
+    res.status(200).json({
+      message: 'Users retrieved successfully',
+      data: users,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+export const getSingleUnverifiedUserController = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    if (!req.user?.position_access.users.view) {
+      throw new AppError('You do not have permission to view users', 403);
+    }
+
+    const { organization_id } = req.params;
 
     if (!organization_id) {
       throw new AppError('Organization has to be specified', 404);
     }
 
-    if (user.auth.is_verified) {
+    const [user] = await unVerfiedUserServices(organization_id);
+
+    if (!user) {
+      throw new AppError('No unverified user found', 404);
+    }
+
+    if (user.auth?.is_verified) {
       throw new AppError('User is already verified', 400);
     }
 
@@ -198,4 +228,4 @@ export const unVerfiedUserController = async (
   } catch (error) {
     next(error);
   }
-}
+};

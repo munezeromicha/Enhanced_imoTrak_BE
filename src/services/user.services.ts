@@ -306,6 +306,7 @@ export const updateUserService = async (
     positions: updated.positions,
   };
 };
+
 export const unVerfiedUserServices = async (organization_id: string) => {
   const users = await prisma.tbl_users.findMany({
     where: {
@@ -329,6 +330,7 @@ export const unVerfiedUserServices = async (organization_id: string) => {
       auth: {
         select: {
           email: true,
+          is_verified: true,
         },
       },
       positions: {
