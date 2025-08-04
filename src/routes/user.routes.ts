@@ -488,7 +488,7 @@ usersRoutes.patch(
 
 /**
  * @openapi
- * /api/users/unverified/{organization_id}/single:
+ * /api/users/unverified/{organization_id}/user_id:
  *   get:
  *     tags:
  *       - Users
