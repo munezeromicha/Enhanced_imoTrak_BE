@@ -3,7 +3,7 @@ import { authenticateToken } from '../middlewares/auth.middleware';
 import { attachPositionAccess } from '../middlewares/attachPositionAccess';
 import { validateBody } from '../middlewares/bodyValidator';
 import { createUserSchema, updateUserSchema } from '../schemas/user.schema';
-import { createUserController, getSingleUserWithPositionsController, getUsersWithPositionsController, updateUserController } from '../controllers/user.controllers';
+import { createUserController, getSingleUserWithPositionsController, getUsersWithPositionsController, unVerfiedUserController, updateUserController } from '../controllers/user.controllers';
 
 const usersRoutes = Router();
 
@@ -396,5 +396,184 @@ usersRoutes.patch(
   updateUserController
 );
 
+/**
+ * @openapi
+ * /api/users/unverified/{organization_id}:
+ *   get:
+ *     tags:
+ *       - Users
+ *     summary: Get all unverified user from an organization
+ *     description: Returns all unverified users along with their positions, units, and organization details.
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: organization_id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The ID of the organization to filter unverified users by
+ *     responses:
+ *       200:
+ *         description: User retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: User retrieved successfully
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     user_id:
+ *                       type: string
+ *                     first_name:
+ *                       type: string
+ *                     last_name:
+ *                       type: string
+ *                     email:
+ *                       type: string
+ *                     user_gender:
+ *                       type: string
+ *                       enum: [MALE, FEMALE]
+ *                     user_phone:
+ *                       type: string
+ *                     positions:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           position_id:
+ *                             type: string
+ *                           position_name:
+ *                             type: string
+ *                           position_description:
+ *                             type: string
+ *                           position_status:
+ *                             type: string
+ *                             enum: [ACTIVE, INACTIVE, DELETED, SUSPENDED]
+ *                           unit:
+ *                             type: object
+ *                             properties:
+ *                               unit_id:
+ *                                 type: string
+ *                               unit_name:
+ *                                 type: string
+ *                               organization:
+ *                                 type: object
+ *                                 properties:
+ *                                   organization_id:
+ *                                     type: string
+ *                                   organization_name:
+ *                                     type: string
+ *                                   organization_email:
+ *                                     type: string
+ *                                   organization_phone:
+ *                                     type: string
+ *       403:
+ *         description: Forbidden - Access denied
+ *       404:
+ *         description: Organization has to be specified or no unverified user found
+ *       400:
+ *         description: User is already verified
+  */
+ usersRoutes.get(
+  '/unverified/:organization_id',
+  authenticateToken,
+  attachPositionAccess,
+  unVerfiedUserController
+);
+
+/**
+ * @openapi
+ * /api/users/unverified/{organization_id}/single:
+ *   get:
+ *     tags:
+ *       - Users
+ *     summary: Get a single unverified user from an organization
+ *     description: Returns the first unverified user in the specified organization, including their position, unit, and organization details.
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: organization_id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The ID of the organization to search for unverified users
+ *     responses:
+ *       200:
+ *         description: User retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: User retrieved successfully
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     user_id:
+ *                       type: string
+ *                     first_name:
+ *                       type: string
+ *                     last_name:
+ *                       type: string
+ *                     email:
+ *                       type: string
+ *                     user_gender:
+ *                       type: string
+ *                       enum: [MALE, FEMALE]
+ *                     user_phone:
+ *                       type: string
+ *                     positions:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           position_id:
+ *                             type: string
+ *                           position_name:
+ *                             type: string
+ *                           position_description:
+ *                             type: string
+ *                           position_status:
+ *                             type: string
+ *                             enum: [ACTIVE, INACTIVE, DELETED, SUSPENDED]
+ *                           unit:
+ *                             type: object
+ *                             properties:
+ *                               unit_id:
+ *                                 type: string
+ *                               unit_name:
+ *                                 type: string
+ *                               organization:
+ *                                 type: object
+ *                                 properties:
+ *                                   organization_id:
+ *                                     type: string
+ *                                   organization_name:
+ *                                     type: string
+ *                                   organization_email:
+ *                                     type: string
+ *                                   organization_phone:
+ *                                     type: string
+ *       403:
+ *         description: Forbidden - Access denied
+ *       404:
+ *         description: Organization has to be specified or no unverified user found
+ *       400:
+ *         description: User is already verified
+ */
+usersRoutes.get(
+  '/unverified/:organization_id/:user_id',
+  authenticateToken,
+  attachPositionAccess,
+  unVerfiedUserController
+);
 
 export default usersRoutes;
