@@ -69,7 +69,8 @@ export const assignVehicle = async (req: AuthenticatedRequest, res: Response) =>
     const { vehicle_id } = assignVehicleSchema.parse(req.body);
     const reservationId = req.params.id;
     const reviewerId = req.user.user_id;
-    const reservedVehicle = await reservationService.assignVehicle(reservationId, vehicle_id, reviewerId);
+    const organizationId = req.user.organization_id;
+    const reservedVehicle = await reservationService.assignVehicle(reservationId, vehicle_id, reviewerId, organizationId);
     res.status(200).json({ message: 'Vehicle assigned', data: reservedVehicle });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
@@ -83,7 +84,8 @@ export const assignMultipleVehicles = async (req: AuthenticatedRequest, res: Res
     const { vehicle_ids } = assignMultipleVehiclesSchema.parse(req.body);
     const reservationId = req.params.id;
     const reviewerId = req.user.user_id;
-    const reservedVehicles = await reservationService.assignMultipleVehicles(reservationId, vehicle_ids, reviewerId);
+    const organizationId = req.user.organization_id;
+    const reservedVehicles = await reservationService.assignMultipleVehicles(reservationId, vehicle_ids, reviewerId, organizationId);
     res.status(200).json({ 
       message: `${vehicle_ids.length} vehicle(s) assigned successfully`, 
       data: reservedVehicles 
@@ -204,14 +206,62 @@ export const assignMultipleVehiclesWithOdometerFuel = async (req: AuthenticatedR
     const { vehicles } = assignMultipleVehiclesWithOdometerFuelSchema.parse(req.body);
     const reservationId = req.params.id;
     const reviewerId = req.user.user_id;
+    const organizationId = req.user.organization_id;
     const reservedVehicles = await reservationService.assignMultipleVehiclesWithOdometerFuel(
       reservationId,
       vehicles,
-      reviewerId
+      reviewerId,
+      organizationId
     );
     res.status(200).json({ 
       message: `${vehicles.length} vehicle(s) assigned successfully with odometer/fuel`, 
       data: reservedVehicles 
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    res.status(400).json({ message });
+  }
+};
+
+export const updateMultipleVehiclesWithOdometerFuel = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    checkPermission(req, 'assignVehicle');
+    const { vehicles } = assignMultipleVehiclesWithOdometerFuelSchema.parse(req.body);
+    const reservationId = req.params.id;
+    const reviewerId = req.user.user_id;
+    const organizationId = req.user.organization_id;
+    const reservedVehicles = await reservationService.updateMultipleVehiclesWithOdometerFuel(
+      reservationId,
+      vehicles,
+      reviewerId,
+      organizationId
+    );
+    res.status(200).json({ 
+      message: `${vehicles.length} vehicle(s) updated successfully with odometer/fuel`, 
+      data: reservedVehicles 
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    res.status(400).json({ message });
+  }
+};
+
+export const getAvailableVehicles = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    checkPermission(req, 'assignVehicle');
+    const { departure_date, expected_returning_date } = req.body;
+    const organizationId = req.user.organization_id;
+    
+    const availableVehicles = await reservationService.getAvailableVehiclesForDateRange(
+      departure_date,
+      expected_returning_date,
+      organizationId
+    );
+    
+    res.status(200).json({ 
+      message: `Found ${availableVehicles.length} available vehicle(s) for the specified date range`,
+      data: availableVehicles,
+      count: availableVehicles.length
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
@@ -230,7 +280,8 @@ export const getReservationById = async (req: AuthenticatedRequest, res: Respons
     }
     
     const reservationId = req.params.id;
-    const reservation = await reservationService.getReservationById(reservationId);
+    const organizationId = req.user.organization_id;
+    const reservation = await reservationService.getReservationById(reservationId, organizationId);
     
     if (!reservation) {
       return res.status(404).json({ message: 'Reservation not found' });

@@ -3,6 +3,139 @@ import { PrismaClient, RequestStatus } from '@prisma/client';
 import { createNotification } from './notification.service';
 const prisma = new PrismaClient();
 
+// Helper function to check for date conflicts between reservations
+async function checkVehicleDateConflicts(vehicleId: string, departureDate: Date, expectedReturnDate: Date, excludeReservationId?: string) {
+  const conflictingReservations = await prisma.tbl_reserved_vehicles.findMany({
+    where: {
+      vehicle_id: vehicleId,
+      reservation: {
+        reservation_status: {
+          in: [RequestStatus.ACCEPTED, RequestStatus.APPROVED, RequestStatus.IN_PROGRESS]
+        },
+        ...(excludeReservationId && { reservation_id: { not: excludeReservationId } })
+      }
+    },
+    include: {
+      reservation: true
+    }
+  });
+
+  // Check for date overlaps
+  for (const reservedVehicle of conflictingReservations) {
+    const reservation = reservedVehicle.reservation;
+    const reservationDeparture = new Date(reservation.departure_date);
+    const reservationReturn = new Date(reservation.expected_returning_date);
+    
+    // Check if dates overlap
+    if (
+      (departureDate < reservationReturn && expectedReturnDate > reservationDeparture) ||
+      (reservationDeparture < expectedReturnDate && reservationReturn > departureDate)
+    ) {
+      return {
+        hasConflict: true,
+        conflictingReservation: reservation
+      };
+    }
+  }
+  
+  return { hasConflict: false };
+}
+
+// Helper function to check if vehicle is available for a specific date range
+async function isVehicleAvailableForDateRange(vehicleId: string, departureDate: Date, expectedReturnDate: Date, excludeReservationId?: string) {
+  const vehicle = await prisma.tbl_vehicles.findUnique({ where: { vehicle_id: vehicleId } });
+  if (!vehicle) return { available: false, reason: 'Vehicle not found' };
+  
+  // Check if vehicle is in maintenance or out of service
+  if (vehicle.vehicle_status === 'MAINTENANCE' || vehicle.vehicle_status === 'OUT_OF_SERVICE') {
+    return { available: false, reason: `Vehicle is ${vehicle.vehicle_status.toLowerCase()}` };
+  }
+  
+  // Check for date conflicts
+  const conflictCheck = await checkVehicleDateConflicts(vehicleId, departureDate, expectedReturnDate, excludeReservationId);
+  if (conflictCheck.hasConflict) {
+    return { 
+      available: false, 
+      reason: `Vehicle has conflicting reservation from ${conflictCheck.conflictingReservation?.departure_date} to ${conflictCheck.conflictingReservation?.expected_returning_date}` 
+    };
+  }
+  
+  return { available: true };
+}
+
+// Function to get available vehicles for a specific date range and organization
+export async function getAvailableVehiclesForDateRange(departureDate: string, expectedReturnDate: string, organizationId: string) {
+  const departure = new Date(departureDate);
+  const returnDate = new Date(expectedReturnDate);
+  
+  // Validate date range
+  if (departure >= returnDate) {
+    throw new Error('Departure date must be before return date');
+  }
+  
+  if (departure < new Date()) {
+    throw new Error('Departure date cannot be in the past');
+  }
+  
+  // Get all vehicles in the organization
+  const allVehicles = await prisma.tbl_vehicles.findMany({
+    where: { 
+      organization_id: organizationId,
+      vehicle_status: { not: 'OUT_OF_SERVICE' } // Exclude out of service vehicles
+    },
+    include: {
+      vehicle_model: true,
+      reservations: {
+        where: {
+          reservation: {
+            reservation_status: {
+              in: [RequestStatus.ACCEPTED, RequestStatus.APPROVED, RequestStatus.IN_PROGRESS]
+            }
+          }
+        },
+        include: {
+          reservation: true
+        }
+      }
+    }
+  });
+
+  const availableVehicles = allVehicles.filter(vehicle => {
+    // Check if vehicle has any conflicting reservations
+    const hasConflict = vehicle.reservations.some(reservedVehicle => {
+      const reservation = reservedVehicle.reservation;
+      const reservationDeparture = new Date(reservation.departure_date);
+      const reservationReturn = new Date(reservation.expected_returning_date);
+      
+      // Check for date overlap
+      return (
+        (departure < reservationReturn && returnDate > reservationDeparture) ||
+        (reservationDeparture < returnDate && reservationReturn > departure)
+      );
+    });
+
+    // Vehicle is available if it's not in maintenance and has no conflicts
+    return !hasConflict && vehicle.vehicle_status !== 'MAINTENANCE';
+  });
+
+  return availableVehicles.map(vehicle => ({
+    vehicle_id: vehicle.vehicle_id,
+    plate_number: vehicle.plate_number,
+    vehicle_model: {
+      vehicle_model_id: vehicle.vehicle_model.vehicle_model_id,
+      vehicle_model_name: vehicle.vehicle_model.vehicle_model_name,
+      vehicle_type: vehicle.vehicle_model.vehicle_type,
+      vehicle_capacity: vehicle.vehicle_model.vehicle_capacity,
+      manufacturer_name: vehicle.vehicle_model.manufacturer_name,
+    },
+    vehicle_status: vehicle.vehicle_status,
+    energy_type: vehicle.energy_type,
+    vehicle_year: vehicle.vehicle_year,
+    transmission_mode: vehicle.transmission_mode,
+    last_service_date: vehicle.last_service_date,
+  }));
+}
+
 export async function createReservation(data: {
   reservation_purpose: string;
   start_location: string;
@@ -54,7 +187,10 @@ export async function createReservation(data: {
 
 export async function cancelReservation(reservationId: string, reason: string, userId: string, isReviewer: boolean) {
   // Permission check: user can cancel their own, reviewer can cancel any
-  const reservation = await prisma.tbl_reservations.findUnique({ where: { reservation_id: reservationId } });
+  const reservation = await prisma.tbl_reservations.findUnique({ 
+    where: { reservation_id: reservationId },
+    include: { reserved_vehicles: true }
+  });
   if (!reservation) throw new Error('Reservation not found');
 
   // Only allow cancel if status is UNDER_REVIEW or APPROVED
@@ -67,14 +203,46 @@ export async function cancelReservation(reservationId: string, reason: string, u
     throw new Error('Not authorized to cancel this reservation');
   }
 
-  const updated = await prisma.tbl_reservations.update({
-    where: { reservation_id: reservationId },
-    data: {
-      reservation_status: RequestStatus.CANCELED,
-      rejection_comment: reason,
-      reviewed_at: new Date(),
-    },
+  const updated = await prisma.$transaction(async (tx) => {
+    // Update reservation status
+    const updatedReservation = await tx.tbl_reservations.update({
+      where: { reservation_id: reservationId },
+      data: {
+        reservation_status: RequestStatus.CANCELED,
+        rejection_comment: reason,
+        reviewed_at: new Date(),
+      },
+    });
+
+    // Handle vehicle status if reservation had assigned vehicles
+    if (reservation.reserved_vehicles && reservation.reserved_vehicles.length > 0) {
+      for (const reservedVehicle of reservation.reserved_vehicles) {
+        // Check if this vehicle is being used by any other active reservations
+        const otherActiveReservations = await tx.tbl_reserved_vehicles.findMany({
+          where: {
+            vehicle_id: reservedVehicle.vehicle_id,
+            reservation: {
+              reservation_status: {
+                in: [RequestStatus.ACCEPTED, RequestStatus.APPROVED, RequestStatus.IN_PROGRESS]
+              },
+              reservation_id: { not: reservationId }
+            }
+          }
+        });
+
+        // Only mark vehicle as AVAILABLE if it's not being used by other active reservations
+        if (otherActiveReservations.length === 0) {
+          await tx.tbl_vehicles.update({
+            where: { vehicle_id: reservedVehicle.vehicle_id },
+            data: { vehicle_status: 'AVAILABLE' },
+          });
+        }
+      }
+    }
+
+    return updatedReservation;
   });
+
   // Notify requester
   const requester = await prisma.tbl_users.findUnique({ where: { user_id: reservation.user_id }, include: { auth: true } });
   await createNotification({
@@ -185,10 +353,23 @@ export async function updateReservationReason(reservationId: string, reason: str
   return updated;
 }
 
-export async function assignVehicle(reservationId: string, vehicleId: string, reviewerId: string) {
+export async function assignVehicle(reservationId: string, vehicleId: string, reviewerId: string, organizationId: string) {
   // Permission check: reviewer only (enforced in controller)
   // Only assign if reservation is ACCEPTED and not IN_PROGRESS
-  const reservation = await prisma.tbl_reservations.findUnique({ where: { reservation_id: reservationId } });
+  const reservation = await prisma.tbl_reservations.findUnique({ 
+    where: { 
+      reservation_id: reservationId,
+      user: {
+        positions: {
+          some: {
+            unit: {
+              organization_id: organizationId,
+            },
+          },
+        },
+      },
+    }
+  });
   if (!reservation) throw new Error('Reservation not found');
   if (reservation.reservation_status === RequestStatus.IN_PROGRESS) {
     throw new Error('Cannot assign vehicle when reservation is in progress');
@@ -196,13 +377,28 @@ export async function assignVehicle(reservationId: string, vehicleId: string, re
   if (reservation.reservation_status !== RequestStatus.ACCEPTED) {
     throw new Error('Reservation must be accepted before assigning a vehicle');
   }
-  const vehicle = await prisma.tbl_vehicles.findUnique({ where: { vehicle_id: vehicleId } });
+  
+  const vehicle = await prisma.tbl_vehicles.findUnique({ 
+    where: { 
+      vehicle_id: vehicleId,
+      organization_id: organizationId
+    } 
+  });
   if (!vehicle) throw new Error('Vehicle not found');
-  if (vehicle.vehicle_status !== 'AVAILABLE') {
-    throw new Error('Vehicle is not available');
+  
+  // Check if vehicle is available for the specific date range
+  const availabilityCheck = await isVehicleAvailableForDateRange(
+    vehicleId, 
+    reservation.departure_date, 
+    reservation.expected_returning_date,
+    reservationId
+  );
+  
+  if (!availabilityCheck.available) {
+    throw new Error(`Vehicle is not available: ${availabilityCheck.reason}`);
   }
   
-  // Assign vehicle and mark as OCCUPIED, then update reservation status to APPROVED
+  // Assign vehicle (no need to mark as OCCUPIED since we're using date-based availability)
   await prisma.$transaction(async (tx) => {
     await tx.tbl_reserved_vehicles.create({
       data: {
@@ -214,7 +410,6 @@ export async function assignVehicle(reservationId: string, vehicleId: string, re
         returned_date: new Date(0), // Placeholder, will be set on return
       },
     });
-    await tx.tbl_vehicles.update({ where: { vehicle_id: vehicleId }, data: { vehicle_status: 'OCCUPIED' } });
     
     // Update reservation status to APPROVED after vehicle assignment
     await tx.tbl_reservations.update({
@@ -230,10 +425,23 @@ export async function assignVehicle(reservationId: string, vehicleId: string, re
   return reservedVehicles;
 }
 
-export async function assignMultipleVehicles(reservationId: string, vehicleIds: string[], reviewerId: string) {
+export async function assignMultipleVehicles(reservationId: string, vehicleIds: string[], reviewerId: string, organizationId: string) {
   // Permission check: reviewer only (enforced in controller)
   // Only assign if reservation is ACCEPTED and not IN_PROGRESS
-  const reservation = await prisma.tbl_reservations.findUnique({ where: { reservation_id: reservationId } });
+  const reservation = await prisma.tbl_reservations.findUnique({ 
+    where: { 
+      reservation_id: reservationId,
+      user: {
+        positions: {
+          some: {
+            unit: {
+              organization_id: organizationId,
+            },
+          },
+        },
+      },
+    }
+  });
   if (!reservation) throw new Error('Reservation not found');
   if (reservation.reservation_status === RequestStatus.IN_PROGRESS) {
     throw new Error('Cannot assign vehicles when reservation is in progress');
@@ -242,49 +450,60 @@ export async function assignMultipleVehicles(reservationId: string, vehicleIds: 
     throw new Error('Reservation must be accepted before assigning vehicles');
   }
 
-  // Check if all vehicles exist and are available
+  // Check if all vehicles exist and are available for the date range
   const vehicles = await prisma.tbl_vehicles.findMany({
-    where: { vehicle_id: { in: vehicleIds } },
+    where: { 
+      vehicle_id: { in: vehicleIds },
+      organization_id: organizationId
+    },
   });
 
   if (vehicles.length !== vehicleIds.length) {
     throw new Error('One or more vehicles not found');
   }
 
-  const unavailableVehicles = vehicles.filter(v => v.vehicle_status !== 'AVAILABLE');
-  if (unavailableVehicles.length > 0) {
-    const unavailableIds = unavailableVehicles.map(v => v.vehicle_id);
-    throw new Error(`Vehicles not available: ${unavailableIds.join(', ')}`);
+  // Check availability for each vehicle
+  const unavailableVehicles = [];
+  for (const vehicleId of vehicleIds) {
+    const availabilityCheck = await isVehicleAvailableForDateRange(
+      vehicleId,
+      reservation.departure_date,
+      reservation.expected_returning_date,
+      reservationId
+    );
+    
+    if (!availabilityCheck.available) {
+      unavailableVehicles.push({ vehicleId, reason: availabilityCheck.reason });
+    }
   }
 
-  // Assign all vehicles in a transaction and update reservation status to APPROVED
+  if (unavailableVehicles.length > 0) {
+    const unavailableReasons = unavailableVehicles.map(v => `${v.vehicleId}: ${v.reason}`).join(', ');
+    throw new Error(`Vehicles not available: ${unavailableReasons}`);
+  }
+
+  // Assign all vehicles in a transaction and update reservation status to ACCEPTED
   const reservedVehicles = await prisma.$transaction(async (tx) => {
     const createdReservedVehicles = [];
     
     for (const vehicleId of vehicleIds) {
       const reservedVehicle = await tx.tbl_reserved_vehicles.create({
-    data: {
-      vehicle_id: vehicleId,
-      reservation_id: reservationId,
-      starting_odometer: 0, // Will be set when reservation is IN_PROGRESS
-      returned_odometer: null,
-      fuel_provided: null,
-      returned_date: new Date(0), // Placeholder, will be set on return
-    },
-  });
-      createdReservedVehicles.push(reservedVehicle);
-      
-      // Update vehicle status to OCCUPIED
-      await tx.tbl_vehicles.update({
-        where: { vehicle_id: vehicleId },
-        data: { vehicle_status: 'OCCUPIED' },
+        data: {
+          vehicle_id: vehicleId,
+          reservation_id: reservationId,
+          starting_odometer: 0, // Will be set when reservation is IN_PROGRESS
+          returned_odometer: null,
+          fuel_provided: null,
+          returned_date: new Date(0), // Placeholder, will be set on return
+        },
       });
+      createdReservedVehicles.push(reservedVehicle);
     }
     
-    // Update reservation status to APPROVED after vehicle assignment
+    // Update reservation status to ACCEPTED after vehicle assignment
     await tx.tbl_reservations.update({
       where: { reservation_id: reservationId },
-      data: { reservation_status: RequestStatus.APPROVED },
+      data: { reservation_status: RequestStatus.ACCEPTED },
     });
     
     return createdReservedVehicles;
@@ -301,10 +520,22 @@ export async function assignMultipleVehicles(reservationId: string, vehicleIds: 
   return allReservedVehicles;
 }
 
-export async function assignMultipleVehiclesWithOdometerFuel(reservationId: string, vehiclesData: Array<{vehicle_id: string, starting_odometer: number, fuel_provided: number}>, reviewerId: string) {
+export async function assignMultipleVehiclesWithOdometerFuel(reservationId: string, vehiclesData: Array<{vehicle_id: string, starting_odometer: number, fuel_provided: number}>, reviewerId: string, organizationId: string) {
   // Permission check: reviewer only (enforced in controller)
-  // Only assign if reservation is ACCEPTED and not IN_PROGRESS
-  const reservation = await prisma.tbl_reservations.findUnique({ where: { reservation_id: reservationId } });
+  const reservation = await prisma.tbl_reservations.findUnique({ 
+    where: { 
+      reservation_id: reservationId,
+      user: {
+        positions: {
+          some: {
+            unit: {
+              organization_id: organizationId,
+            },
+          },
+        },
+      },
+    }
+  });
   if (!reservation) throw new Error('Reservation not found');
   if (reservation.reservation_status === RequestStatus.IN_PROGRESS) {
     throw new Error('Cannot assign vehicles when reservation is in progress');
@@ -315,19 +546,36 @@ export async function assignMultipleVehiclesWithOdometerFuel(reservationId: stri
 
   const vehicleIds = vehiclesData.map(v => v.vehicle_id);
 
-  // Check if all vehicles exist and are available
+  // Check if all vehicles exist and are available for the date range
   const vehicles = await prisma.tbl_vehicles.findMany({
-    where: { vehicle_id: { in: vehicleIds } },
+    where: { 
+      vehicle_id: { in: vehicleIds },
+      organization_id: organizationId
+    },
   });
 
   if (vehicles.length !== vehicleIds.length) {
     throw new Error('One or more vehicles not found');
   }
 
-  const unavailableVehicles = vehicles.filter(v => v.vehicle_status !== 'AVAILABLE');
+  // Check availability for each vehicle
+  const unavailableVehicles = [];
+  for (const vehicleId of vehicleIds) {
+    const availabilityCheck = await isVehicleAvailableForDateRange(
+      vehicleId,
+      reservation.departure_date,
+      reservation.expected_returning_date,
+      reservationId
+    );
+    
+    if (!availabilityCheck.available) {
+      unavailableVehicles.push({ vehicleId, reason: availabilityCheck.reason });
+    }
+  }
+
   if (unavailableVehicles.length > 0) {
-    const unavailableIds = unavailableVehicles.map(v => v.vehicle_id);
-    throw new Error(`Vehicles not available: ${unavailableIds.join(', ')}`);
+    const unavailableReasons = unavailableVehicles.map(v => `${v.vehicleId}: ${v.reason}`).join(', ');
+    throw new Error(`Vehicles not available: ${unavailableReasons}`);
   }
 
   // Assign all vehicles with odometer/fuel in a transaction and update reservation status to APPROVED
@@ -346,12 +594,6 @@ export async function assignMultipleVehiclesWithOdometerFuel(reservationId: stri
         },
       });
       createdReservedVehicles.push(reservedVehicle);
-      
-      // Update vehicle status to OCCUPIED
-      await tx.tbl_vehicles.update({
-        where: { vehicle_id: vehicleData.vehicle_id },
-        data: { vehicle_status: 'OCCUPIED' },
-      });
     }
     
     // Update reservation status to APPROVED after vehicle assignment
@@ -361,6 +603,92 @@ export async function assignMultipleVehiclesWithOdometerFuel(reservationId: stri
     });
     
     return createdReservedVehicles;
+  });
+
+  // Return all reserved vehicles for this reservation with vehicle details
+  const allReservedVehicles = await prisma.tbl_reserved_vehicles.findMany({
+    where: { reservation_id: reservationId },
+    include: {
+      vehicle: true,
+    },
+  });
+  
+  return allReservedVehicles;
+}
+
+export async function updateMultipleVehiclesWithOdometerFuel(reservationId: string, vehiclesData: Array<{vehicle_id: string, starting_odometer: number, fuel_provided: number}>, reviewerId: string, organizationId: string) {
+  // Permission check: reviewer only (enforced in controller)
+  const reservation = await prisma.tbl_reservations.findUnique({ 
+    where: { 
+      reservation_id: reservationId,
+      user: {
+        positions: {
+          some: {
+            unit: {
+              organization_id: organizationId,
+            },
+          },
+        },
+      },
+    },
+    include: { reserved_vehicles: true }
+  });
+  if (!reservation) throw new Error('Reservation not found');
+  
+  // Only allow update if reservation is ACCEPTED or APPROVED and not IN_PROGRESS
+  if (reservation.reservation_status === RequestStatus.IN_PROGRESS) {
+    throw new Error('Cannot update vehicles when reservation is in progress');
+  }
+  if (!([RequestStatus.ACCEPTED, RequestStatus.APPROVED] as RequestStatus[]).includes(reservation.reservation_status)) {
+    throw new Error('Reservation must be accepted or approved before updating vehicles');
+  }
+
+  const vehicleIds = vehiclesData.map(v => v.vehicle_id);
+
+  // Check if all vehicles are already assigned to this reservation
+  const existingReservedVehicles = await prisma.tbl_reserved_vehicles.findMany({
+    where: {
+      reservation_id: reservationId,
+      vehicle_id: { in: vehicleIds }
+    }
+  });
+
+  if (existingReservedVehicles.length !== vehicleIds.length) {
+    const existingVehicleIds = existingReservedVehicles.map(rv => rv.vehicle_id);
+    const missingVehicleIds = vehicleIds.filter(id => !existingVehicleIds.includes(id));
+    throw new Error(`Vehicles not assigned to this reservation: ${missingVehicleIds.join(', ')}`);
+  }
+
+  // Update vehicles with odometer/fuel data in a transaction
+  const updatedReservedVehicles = await prisma.$transaction(async (tx) => {
+    const updatedVehicles = [];
+    
+    for (const vehicleData of vehiclesData) {
+      const updatedVehicle = await tx.tbl_reserved_vehicles.updateMany({
+        where: {
+          reservation_id: reservationId,
+          vehicle_id: vehicleData.vehicle_id
+        },
+        data: {
+          starting_odometer: vehicleData.starting_odometer,
+          fuel_provided: vehicleData.fuel_provided,
+        },
+      });
+      
+      if (updatedVehicle.count === 0) {
+        throw new Error(`Failed to update vehicle ${vehicleData.vehicle_id}`);
+      }
+      
+      updatedVehicles.push(vehicleData);
+    }
+    
+    // Update reservation status to APPROVED after odometer/fuel update
+    await tx.tbl_reservations.update({
+      where: { reservation_id: reservationId },
+      data: { reservation_status: RequestStatus.APPROVED },
+    });
+    
+    return updatedVehicles;
   });
 
   // Return all reserved vehicles for this reservation with vehicle details
@@ -385,13 +713,23 @@ export async function assignVehicleWithOdometerFuel(reservationId: string, vehic
   if (reservation.reservation_status !== RequestStatus.ACCEPTED) {
     throw new Error('Reservation must be accepted before assigning a vehicle');
   }
+  
   const vehicle = await prisma.tbl_vehicles.findUnique({ where: { vehicle_id: vehicleId } });
   if (!vehicle) throw new Error('Vehicle not found');
-  if (vehicle.vehicle_status !== 'AVAILABLE') {
-    throw new Error('Vehicle is not available');
+  
+  // Check if vehicle is available for the specific date range
+  const availabilityCheck = await isVehicleAvailableForDateRange(
+    vehicleId,
+    reservation.departure_date,
+    reservation.expected_returning_date,
+    reservationId
+  );
+  
+  if (!availabilityCheck.available) {
+    throw new Error(`Vehicle is not available: ${availabilityCheck.reason}`);
   }
   
-  // Assign vehicle and set odometer/fuel, mark as OCCUPIED, then update reservation status to APPROVED
+  // Assign vehicle and set odometer/fuel (no need to mark as OCCUPIED since we're using date-based availability)
   await prisma.$transaction(async (tx) => {
     await tx.tbl_reserved_vehicles.create({
       data: {
@@ -403,7 +741,6 @@ export async function assignVehicleWithOdometerFuel(reservationId: string, vehic
         returned_date: new Date(0), // Placeholder, will be set on return
       },
     });
-    await tx.tbl_vehicles.update({ where: { vehicle_id: vehicleId }, data: { vehicle_status: 'OCCUPIED' } });
     
     // Update reservation status to APPROVED after vehicle assignment
     await tx.tbl_reservations.update({
@@ -456,7 +793,8 @@ export async function completeReservation(reservedVehicleId: string, returnedOdo
   if (reservation.reservation_status !== RequestStatus.APPROVED) {
     throw new Error('Reservation must be APPROVED to complete');
   }
-  // Update reserved vehicle and vehicle status
+  
+  // Update reserved vehicle
   await prisma.tbl_reserved_vehicles.update({
     where: { reserved_vehicle_id: reservedVehicleId },
     data: {
@@ -464,10 +802,28 @@ export async function completeReservation(reservedVehicleId: string, returnedOdo
       returned_date: new Date(),
     },
   });
-  await prisma.tbl_vehicles.update({
-    where: { vehicle_id: reservedVehicle.vehicle_id },
-    data: { vehicle_status: 'AVAILABLE' },
+  
+  // Check if this vehicle is being used by any other active reservations
+  const otherActiveReservations = await prisma.tbl_reserved_vehicles.findMany({
+    where: {
+      vehicle_id: reservedVehicle.vehicle_id,
+      reservation: {
+        reservation_status: {
+          in: [RequestStatus.ACCEPTED, RequestStatus.APPROVED, RequestStatus.IN_PROGRESS]
+        },
+        reservation_id: { not: reservation.reservation_id }
+      }
+    }
   });
+  
+  // Only mark vehicle as AVAILABLE if it's not being used by other active reservations
+  if (otherActiveReservations.length === 0) {
+    await prisma.tbl_vehicles.update({
+      where: { vehicle_id: reservedVehicle.vehicle_id },
+      data: { vehicle_status: 'AVAILABLE' },
+    });
+  }
+  
   // Check if all reserved vehicles have returned_odometer set
   const allReserved = await prisma.tbl_reserved_vehicles.findMany({ where: { reservation_id: reservation.reservation_id } });
   const allReturned = allReserved.length > 0 && allReserved.every(rv => rv.returned_odometer !== null);
@@ -532,16 +888,26 @@ export async function getReservationsByUserId(userId: string) {
   });
 }
 
-export async function getReservationById(reservationId: string) {
+export async function getReservationById(reservationId: string, organizationId: string) {
   return prisma.tbl_reservations.findUnique({
-    where: { reservation_id: reservationId },
+    where: { 
+      reservation_id: reservationId,
+      user: {
+        positions: {
+          some: {
+            unit: {
+              organization_id: organizationId,
+            },
+          },
+        },
+      },
+    },
     include: {
       user: {
         include: {
           auth: {
             select: {
               email: true,
-              // password is excluded by not including it in select
             },
           },
         },
