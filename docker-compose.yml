@@ -1,0 +1,10 @@
+services:
+  imotrack-backend:
+    # build: .
+    image: ghcr.io/programmerdatch/imotrack-backend:latest
+    ports:
+      - "7017:4000"
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
