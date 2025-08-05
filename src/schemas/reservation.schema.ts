@@ -11,6 +11,30 @@ export const createReservationSchema = z.object({
   passengers: z.number().int().min(1),
 });
 
+export const getAvailableVehiclesSchema = z.object({
+  departure_date: z.string().datetime(),
+  expected_returning_date: z.string().datetime(),
+}).refine((data) => {
+  const departure = new Date(data.departure_date);
+  const returnDate = new Date(data.expected_returning_date);
+  const now = new Date();
+  
+  // Check that dates are not in the past
+  if (departure < now) {
+    return false;
+  }
+  
+  // Check that return date is after departure date
+  if (returnDate <= departure) {
+    return false;
+  }
+  
+  return true;
+}, {
+  message: "Departure date must be in the future and return date must be after departure date",
+  path: ["departure_date"]
+});
+
 export const cancelReservationSchema = z.object({
   reason: z.string().min(1),
 });
