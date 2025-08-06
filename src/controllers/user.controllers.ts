@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { createUserService, getSingleUserWithPositionsService, getUsersWithPositionsService, updateUserService } from '../services/user.services';
+import { createUserService, getSingleUserWithPositionsService, getUnverifiedUsersService, getUsersWithPositionsService, getSingleUnverifiedUserService, updateUserService } from '../services/user.services';
 import { AppError } from '../utils/Error';
 import { position_accesses } from '../types/access';
 
@@ -11,6 +11,34 @@ interface AuthenticatedRequest extends Request {
     organization_id: string;
   };
 }
+
+type UnverifiedUser = {
+  user_id: string;
+  first_name: string;
+  last_name: string;
+  user_gender: string;
+  user_phone: string;
+  auth: {
+    email: string;
+    is_verified: boolean;
+  };
+  positions: {
+    position_id: string;
+    position_name: string;
+    position_description: string;
+    position_status: string;
+    unit: {
+      unit_id: string;
+      unit_name: string;
+      organization: {
+        organization_id: string;
+        organization_name: string;
+        organization_email: string;
+        organization_phone: string;
+      };
+    };
+  }[];
+};
 
 export const createUserController = async (
   req: AuthenticatedRequest,
@@ -140,3 +168,67 @@ export const updateUserController = async (
     next(error);
   }
 };
+
+export const getAllUnverifiedUsersController = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    if (!req.user?.position_access.users.view) {
+      throw new AppError('You do not have permission to view users', 403);
+    }
+
+    const { organization_id } = req.params;
+
+    if (!organization_id) {
+      throw new AppError('Organization has to be specified', 404);
+    }
+
+    const users = await getUnverifiedUsersService(organization_id);
+
+
+    res.status(200).json({
+      message: 'Users retrieved successfully',
+      data: users,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getSingleUnverifiedUserController = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    if (!req.user?.position_access.users.view) {
+      throw new AppError('You do not have permission to view users', 403);
+    }
+
+    const { organization_id, user_id } = req.params;
+
+    if (!organization_id || !user_id) {
+      throw new AppError('Organization ID and User ID must be specified', 404);
+    }
+
+    const user = await getSingleUnverifiedUserService(organization_id, user_id);
+
+    if (!user) {
+      throw new AppError('Unverified user not found', 404);
+    }
+
+    if (user.auth?.is_verified) {
+      throw new AppError('User is already verified', 400);
+    }
+
+    res.status(200).json({
+      message: 'User retrieved successfully',
+      data: user,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
