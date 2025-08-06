@@ -4,7 +4,7 @@ import jwt from 'jsonwebtoken';
 import { AppError } from '../utils/Error';
 import { signToken, verifyToken } from '../utils/jwt'
 import { generateRandomPassword } from '../utils/password';
-import { sendForgotPasswordEmail } from '../utils/sendCredentials';
+import { sendForgotPasswordEmail, sendInvitationEmail } from '../utils/sendCredentials';
 import { AuthenticatedUser } from '../types/access';
 
 const prisma = new PrismaClient();
@@ -352,4 +352,49 @@ export async function setPasswordAndVerifyService(email: string, newPassword: st
     updated_at: updatedAuth.updated_at,
     user_status: updatedAuth.user_status,
   };
+}
+
+export async function resendInvitationService(email: string) {
+  const authRecord = await prisma.tbl_auth.findUnique({
+    where: {
+      email,
+    },
+    include: {
+      user: {
+        include: {
+          positions: {
+            include: {
+              unit: {
+                include: {
+                  organization: true,
+                } 
+              }
+            }
+          }
+        }
+      },
+    },
+  });
+
+  if (!authRecord || !authRecord.user) {
+    throw new AppError('User not found', 404);
+  }
+
+  if (authRecord.isVerified) {
+    throw new AppError('User is already verified', 409);
+  }
+
+
+  try {
+    const jwtSecret = process.env.JWT_SECRET as string
+    const expiresIn = (process.env.VERIFY_LINK_EXPIRES_IN || '1h') as jwt.SignOptions['expiresIn'];
+    if (!jwtSecret) {
+      throw new Error('JWT secret is not defined');
+    }
+    await sendInvitationEmail(email, jwt.sign({email}, jwtSecret, {expiresIn}), authRecord.user.positions[0].position_name, authRecord.user.positions[0].unit.unit_name, authRecord.user.positions[0].unit.organization.organization_name );
+  } catch (error) {
+    console.error('Failed to send email:', error);
+  }
+
+  return; 
 }

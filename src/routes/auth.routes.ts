@@ -1,6 +1,6 @@
 // auth.routes.ts
 import { Router } from 'express';
-import { forgotPasswordController, loginController, loginWithPositionController, logoutController, setPasswordAndVerifyController, updatePasswordController, verifyUserByEmailController } from '../controllers/auth.controllers';
+import { forgotPasswordController, loginController, loginWithPositionController, logoutController, resendInvitationController, setPasswordAndVerifyController, updatePasswordController, verifyUserByEmailController } from '../controllers/auth.controllers';
 import { authenticateToken, authenticateVerifyToken } from '../middlewares/auth.middleware';
 import { validateBody } from '../middlewares/bodyValidator';
 import { setPasswordAndVerifySchema, updatePasswordSchema } from '../schemas/auth.schema';
@@ -598,6 +598,69 @@ authRoutes.get('/verify', authenticateVerifyToken, verifyUserByEmailController);
 authRoutes.post('/set-password-and-verify', authenticateToken, validateBody(setPasswordAndVerifySchema), setPasswordAndVerifyController);
 
 authRoutes.post('/forgot-password', validateBody(assignUserToPositionSchema), forgotPasswordController)
+
+/**
+ * @swagger
+ * /v2/auth/resend-invitation:
+ *   post:
+ *     summary: Resend invitation link to user
+ *     description: Resends the invitation email containing a new JWT token if the user is not verified.
+ *     tags:
+ *       - Auth
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 example: user@example.com
+ *     responses:
+ *       200:
+ *         description: Invitation link resent successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Invitation link resent successfully
+ *       400:
+ *         description: Missing email in request
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Email is required
+ *       404:
+ *         description: User not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: User not found
+ *       409:
+ *         description: User is already verified
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: User is already verified
+ */
+
+authRoutes.post('/resend-invitation', resendInvitationController);
 
 authRoutes.post('/:position_id', loginWithPositionController);
 
