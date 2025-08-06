@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { forgotPasswordService, loginUser, loginWithPosition, logoutUser, setPasswordAndVerifyService, updatePasswordService, verifyUserByEmailService } from '../services/auth.services';
+import { forgotPasswordService, loginUser, loginWithPosition, logoutUser, resendInvitationService, setPasswordAndVerifyService, updatePasswordService, verifyUserByEmailService } from '../services/auth.services';
 import { loginSchema } from '../schemas/auth.schema';
 import { AppError } from '../utils/Error';
 import { position_accesses } from '../types/access';
@@ -159,6 +159,24 @@ export async function setPasswordAndVerifyController(
       message: result.message,
       data: result,
     });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function resendInvitationController(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      throw new AppError('Email is required', 400);
+    }
+
+    const result = await resendInvitationService(email);
+
+    res.status(200).json({
+      message: 'Invitation link resent successfully',
+      data: result,});
   } catch (error) {
     next(error);
   }
