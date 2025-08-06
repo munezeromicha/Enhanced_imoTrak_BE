@@ -324,8 +324,8 @@ export async function updateReservationStatus(reservationId: string, status: Req
     title = 'Reservation Canceled';
     message = `Your reservation request has been canceled. Reason: ${reason || 'N/A'}`;
   } else if (newStatus === RequestStatus.COMPLETED) {
-    title = 'Reservation Completed';
-    message = 'Your reservation has been completed.';
+    title = 'Returned Successfully!';
+    message = 'Your vehicle has been returned successfully.';
   }
   if (title && requester) {
     await createNotification({
@@ -780,9 +780,9 @@ export async function completeReservation(reservedVehicleId: string, returnedOdo
   if (!reservedVehicle) throw new Error('Reserved vehicle not found');
   const reservation = reservedVehicle.reservation;
   if (!reservation) throw new Error('Reservation not found');
-  if (reservation.user_id !== userId) {
-    throw new Error('Not authorized to complete this reservation');
-  }
+  // if (reservation.user_id !== userId) {
+  //   throw new Error('Not authorized to complete this reservation');
+  // }
   if (reservation.reservation_status !== RequestStatus.APPROVED) {
     throw new Error('Reservation must be APPROVED to complete');
   }
