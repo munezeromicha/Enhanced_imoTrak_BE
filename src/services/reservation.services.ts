@@ -407,7 +407,6 @@ export async function assignVehicle(reservationId: string, vehicleId: string, re
         starting_odometer: 0, // Will be set when reservation is IN_PROGRESS
         returned_odometer: null,
         fuel_provided: null,
-        returned_date: new Date(0), // Placeholder, will be set on return
       },
     });
     
@@ -443,11 +442,8 @@ export async function assignMultipleVehicles(reservationId: string, vehicleIds: 
     }
   });
   if (!reservation) throw new Error('Reservation not found');
-  if (reservation.reservation_status === RequestStatus.IN_PROGRESS) {
-    throw new Error('Cannot assign vehicles when reservation is in progress');
-  }
-  if (reservation.reservation_status !== RequestStatus.ACCEPTED) {
-    throw new Error('Reservation must be accepted before assigning vehicles');
+  if (reservation.reservation_status !== RequestStatus.UNDER_REVIEW) {
+    throw new Error('Reservation must be In_review before assigning vehicles');
   }
 
   // Check if all vehicles exist and are available for the date range
@@ -494,7 +490,6 @@ export async function assignMultipleVehicles(reservationId: string, vehicleIds: 
           starting_odometer: 0, // Will be set when reservation is IN_PROGRESS
           returned_odometer: null,
           fuel_provided: null,
-          returned_date: new Date(0), // Placeholder, will be set on return
         },
       });
       createdReservedVehicles.push(reservedVehicle);
@@ -590,7 +585,6 @@ export async function assignMultipleVehiclesWithOdometerFuel(reservationId: stri
           starting_odometer: vehicleData.starting_odometer,
           fuel_provided: vehicleData.fuel_provided,
           returned_odometer: null,
-          returned_date: new Date(0), // Placeholder, will be set on return
         },
       });
       createdReservedVehicles.push(reservedVehicle);
@@ -738,7 +732,6 @@ export async function assignVehicleWithOdometerFuel(reservationId: string, vehic
         starting_odometer: startingOdometer,
         fuel_provided: fuelProvided,
         returned_odometer: null,
-        returned_date: new Date(0), // Placeholder, will be set on return
       },
     });
     
