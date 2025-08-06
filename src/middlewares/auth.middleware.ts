@@ -69,4 +69,45 @@ export async function cleanupExpiredTokens() {
   } catch (error) {
     console.error('Error cleaning up expired tokens:', error);
   }
-} 
+}
+
+export async function authenticateVerifyToken(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+) {
+  try {
+
+    const { token } = req.query   // Check if token is blacklisted
+    if (typeof token !== 'string') {
+      throw new AppError('Token must be a string', 400);
+    }
+    if (!token) {
+      throw new AppError('Access token required', 401);
+    }
+
+    const blacklistedToken = await prisma.tbl_jwt_blacklist.findUnique({
+      where: { token }
+    });
+
+    if (blacklistedToken) {
+      throw new AppError('Invalid invitation or expired', 401);
+    }
+
+    // Verify token
+    const decoded = verifyToken(token);
+    req.user = decoded;
+  
+    if (!decoded || !decoded.email) { 
+      throw new AppError('Invalid invitation or expired', 401);
+    }
+    req.params.email = decoded.email;
+    next();
+  } catch (error) {
+    if (error instanceof AppError) {
+      next(error);
+    } else {
+      next(new AppError('Invalid or expired invitation', 401));
+    }
+  }
+}

@@ -240,3 +240,54 @@ export const forgotPasswordService = async ( email: string ) => {
 
   return;
 }
+
+export async function verifyUserByEmailService(email: string, token: string) {
+  const authRecord = await prisma.tbl_auth.findUnique({
+    where: {
+      email,
+    },
+    include: {
+      user: {
+        include: {
+          positions: {
+            include: {
+              unit: {
+                include: {
+                  organization: true
+                }
+              }
+            }
+          }
+        }
+      },
+    }, 
+  });
+
+  if (!authRecord || !authRecord.user || !authRecord.user.positions || authRecord.user.positions.length === 0 || !authRecord.email) {
+    throw new AppError('User not found', 404);
+  }
+
+  if (authRecord.isVerified) {
+    throw new AppError('User is already verified', 409);
+  }
+
+  const tokenData = jwt.decode(token) as any;
+  const expiresAt = new Date(tokenData.exp * 1000);
+
+  await prisma.tbl_jwt_blacklist.create({
+    data: {
+      token,
+      user_id: authRecord.user?.user_id,
+      expires_at: expiresAt
+    }
+  });
+
+  return {
+    token: signToken({
+      user_id: authRecord.user.user_id,
+      email: authRecord.email,
+      position_id: authRecord.user.positions[0]?.position_id,
+      organization_id: authRecord.user.positions[0]?.unit?.organization?.organization_id
+    })
+  }
+}
