@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { forgotPasswordService, loginUser, loginWithPosition, logoutUser, updatePasswordService } from '../services/auth.services';
+import { forgotPasswordService, loginUser, loginWithPosition, logoutUser, setPasswordAndVerifyService, updatePasswordService, verifyUserByEmailService } from '../services/auth.services';
 import { loginSchema } from '../schemas/auth.schema';
 import { AppError } from '../utils/Error';
 import { position_accesses } from '../types/access';
@@ -105,3 +105,61 @@ export const forgotPasswordController = async ( req: Request, res: Response, nex
     next(error)
   }
 };
+
+export async function verifyUserByEmailController(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { email } = req.params;
+    const { token } = req.query;
+
+    if (!email) {
+      throw new AppError('Email is required', 400);
+    }
+
+    if (!token || typeof token !== 'string') {
+      throw new AppError('Token is required and must be a string', 400);
+    }
+
+    const data = await verifyUserByEmailService(email, token);
+
+    res.status(200).json({
+      message: 'User verified successfully',
+      data
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export async function setPasswordAndVerifyController(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+) {
+  try {
+    const { password } = req.body;
+    const token = req.headers['authorization']?.split(' ')[1];
+    const email = req.user?.email;
+
+    // Validation
+    if (!email || typeof email !== 'string') {
+      throw new AppError('Email is required and must be a string', 400);
+    }
+
+    if (!password || typeof password !== 'string') {
+      throw new AppError('Password is required and must be a string', 400);
+    }
+
+    if (!token || typeof token !== 'string') {
+      throw new AppError('Token is required and must be a string', 400);
+    }
+
+    const result = await setPasswordAndVerifyService(email, password, token);
+
+    res.status(200).json({
+      message: result.message,
+      data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+}

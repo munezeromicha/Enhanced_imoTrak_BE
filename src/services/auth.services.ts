@@ -5,6 +5,7 @@ import { AppError } from '../utils/Error';
 import { signToken, verifyToken } from '../utils/jwt'
 import { generateRandomPassword } from '../utils/password';
 import { sendForgotPasswordEmail } from '../utils/sendCredentials';
+import { AuthenticatedUser } from '../types/access';
 
 const prisma = new PrismaClient();
 
@@ -239,4 +240,116 @@ export const forgotPasswordService = async ( email: string ) => {
   }
 
   return;
+}
+
+export async function verifyUserByEmailService(email: string, token: string) {
+  const authRecord = await prisma.tbl_auth.findUnique({
+    where: {
+      email,
+    },
+    include: {
+      user: {
+        include: {
+          positions: {
+            include: {
+              unit: {
+                include: {
+                  organization: true
+                }
+              }
+            }
+          }
+        }
+      },
+    }, 
+  });
+
+  if (!authRecord || !authRecord.user || !authRecord.user.positions || authRecord.user.positions.length === 0 || !authRecord.email) {
+    throw new AppError('User not found', 404);
+  }
+
+  if (authRecord.isVerified) {
+    throw new AppError('User is already verified', 409);
+  }
+
+  const tokenData = jwt.decode(token) as any;
+  const expiresAt = new Date(tokenData.exp * 1000);
+
+  await prisma.tbl_jwt_blacklist.create({
+    data: {
+      token,
+      user_id: authRecord.user?.user_id,
+      expires_at: expiresAt
+    }
+  });
+
+  return {
+    token: signToken({
+      user_id: authRecord.user.user_id,
+      email: authRecord.email,
+      position_id: authRecord.user.positions[0]?.position_id,
+      organization_id: authRecord.user.positions[0]?.unit?.organization?.organization_id
+    })
+  }
+}
+
+export async function setPasswordAndVerifyService(email: string, newPassword: string, token: string ) {
+  const authRecord = await prisma.tbl_auth.findUnique({
+    where: { email },
+    include: {
+      user: {
+        include: {
+          positions: {
+            include: {
+              unit: {
+                include: {
+                  organization: true
+                }
+              }
+            }
+          }
+        }
+      },
+    },  
+  });
+
+  if (!authRecord || !authRecord.user || !authRecord.user.positions || authRecord.user.positions.length === 0 || !authRecord.email) {
+    throw new AppError('User not found', 404);
+  }
+
+  if (authRecord.isVerified) {
+    throw new AppError('Account is already verified', 409);
+  }
+
+  const hashedPassword = await argon2.hash(newPassword);
+
+
+  const tokenData = jwt.decode(token) as any;
+  const expiresAt = new Date(tokenData.exp * 1000);  
+  
+  const [blacklistedToken, updatedAuth] = await prisma.$transaction([
+    prisma.tbl_jwt_blacklist.create({
+      data: {
+        token,
+        user_id: authRecord.user?.user_id ?? '', // fallback to empty string if undefined
+        expires_at: expiresAt,
+      },
+    }),
+    prisma.tbl_auth.update({
+      where: { email },
+      data: {
+        password: hashedPassword,
+        isVerified: true,
+        updated_at: new Date(),
+      },
+    }),
+  ]);
+
+  return {
+    message: 'Account verified and password set successfully',
+    auth_id: updatedAuth.auth_id,
+    email: updatedAuth.email,
+    updated_at: updatedAuth.updated_at,
+    user_status: updatedAuth.user_status,
+  };
 }

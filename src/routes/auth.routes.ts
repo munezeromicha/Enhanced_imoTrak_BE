@@ -1,10 +1,11 @@
 // auth.routes.ts
 import { Router } from 'express';
-import { forgotPasswordController, loginController, loginWithPositionController, logoutController, updatePasswordController } from '../controllers/auth.controllers';
-import { authenticateToken } from '../middlewares/auth.middleware';
+import { forgotPasswordController, loginController, loginWithPositionController, logoutController, setPasswordAndVerifyController, updatePasswordController, verifyUserByEmailController } from '../controllers/auth.controllers';
+import { authenticateToken, authenticateVerifyToken } from '../middlewares/auth.middleware';
 import { validateBody } from '../middlewares/bodyValidator';
-import { updatePasswordSchema } from '../schemas/auth.schema';
+import { setPasswordAndVerifySchema, updatePasswordSchema } from '../schemas/auth.schema';
 import { assignUserToPositionSchema } from '../schemas/position.schema';
+import { AppError } from '../utils/Error';
 
 const authRoutes = Router();
 
@@ -419,6 +420,182 @@ authRoutes.patch(
  *                   type: string
  *                   example: Invalid request body
  */
+
+
+/**
+ * @swagger
+ * /v2/auth/verify:
+ *   get:
+ *     summary: Verify a user's email using an invitation token
+ *     description: Verifies the user's account using a JWT token provided via email. If the user is already verified, a conflict is returned. If successful, a new access token is returned, and the invitation token is blacklisted.
+ *     tags:
+ *       - Auth
+ *     parameters:
+ *       - in: query
+ *         name: token
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The JWT invitation token sent via email
+ *     responses:
+ *       200:
+ *         description: User verified successfully and access token returned
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: User verified successfully
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     token:
+ *                       type: string
+ *                       example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+ *       400:
+ *         description: Missing or invalid token
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Token is required and must be a string
+ *       401:
+ *         description: Invalid or expired token
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Invalid invitation or expired
+ *       404:
+ *         description: User not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: User not found
+ *       409:
+ *         description: User is already verified
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: User is already verified
+ */
+
+authRoutes.get('/verify', authenticateVerifyToken, verifyUserByEmailController);
+
+/**
+ * @swagger
+ * /v2/auth/set-password-and-verify:
+ *   post:
+ *     summary: Set account password and verify user account
+ *     description: >
+ *       Allows a user to set their password and verify their account using a valid token. 
+ *       This endpoint requires an access token passed in the `Authorization` header (Bearer token).
+ *       If the account is already verified, it will return a 409 conflict.
+ *     tags:
+ *       - Auth
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - password
+ *             properties:
+ *               password:
+ *                 type: string
+ *                 example: StrongPassword123!
+ *     responses:
+ *       200:
+ *         description: Account verified and password set successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Account verified and password set successfully
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     auth_id:
+ *                       type: string
+ *                       format: uuid
+ *                       example: 1a2b3c4d-5e6f-7890-abcd-1234567890ef
+ *                     email:
+ *                       type: string
+ *                       format: email
+ *                       example: user@example.com
+ *                     updated_at:
+ *                       type: string
+ *                       format: date-time
+ *                       example: 2025-08-06T12:00:00.000Z
+ *                     user_status:
+ *                       type: string
+ *                       enum: [ACTIVE, INACTIVE, SUSPENDED]
+ *                       example: ACTIVE
+ *       400:
+ *         description: Missing or invalid input
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Password is required and must be a string
+ *       401:
+ *         description: Missing or invalid token
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Token is required and must be a string
+ *       404:
+ *         description: User not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: User not found
+ *       409:
+ *         description: Account is already verified
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Account is already verified
+ */
+
+authRoutes.post('/set-password-and-verify', authenticateToken, validateBody(setPasswordAndVerifySchema), setPasswordAndVerifyController);
 
 authRoutes.post('/forgot-password', validateBody(assignUserToPositionSchema), forgotPasswordController)
 
