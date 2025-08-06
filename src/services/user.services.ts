@@ -1,8 +1,12 @@
 import { PrismaClient } from '@prisma/client';
-import { sendUserCredentialsEmail } from '../utils/sendCredentials';
+import { sendInvitationEmail } from '../utils/sendCredentials';
 import { generateRandomPassword } from '../utils/password';
 import argon2 from 'argon2';
+import jwt from 'jsonwebtoken';
+import dotenv from 'dotenv';
 import { AppError } from '../utils/Error';
+
+dotenv.config();
 
 const prisma = new PrismaClient();
 
@@ -87,18 +91,35 @@ export async function createUserService(data: CreateUserPayload) {
     await tx.tbl_position.update({
       where: { position_id },
       data: { user_id: user.user_id },
+      include: {
+        unit: {
+          include: {
+            organization: true,
+          },
+        },
+      },
     });
 
-    return user;
+    return {
+      user,
+      position: position.position_name,
+      unit: position.unit.unit_name,
+      organization: position.unit.organization.organization_name,
+    };
   });
 
   try {
-    await sendUserCredentialsEmail(email, password);
+    const jwtSecret = process.env.JWT_SECRET as string
+    const expiresIn = (process.env.VERIFY_LINK_EXPIRES_IN || '1h') as jwt.SignOptions['expiresIn'];
+    if (!jwtSecret) {
+      throw new Error('JWT secret is not defined');
+    }
+    await sendInvitationEmail(email, jwt.sign({email}, jwtSecret, {expiresIn}), result.position, result.unit, result.organization);
   } catch (error) {
     console.error('Failed to send email:', error);
   }
 
-  return result;
+  return result.user;
 }
 
 export const getUsersWithPositionsService = async (organization_id?: string) => {

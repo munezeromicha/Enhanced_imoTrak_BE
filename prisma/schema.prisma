@@ -11,6 +11,7 @@ model tbl_auth {
   auth_id     String     @id @default(uuid())
   email       String?    @unique
   password    String?
+  isVerified  Boolean    @default(false)
   updated_at  DateTime?
   user_status UserStatus @default(ACTIVE)
   is_verified Boolean    @default(false)
