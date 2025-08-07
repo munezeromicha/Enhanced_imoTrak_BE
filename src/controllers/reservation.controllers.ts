@@ -298,3 +298,53 @@ export const getReservationById = async (req: AuthenticatedRequest, res: Respons
     res.status(400).json({ message });
   }
 }; 
+
+export const addVehicleToReservation = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    checkPermission(req, 'assignVehicle');
+    const { vehicle_id } = assignVehicleSchema.parse(req.body);
+    const reservationId = req.params.id;
+    const reviewerId = req.user.user_id;
+    const organizationId = req.user.organization_id;
+    
+    const reservedVehicles = await reservationService.addVehicleToReservation(
+      reservationId, 
+      vehicle_id, 
+      reviewerId, 
+      organizationId
+    );
+    
+    res.status(200).json({ 
+      message: 'Vehicle added to reservation successfully', 
+      data: reservedVehicles 
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    res.status(400).json({ message });
+  }
+};
+
+export const removeVehicleFromReservation = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    checkPermission(req, 'assignVehicle');
+    const { vehicle_id } = assignVehicleSchema.parse(req.body);
+    const reservationId = req.params.id;
+    const reviewerId = req.user.user_id;
+    const organizationId = req.user.organization_id;
+    
+    const remainingReservedVehicles = await reservationService.removeVehicleFromReservation(
+      reservationId, 
+      vehicle_id, 
+      reviewerId, 
+      organizationId
+    );
+    
+    res.status(200).json({ 
+      message: 'Vehicle removed from reservation successfully', 
+      data: remainingReservedVehicles 
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    res.status(400).json({ message });
+  }
+}; 

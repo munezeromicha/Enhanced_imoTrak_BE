@@ -34,7 +34,12 @@ model tbl_users {
   blacklisted_tokens tbl_jwt_blacklist[]
   notifications      tbl_notifications[]
   positions          tbl_position[]
-  reservations       tbl_reservations[]
+  reservations       tbl_reservations[]  @relation("ReservationUser")
+  reservations_reviewed tbl_reservations[] @relation("ReservationReviewer")
+  reservations_approved tbl_reservations[] @relation("ReservationApprover")
+  reservations_completed tbl_reservations[] @relation("ReservationCompleter")
+  reservations_canceled tbl_reservations[] @relation("ReservationCanceler")
+  reserved_vehicles_returned tbl_reserved_vehicles[] @relation("ReservationReturnedBy")
   auth               tbl_auth            @relation(fields: [auth_id], references: [auth_id])
 }
 
@@ -93,8 +98,20 @@ model tbl_reservations {
   reviewed_at             DateTime?
   rejection_comment       String?
   user_id                 String
-  user                    tbl_users               @relation(fields: [user_id], references: [user_id])
+  user                    tbl_users               @relation("ReservationUser", fields: [user_id], references: [user_id])
   reserved_vehicles       tbl_reserved_vehicles[]
+  reviewed_by             String?
+  approved_by             String?
+  approved_at             DateTime?
+  completed_by            String?
+  completed_at            DateTime? 
+  canceled_by             String?
+  canceled_at             DateTime?
+
+  reviewer tbl_users? @relation("ReservationReviewer", fields: [reviewed_by], references: [user_id])
+  approver tbl_users? @relation("ReservationApprover", fields: [approved_by], references: [user_id])
+  completer tbl_users? @relation("ReservationCompleter", fields: [completed_by], references: [user_id])
+  canceler tbl_users? @relation("ReservationCanceler", fields: [canceled_by], references: [user_id])
 }
 
 model tbl_vehicle_models {
@@ -137,6 +154,8 @@ model tbl_reserved_vehicles {
   reservation         tbl_reservations     @relation(fields: [reservation_id], references: [reservation_id])
   vehicle             tbl_vehicles         @relation(fields: [vehicle_id], references: [vehicle_id])
   isuues              tbl_vehicle_issues[]
+  returned_by         String?
+  returned_by_user    tbl_users? @relation("ReservationReturnedBy", fields: [returned_by], references: [user_id])
 }
 
 model tbl_unit {

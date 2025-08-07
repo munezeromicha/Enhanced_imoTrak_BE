@@ -204,13 +204,14 @@ export async function cancelReservation(reservationId: string, reason: string, u
   }
 
   const updated = await prisma.$transaction(async (tx) => {
-    // Update reservation status
+    // Update reservation status with cancellation tracking
     const updatedReservation = await tx.tbl_reservations.update({
       where: { reservation_id: reservationId },
       data: {
         reservation_status: RequestStatus.CANCELED,
         rejection_comment: reason,
-        reviewed_at: new Date(),
+        canceled_at: new Date(),
+        canceled_by: userId, // Track who canceled the reservation
       },
     });
 
@@ -273,23 +274,28 @@ export async function updateReservationStatus(reservationId: string, status: Req
   }
 
   let newStatus = status;
+  let updateData: any = {
+    reservation_status: newStatus,
+    rejection_comment: reason,
+  };
   
-  // Enhancement: If status is APPROVED, set to ACCEPTED instead
-  if (status === RequestStatus.APPROVED) {
-    newStatus = RequestStatus.ACCEPTED;
+  // Track who performed the action and when
+  if (status === RequestStatus.ACCEPTED || status === RequestStatus.REJECTED) {
+    updateData.reviewed_by = reviewerId;
+    updateData.reviewed_at = new Date();
+  } else if (status === RequestStatus.APPROVED) {
+    updateData.approved_by = reviewerId;
+    updateData.approved_at = new Date();
+  } else if (status === RequestStatus.COMPLETED) {
+    updateData.completed_by = reviewerId;
+    updateData.completed_at = new Date();
   }
   
-  // Enhancement: If status is ACCEPTED, check if all conditions are met to auto-move to IN_PROGRESS
-  // if (status === RequestStatus.ACCEPTED) {
-  //   const now = new Date();
-  //   const departureMet = now >= reservation.departure_date;
-  //   const vehiclesAssigned = reservation.reserved_vehicles.length > 0;
-  //   const allOdometerFuelSet = reservation.reserved_vehicles.length > 0 && reservation.reserved_vehicles.every(rv => rv.starting_odometer > 0 && rv.fuel_provided !== null);
-  //   if (departureMet && vehiclesAssigned && allOdometerFuelSet) {
-  //     newStatus = RequestStatus.IN_PROGRESS;
-  //   }
+  // Enhancement: If status is APPROVED, set to ACCEPTED instead
+  // if (status === RequestStatus.APPROVED) {
+  //   newStatus = RequestStatus.ACCEPTED;
   // }
-
+  
   // Enhancement: If status is COMPLETED, check all reserved vehicles have returned_odometer
   if (status === RequestStatus.COMPLETED) {
     const reservedVehicles = await prisma.tbl_reserved_vehicles.findMany({ where: { reservation_id: reservationId } });
@@ -301,12 +307,9 @@ export async function updateReservationStatus(reservationId: string, status: Req
 
   const updated = await prisma.tbl_reservations.update({
     where: { reservation_id: reservationId },
-    data: {
-      reservation_status: newStatus,
-      rejection_comment: reason,
-      reviewed_at: new Date(),
-    },
+    data: updateData,
   });
+  
   // Notify requester
   const requester = await prisma.tbl_users.findUnique({ where: { user_id: reservation.user_id }, include: { auth: true } });
   let title = '';
@@ -498,7 +501,11 @@ export async function assignMultipleVehicles(reservationId: string, vehicleIds: 
     // Update reservation status to ACCEPTED after vehicle assignment
     await tx.tbl_reservations.update({
       where: { reservation_id: reservationId },
-      data: { reservation_status: RequestStatus.ACCEPTED },
+      data: { 
+        reservation_status: RequestStatus.ACCEPTED,
+        reviewed_by: reviewerId, // Track who reviewed/accepted the reservation
+        reviewed_at: new Date(), // Track when it was reviewed/accepted
+      },
     });
     
     return createdReservedVehicles;
@@ -593,7 +600,11 @@ export async function assignMultipleVehiclesWithOdometerFuel(reservationId: stri
     // Update reservation status to APPROVED after vehicle assignment
     await tx.tbl_reservations.update({
       where: { reservation_id: reservationId },
-      data: { reservation_status: RequestStatus.APPROVED },
+      data: { 
+        reservation_status: RequestStatus.APPROVED,
+        approved_by: reviewerId, // Track who approved the reservation
+        approved_at: new Date(), // Track when it was approved
+      },
     });
     
     return createdReservedVehicles;
@@ -679,7 +690,11 @@ export async function updateMultipleVehiclesWithOdometerFuel(reservationId: stri
     // Update reservation status to APPROVED after odometer/fuel update
     await tx.tbl_reservations.update({
       where: { reservation_id: reservationId },
-      data: { reservation_status: RequestStatus.APPROVED },
+      data: { 
+        reservation_status: RequestStatus.APPROVED,
+        approved_by: reviewerId, // Track who approved the reservation
+        approved_at: new Date(), // Track when it was approved
+      },
     });
     
     return updatedVehicles;
@@ -787,12 +802,13 @@ export async function completeReservation(reservedVehicleId: string, returnedOdo
     throw new Error('Reservation must be APPROVED to complete');
   }
   
-  // Update reserved vehicle
+  // Update reserved vehicle with return information
   await prisma.tbl_reserved_vehicles.update({
     where: { reserved_vehicle_id: reservedVehicleId },
     data: {
       returned_odometer: returnedOdometer,
       returned_date: new Date(),
+      returned_by: userId, // Track who returned the vehicle
     },
   });
   
@@ -823,7 +839,11 @@ export async function completeReservation(reservedVehicleId: string, returnedOdo
   if (allReturned) {
     await prisma.tbl_reservations.update({
       where: { reservation_id: reservation.reservation_id },
-      data: { reservation_status: RequestStatus.COMPLETED },
+      data: { 
+        reservation_status: RequestStatus.COMPLETED,
+        completed_by: userId, // Track who completed the reservation
+        completed_at: new Date(), // Track when it was completed
+      },
     });
   }
   return true;
@@ -853,9 +873,73 @@ export async function getAllReservations(organizationId: string) {
           },
         },
       },
+      reviewer: {
+        select: {
+          user_id: true,
+          first_name: true,
+          last_name: true,
+          auth: {
+            select: {
+              email: true,
+            },
+          },
+        },
+      },
+      approver: {
+        select: {
+          user_id: true,
+          first_name: true,
+          last_name: true,
+          auth: {
+            select: {
+              email: true,
+            },
+          },
+        },
+      },
+      completer: {
+        select: {
+          user_id: true,
+          first_name: true,
+          last_name: true,
+          auth: {
+            select: {
+              email: true,
+            },
+          },
+        },
+      },
+      canceler: {
+        select: {
+          user_id: true,
+          first_name: true,
+          last_name: true,
+          auth: {
+            select: {
+              email: true,
+            },
+          },
+        },
+      },
       reserved_vehicles: {
         include: {
-          vehicle: true,
+          vehicle: {
+            include: {
+              vehicle_model: true,
+            }
+          },
+          returned_by_user: {
+            select: {
+              user_id: true,
+              first_name: true,
+              last_name: true,
+              auth: {
+                select: {
+                  email: true,
+                },
+              },
+            },
+          },
         },
       },
     },
@@ -875,7 +959,75 @@ export async function getReservationsByUserId(userId: string) {
     where: { user_id: userId },
     include: {
       user: true,
-      reserved_vehicles: true,
+      reviewer: {
+        select: {
+          user_id: true,
+          first_name: true,
+          last_name: true,
+          auth: {
+            select: {
+              email: true,
+            },
+          },
+        },
+      },
+      approver: {
+        select: {
+          user_id: true,
+          first_name: true,
+          last_name: true,
+          auth: {
+            select: {
+              email: true,
+            },
+          },
+        },
+      },
+      completer: {
+        select: {
+          user_id: true,
+          first_name: true,
+          last_name: true,
+          auth: {
+            select: {
+              email: true,
+            },
+          },
+        },
+      },
+      canceler: {
+        select: {
+          user_id: true,
+          first_name: true,
+          last_name: true,
+          auth: {
+            select: {
+              email: true,
+            },
+          },
+        },
+      },
+      reserved_vehicles: {
+        include: {
+          vehicle: {
+            include: {
+              vehicle_model: true,
+            }
+          },
+          returned_by_user: {
+            select: {
+              user_id: true,
+              first_name: true,
+              last_name: true,
+              auth: {
+                select: {
+                  email: true,
+                },
+              },
+            },
+          },
+        },
+      },
     },
     orderBy: { created_at: 'desc' },
   });
@@ -905,11 +1057,218 @@ export async function getReservationById(reservationId: string, organizationId: 
           },
         },
       },
+      reviewer: {
+        select: {
+          user_id: true,
+          first_name: true,
+          last_name: true,
+          auth: {
+            select: {
+              email: true,
+            },
+          },
+        },
+      },
+      approver: {
+        select: {
+          user_id: true,
+          first_name: true,
+          last_name: true,
+          auth: {
+            select: {
+              email: true,
+            },
+          },
+        },
+      },
+      completer: {
+        select: {
+          user_id: true,
+          first_name: true,
+          last_name: true,
+          auth: {
+            select: {
+              email: true,
+            },
+          },
+        },
+      },
+      canceler: {
+        select: {
+          user_id: true,
+          first_name: true,
+          last_name: true,
+          auth: {
+            select: {
+              email: true,
+            },
+          },
+        },
+      },
       reserved_vehicles: {
         include: {
-          vehicle: true,
+          vehicle: {
+            include: {
+              vehicle_model: true,
+            }
+          },
+          returned_by_user: {
+            select: {
+              user_id: true,
+              first_name: true,
+              last_name: true,
+              auth: {
+                select: {
+                  email: true,
+                },
+              },
+            },
+          },
         },
       },
     },
   });
+} 
+
+export async function addVehicleToReservation(reservationId: string, vehicleId: string, reviewerId: string, organizationId: string) {
+  // Permission check: reviewer only (enforced in controller)
+  const reservation = await prisma.tbl_reservations.findUnique({ 
+    where: { 
+      reservation_id: reservationId,
+      user: {
+        positions: {
+          some: {
+            unit: {
+              organization_id: organizationId,
+            },
+          },
+        },
+      },
+    },
+    include: { reserved_vehicles: true }
+  });
+  
+  if (!reservation) throw new Error('Reservation not found');
+  
+  // Only allow adding vehicles if reservation is ACCEPTED
+  if (reservation.reservation_status !== RequestStatus.ACCEPTED) {
+    throw new Error('Can only add vehicles to reservations with ACCEPTED status');
+  }
+  
+  const vehicle = await prisma.tbl_vehicles.findUnique({ 
+    where: { 
+      vehicle_id: vehicleId,
+      organization_id: organizationId
+    } 
+  });
+  
+  if (!vehicle) throw new Error('Vehicle not found');
+  
+  // Check if vehicle is already assigned to this reservation
+  const existingAssignment = await prisma.tbl_reserved_vehicles.findFirst({
+    where: {
+      reservation_id: reservationId,
+      vehicle_id: vehicleId
+    }
+  });
+  
+  if (existingAssignment) {
+    throw new Error('Vehicle is already assigned to this reservation');
+  }
+  
+  // Check if vehicle is available for the specific date range
+  const availabilityCheck = await isVehicleAvailableForDateRange(
+    vehicleId, 
+    reservation.departure_date, 
+    reservation.expected_returning_date,
+    reservationId
+  );
+  
+  if (!availabilityCheck.available) {
+    throw new Error(`Vehicle is not available: ${availabilityCheck.reason}`);
+  }
+  
+  // Add vehicle to reservation
+  const reservedVehicle = await prisma.tbl_reserved_vehicles.create({
+    data: {
+      vehicle_id: vehicleId,
+      reservation_id: reservationId,
+      starting_odometer: 0, // Will be set when reservation is IN_PROGRESS
+      returned_odometer: null,
+      fuel_provided: null,
+    },
+  });
+  
+  // Return all reserved vehicles for this reservation
+  const allReservedVehicles = await prisma.tbl_reserved_vehicles.findMany({
+    where: { reservation_id: reservationId },
+    include: {
+      vehicle: {
+        include: {
+          vehicle_model: true,
+        }
+      },
+    },
+  });
+  
+  return allReservedVehicles;
+}
+
+export async function removeVehicleFromReservation(reservationId: string, vehicleId: string, reviewerId: string, organizationId: string) {
+  // Permission check: reviewer only (enforced in controller)
+  const reservation = await prisma.tbl_reservations.findUnique({ 
+    where: { 
+      reservation_id: reservationId,
+      user: {
+        positions: {
+          some: {
+            unit: {
+              organization_id: organizationId,
+            },
+          },
+        },
+      },
+    },
+    include: { reserved_vehicles: true }
+  });
+  
+  if (!reservation) throw new Error('Reservation not found');
+  
+  // Only allow removing vehicles if reservation is ACCEPTED
+  if (reservation.reservation_status !== RequestStatus.ACCEPTED) {
+    throw new Error('Can only remove vehicles from reservations with ACCEPTED status');
+  }
+  
+  // Check if vehicle is assigned to this reservation
+  const existingAssignment = await prisma.tbl_reserved_vehicles.findFirst({
+    where: {
+      reservation_id: reservationId,
+      vehicle_id: vehicleId
+    }
+  });
+  
+  if (!existingAssignment) {
+    throw new Error('Vehicle is not assigned to this reservation');
+  }
+  
+  // Remove vehicle from reservation
+  await prisma.tbl_reserved_vehicles.delete({
+    where: {
+      reserved_vehicle_id: existingAssignment.reserved_vehicle_id
+    }
+  });
+  
+  // Return all remaining reserved vehicles for this reservation
+  const remainingReservedVehicles = await prisma.tbl_reserved_vehicles.findMany({
+    where: { reservation_id: reservationId },
+    include: {
+      vehicle: {
+        include: {
+          vehicle_model: true,
+        }
+      },
+    },
+  });
+  
+  return remainingReservedVehicles;
 } 
