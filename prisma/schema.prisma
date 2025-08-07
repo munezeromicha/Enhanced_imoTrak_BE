@@ -38,6 +38,7 @@ model tbl_users {
   reservations_reviewed tbl_reservations[] @relation("ReservationReviewer")
   reservations_approved tbl_reservations[] @relation("ReservationApprover")
   reservations_completed tbl_reservations[] @relation("ReservationCompleter")
+  reservations_canceled tbl_reservations[] @relation("ReservationCanceler")
   reserved_vehicles_returned tbl_reserved_vehicles[] @relation("ReservationReturnedBy")
   auth               tbl_auth            @relation(fields: [auth_id], references: [auth_id])
 }
@@ -104,10 +105,13 @@ model tbl_reservations {
   approved_at             DateTime?
   completed_by            String?
   completed_at            DateTime? 
+  canceled_by             String?
+  canceled_at             DateTime?
 
   reviewer tbl_users? @relation("ReservationReviewer", fields: [reviewed_by], references: [user_id])
   approver tbl_users? @relation("ReservationApprover", fields: [approved_by], references: [user_id])
   completer tbl_users? @relation("ReservationCompleter", fields: [completed_by], references: [user_id])
+  canceler tbl_users? @relation("ReservationCanceler", fields: [canceled_by], references: [user_id])
 }
 
 model tbl_vehicle_models {

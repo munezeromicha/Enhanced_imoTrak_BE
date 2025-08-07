@@ -17,6 +17,8 @@ import {
   assignMultipleVehiclesWithOdometerFuel,
   updateMultipleVehiclesWithOdometerFuel,
   getAvailableVehicles,
+  addVehicleToReservation,
+  removeVehicleFromReservation,
 } from '../controllers/reservation.controllers';
 import { validateBody } from '../middlewares/bodyValidator';
 import {
@@ -763,6 +765,172 @@ router.post('/:id/assign-vehicle-odometer', authenticateToken, attachPositionAcc
  *                   example: "Vehicles not assigned to this reservation: c4d5e6f7-1234-5678-9abc-def012345678"
  */
 router.patch('/:id/assign-multiple-vehicles-odometer', authenticateToken, attachPositionAccess, validateBody(assignMultipleVehiclesWithOdometerFuelSchema), withAuthUser(updateMultipleVehiclesWithOdometerFuel));
+
+/**
+ * @openapi
+ * /v2/reservations/{id}/add-vehicle:
+ *   post:
+ *     summary: Add a vehicle to a reservation
+ *     security:
+ *       - bearerAuth: []
+ *     tags:
+ *       - Reservations
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               vehicle_id:
+ *                 type: string
+ *                 format: uuid
+ *           example:
+ *             vehicle_id: "c4d5e6f7-1234-5678-9abc-def012345678"
+ *     responses:
+ *       200:
+ *         description: Vehicle added to reservation
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       reserved_vehicle_id:
+ *                         type: string
+ *                         format: uuid
+ *                       vehicle_id:
+ *                         type: string
+ *                         format: uuid
+ *                       vehicle:
+ *                         type: object
+ *                         properties:
+ *                           vehicle_name:
+ *                             type: string
+ *                           vehicle_model:
+ *                             type: string
+ *                           license_plate:
+ *                             type: string
+ *                           vehicle_status:
+ *                             type: string
+ *             example:
+ *               message: "Vehicle added successfully"
+ *               data:
+ *                 - reserved_vehicle_id: "d5e6f7a8-2345-6789-abcd-ef0123456789"
+ *                   vehicle_id: "c4d5e6f7-1234-5678-9abc-def012345678"
+ *                   vehicle:
+ *                     vehicle_name: "Toyota Land Cruiser"
+ *                     vehicle_model: "Land Cruiser 2020"
+ *                     license_plate: "RAB123A"
+ *                     vehicle_status: "AVAILABLE"
+ *       400:
+ *         description: Bad request - vehicle not available or already in reservation
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Vehicle not available or already in this reservation: c4d5e6f7-1234-5678-9abc-def012345678"
+ */
+router.post('/:id/add-vehicle', authenticateToken, attachPositionAccess, validateBody(assignVehicleSchema), withAuthUser(addVehicleToReservation));
+
+/**
+ * @openapi
+ * /v2/reservations/{id}/remove-vehicle:
+ *   post:
+ *     summary: Remove a vehicle from a reservation
+ *     security:
+ *       - bearerAuth: []
+ *     tags:
+ *       - Reservations
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               vehicle_id:
+ *                 type: string
+ *                 format: uuid
+ *           example:
+ *             vehicle_id: "c4d5e6f7-1234-5678-9abc-def012345678"
+ *     responses:
+ *       200:
+ *         description: Vehicle removed from reservation
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       reserved_vehicle_id:
+ *                         type: string
+ *                         format: uuid
+ *                       vehicle_id:
+ *                         type: string
+ *                         format: uuid
+ *                       vehicle:
+ *                         type: object
+ *                         properties:
+ *                           vehicle_name:
+ *                             type: string
+ *                           vehicle_model:
+ *                             type: string
+ *                           license_plate:
+ *                             type: string
+ *                           vehicle_status:
+ *                             type: string
+ *             example:
+ *               message: "Vehicle removed successfully"
+ *               data:
+ *                 - reserved_vehicle_id: "d5e6f7a8-2345-6789-abcd-ef0123456789"
+ *                   vehicle_id: "c4d5e6f7-1234-5678-9abc-def012345678"
+ *                   vehicle:
+ *                     vehicle_name: "Toyota Land Cruiser"
+ *                     vehicle_model: "Land Cruiser 2020"
+ *                     license_plate: "RAB123A"
+ *                     vehicle_status: "AVAILABLE"
+ *       400:
+ *         description: Bad request - vehicle not in reservation or not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Vehicle not in this reservation or not found: c4d5e6f7-1234-5678-9abc-def012345678"
+ */
+router.post('/:id/remove-vehicle', authenticateToken, attachPositionAccess, validateBody(assignVehicleSchema), withAuthUser(removeVehicleFromReservation));
 
 /**
  * @openapi
