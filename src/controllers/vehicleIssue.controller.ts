@@ -2,6 +2,7 @@ import { NextFunction, Request, Response } from 'express';
 import * as issueService from '../services/vehicleIssue.service';
 import { position_accesses } from '../types/access';
 import { AppError } from '../utils/Error';
+import { updateVehicleIssueMessageSchema } from '../schemas/vehicleIssue.schema';
 
 interface AuthenticatedRequest extends Request {
   user?: {
@@ -78,4 +79,24 @@ export const remove = async (req: AuthenticatedRequest, res: Response) => {
   }
   await issueService.deleteIssue(req.params.id);
   res.status(204).send();
+};
+
+export const updateMessage = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  try {
+    if (!req.user?.position_access?.vehicleIssues?.update) {
+      throw new AppError('Access denied. You are not allowed to update vehicle issue messages.', 403);
+    }
+
+    const { message } = updateVehicleIssueMessageSchema.parse(req.body);
+    const issueId = req.params.id;
+    
+    const updatedIssue = await issueService.updateIssueMessage(issueId, message, req.user);
+    
+    res.status(200).json({
+      message: 'Vehicle issue message updated successfully',
+      data: updatedIssue,
+    });
+  } catch (error) {
+    next(error);
+  }
 };

@@ -1,6 +1,7 @@
 import { PrismaClient,  tbl_vehicle_issues } from '@prisma/client';
 import { AuthenticatedUser } from '../types/access';
 import { AppError } from '../utils/Error';
+import { createNotification, sendVehicleIssueEmailNotification } from './notification.service';
 const prisma = new PrismaClient();
 
 export const getAllIssues = async ( user: AuthenticatedUser) => {
@@ -17,7 +18,19 @@ export const getAllIssues = async ( user: AuthenticatedUser) => {
       reserved_vehicle:{
         include:{
           vehicle: true,
-          reservation: true
+          reservation: {
+            include: {
+              user: {
+                include: {
+                  auth: {
+                    select: {
+                      email: true,
+                    },
+                  },
+                },
+              },
+            },
+          }
         }
       }
     }
@@ -32,7 +45,19 @@ export const getIssueById = async (id: string, user: AuthenticatedUser) => {
       reserved_vehicle: {
         include:{
           vehicle: true,
-          reservation: true
+          reservation: {
+            include: {
+              user: {
+                include: {
+                  auth: {
+                    select: {
+                      email: true,
+                    },
+                  },
+                },
+              },
+            },
+          }
         }
       }
     }
@@ -116,6 +141,88 @@ export const updateIssue = async (
       }
     }
   });
+};
+
+export const updateIssueMessage = async (issueId: string, message: string, user: AuthenticatedUser) => {
+  // Check if issue exists and user has access
+  const issue = await prisma.tbl_vehicle_issues.findUnique({
+    where: { issue_id: issueId },
+    include: {
+      reserved_vehicle: {
+        include: {
+          vehicle: true,
+          reservation: {
+            include: {
+              user: {
+                include: {
+                  auth: true,
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  });
+
+  if (!issue) {
+    throw new AppError('Vehicle issue not found', 404);
+  }
+
+  // Check if user has access to this issue (same organization)
+  if (issue.reserved_vehicle.vehicle.organization_id !== user.organization_id) {
+    throw new AppError('Unauthorized access to this issue', 403);
+  }
+
+  // Update the issue with the new message
+  const updatedIssue = await prisma.tbl_vehicle_issues.update({
+    where: { issue_id: issueId },
+    data: {
+      message: message,
+      updated_at: new Date(),
+    },
+    include: {
+      reserved_vehicle: {
+        include: {
+          vehicle: true,
+          reservation: {
+            include: {
+              user: {
+                include: {
+                  auth: true,
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  });
+
+  // Notify the issue owner (reservation user) if it's not the same user
+  const issueOwner = issue.reserved_vehicle.reservation.user;
+  if (issueOwner && issueOwner.user_id !== user.user_id) {
+    // Get the sender's full name
+    const sender = await prisma.tbl_users.findUnique({
+      where: { user_id: user.user_id },
+      select: { first_name: true, last_name: true }
+    });
+    
+    const senderName = sender ? `${sender.first_name} ${sender.last_name}` : 'Unknown User';
+    // Send custom email notification
+    if (issueOwner.auth?.email) {
+      await sendVehicleIssueEmailNotification({
+        user_id: issueOwner.user_id,
+        to_email: issueOwner.auth.email,
+        issue_title: issue.issue_title,
+        message: message,
+        sender_name: senderName,
+        issue_id: issueId,
+      });
+    }
+  }
+
+  return updatedIssue;
 };
 
 export const deleteIssue = async (id: string) => {

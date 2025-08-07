@@ -2,6 +2,8 @@ import { Router } from 'express';
 import * as controller from '../controllers/vehicleIssue.controller';
 import { authenticateToken } from '../middlewares/auth.middleware';
 import { attachPositionAccess } from '../middlewares/attachPositionAccess';
+import { validateBody } from '../middlewares/bodyValidator';
+import { updateVehicleIssueMessageSchema } from '../schemas/vehicleIssue.schema';
 
 const issueRoutes = Router();
 
@@ -523,5 +525,53 @@ issueRoutes.put('/:id', authenticateToken, attachPositionAccess, controller.upda
  *         description: Issue not found
  */
 issueRoutes.delete('/:id', authenticateToken, attachPositionAccess, controller.remove);
+
+/**
+ * @swagger
+ * /v2/issues/{id}/message:
+ *   patch:
+ *     summary: Update message for a vehicle issue
+ *     tags: [Vehicle Issues]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The ID of the issue to update message
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               message:
+ *                 type: string
+ *                 description: The message to add to the issue
+ *                 example: "Vehicle needs immediate attention due to engine noise"
+ *     responses:
+ *       200:
+ *         description: Message updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Vehicle issue message updated successfully"
+ *                 data:
+ *                   $ref: '#/components/schemas/VehicleIssue'
+ *       400:
+ *         description: Bad request - invalid message
+ *       403:
+ *         description: Access denied
+ *       404:
+ *         description: Issue not found
+ */
+issueRoutes.patch('/:id/message', authenticateToken, attachPositionAccess, validateBody(updateVehicleIssueMessageSchema), controller.updateMessage);
 
 export default issueRoutes;
