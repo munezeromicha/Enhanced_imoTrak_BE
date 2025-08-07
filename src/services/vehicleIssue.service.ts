@@ -209,18 +209,10 @@ export const updateIssueMessage = async (issueId: string, message: string, user:
     });
     
     const senderName = sender ? `${sender.first_name} ${sender.last_name}` : 'Unknown User';
-    
-    // Create system notification
-    await createNotification({
-      user_id: issueOwner.user_id,
-      notification_title: 'New Message on Vehicle Issue',
-      notification_message: `A new message has been added to your vehicle issue: "${issue.issue_title}". Message: "${message}"`,
-      email: issueOwner.auth?.email || undefined,
-    });
-
     // Send custom email notification
     if (issueOwner.auth?.email) {
       await sendVehicleIssueEmailNotification({
+        user_id: issueOwner.user_id,
         to_email: issueOwner.auth.email,
         issue_title: issue.issue_title,
         message: message,

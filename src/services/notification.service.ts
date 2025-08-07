@@ -20,19 +20,19 @@ export async function createNotification({ user_id, notification_title, notifica
   return notification;
 }
 
-export async function sendVehicleIssueEmailNotification({ 
-  to_email, 
-  issue_title, 
-  message, 
-  sender_name, 
-  issue_id 
-}: { 
+export async function sendVehicleIssueEmailNotification({ user_id, to_email, issue_title, message, sender_name, issue_id }: { 
+  user_id: string;
   to_email: string; 
   issue_title: string; 
   message: string; 
   sender_name: string; 
   issue_id: string; 
 }) {
+  const notification_title = issue_title;
+  const notification_message = message;
+  const notification = await prisma.tbl_notifications.create({
+    data: { user_id, notification_title, notification_message },
+  });
   const emailSubject = `New Message on Vehicle Issue: ${issue_title}`;
   const emailBody = `
 Greetings, Turabakengurukiye,

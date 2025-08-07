@@ -11,36 +11,37 @@ model tbl_auth {
   auth_id     String     @id @default(uuid())
   email       String?    @unique
   password    String?
-  isVerified  Boolean    @default(false)
   updated_at  DateTime?
   user_status UserStatus @default(ACTIVE)
+  isVerified  Boolean    @default(false)
   is_verified Boolean    @default(false)
   user        tbl_users?
 }
 
 model tbl_users {
-  user_id            String              @id @default(uuid())
-  first_name         String
-  last_name          String
-  user_nid           String              @unique
-  user_phone         String              @unique
-  created_at         DateTime            @default(now())
-  user_dob           DateTime
-  user_photo         String?
-  user_gender        Gender
-  street_address     String?
-  auth_id            String              @unique
-  audit_logs         tbl_audit_logs[]
-  blacklisted_tokens tbl_jwt_blacklist[]
-  notifications      tbl_notifications[]
-  positions          tbl_position[]
-  reservations       tbl_reservations[]  @relation("ReservationUser")
-  reservations_reviewed tbl_reservations[] @relation("ReservationReviewer")
-  reservations_approved tbl_reservations[] @relation("ReservationApprover")
-  reservations_completed tbl_reservations[] @relation("ReservationCompleter")
-  reservations_canceled tbl_reservations[] @relation("ReservationCanceler")
+  user_id                    String                  @id @default(uuid())
+  first_name                 String
+  last_name                  String
+  user_nid                   String                  @unique
+  user_phone                 String                  @unique
+  created_at                 DateTime                @default(now())
+  user_dob                   DateTime
+  user_photo                 String?
+  user_gender                Gender
+  street_address             String?
+  auth_id                    String                  @unique
+  audit_logs                 tbl_audit_logs[]
+  blacklisted_tokens         tbl_jwt_blacklist[]
+  notifications              tbl_notifications[]
+  positions                  tbl_position[]
+  reservations_approved      tbl_reservations[]      @relation("ReservationApprover")
+  reservations_canceled      tbl_reservations[]      @relation("ReservationCanceler")
+  reservations_completed     tbl_reservations[]      @relation("ReservationCompleter")
+  reservations_reviewed      tbl_reservations[]      @relation("ReservationReviewer")
+  reservations               tbl_reservations[]      @relation("ReservationUser")
   reserved_vehicles_returned tbl_reserved_vehicles[] @relation("ReservationReturnedBy")
-  auth               tbl_auth            @relation(fields: [auth_id], references: [auth_id])
+  // vehicle_issue_updated tbl_vehicle_issues?
+  auth                       tbl_auth                @relation(fields: [auth_id], references: [auth_id])
 }
 
 model tbl_audit_logs {
@@ -92,35 +93,34 @@ model tbl_reservations {
   reservation_destination String
   departure_date          DateTime
   expected_returning_date DateTime
-  description             String                  @default("")
-  passengers              Int                     @default(0)
   reservation_status      RequestStatus           @default(UNDER_REVIEW)
   reviewed_at             DateTime?
   rejection_comment       String?
   user_id                 String
+  description             String                  @default("")
+  passengers              Int                     @default(0)
+  approved_at             DateTime?
+  approved_by             String?
+  canceled_at             DateTime?
+  canceled_by             String?
+  completed_at            DateTime?
+  completed_by            String?
+  reviewed_by             String?
+  approver                tbl_users?              @relation("ReservationApprover", fields: [approved_by], references: [user_id])
+  canceler                tbl_users?              @relation("ReservationCanceler", fields: [canceled_by], references: [user_id])
+  completer               tbl_users?              @relation("ReservationCompleter", fields: [completed_by], references: [user_id])
+  reviewer                tbl_users?              @relation("ReservationReviewer", fields: [reviewed_by], references: [user_id])
   user                    tbl_users               @relation("ReservationUser", fields: [user_id], references: [user_id])
   reserved_vehicles       tbl_reserved_vehicles[]
-  reviewed_by             String?
-  approved_by             String?
-  approved_at             DateTime?
-  completed_by            String?
-  completed_at            DateTime? 
-  canceled_by             String?
-  canceled_at             DateTime?
-
-  reviewer tbl_users? @relation("ReservationReviewer", fields: [reviewed_by], references: [user_id])
-  approver tbl_users? @relation("ReservationApprover", fields: [approved_by], references: [user_id])
-  completer tbl_users? @relation("ReservationCompleter", fields: [completed_by], references: [user_id])
-  canceler tbl_users? @relation("ReservationCanceler", fields: [canceled_by], references: [user_id])
 }
 
 model tbl_vehicle_models {
   vehicle_model_id   String         @id @default(uuid())
   vehicle_model_name String         @unique
   vehicle_type       VehicleType
-  vehicle_capacity   Int            @default(0) 
   manufacturer_name  String
   created_at         DateTime       @default(now())
+  vehicle_capacity   Int            @default(0)
   vehicles           tbl_vehicles[]
 }
 
@@ -131,7 +131,6 @@ model tbl_vehicles {
   vehicle_model_id  String
   vehicle_photo     String
   vehicle_year      Int
-  
   vehicle_status    VehicleStatus           @default(AVAILABLE)
   energy_type       String
   last_service_date DateTime                @default(now())
@@ -151,11 +150,11 @@ model tbl_reserved_vehicles {
   returned_odometer   Int?
   fuel_provided       Int?
   returned_date       DateTime?
+  returned_by         String?
   reservation         tbl_reservations     @relation(fields: [reservation_id], references: [reservation_id])
+  returned_by_user    tbl_users?           @relation("ReservationReturnedBy", fields: [returned_by], references: [user_id])
   vehicle             tbl_vehicles         @relation(fields: [vehicle_id], references: [vehicle_id])
   isuues              tbl_vehicle_issues[]
-  returned_by         String?
-  returned_by_user    tbl_users? @relation("ReservationReturnedBy", fields: [returned_by], references: [user_id])
 }
 
 model tbl_unit {
@@ -193,11 +192,12 @@ model tbl_vehicle_issues {
   issue_date          DateTime              @default(now())
   created_at          DateTime              @default(now())
   updated_at          DateTime?             @default(now())
+  updated_by          String?
   reserved_vehicle_id String
-  message             String?               // User message field
+  message             String?
+  // updater            tbl_users?            @relation(references: [user_id])
   reserved_vehicle    tbl_reserved_vehicles @relation(fields: [reserved_vehicle_id], references: [reserved_vehicle_id])
 }
-
 model tbl_jwt_blacklist {
   id         String    @id @default(uuid())
   token      String    @unique
@@ -254,7 +254,6 @@ enum TransmissionMode {
 enum RequestStatus {
   UNDER_REVIEW
   CANCELED
-  ACCEPTED
   APPROVED
   REJECTED
   IN_PROGRESS
@@ -262,6 +261,7 @@ enum RequestStatus {
   COMPLETED
   FAILED
   EXPIRED
+  ACCEPTED
 }
 
 enum PostitionStatus {
