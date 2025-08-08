@@ -30,6 +30,7 @@ model tbl_users {
   user_gender                Gender
   street_address             String?
   auth_id                    String                  @unique
+  updated_by_user_id         String?
   audit_logs                 tbl_audit_logs[]
   blacklisted_tokens         tbl_jwt_blacklist[]
   notifications              tbl_notifications[]
@@ -40,8 +41,8 @@ model tbl_users {
   reservations_reviewed      tbl_reservations[]      @relation("ReservationReviewer")
   reservations               tbl_reservations[]      @relation("ReservationUser")
   reserved_vehicles_returned tbl_reserved_vehicles[] @relation("ReservationReturnedBy")
-  // vehicle_issue_updated tbl_vehicle_issues?
   auth                       tbl_auth                @relation(fields: [auth_id], references: [auth_id])
+  updater_issues             tbl_vehicle_issues[]    @relation("VehicleIssueUpdater")
 }
 
 model tbl_audit_logs {
@@ -192,12 +193,13 @@ model tbl_vehicle_issues {
   issue_date          DateTime              @default(now())
   created_at          DateTime              @default(now())
   updated_at          DateTime?             @default(now())
-  updated_by          String?
+  issue_responder     String?
   reserved_vehicle_id String
   message             String?
-  // updater            tbl_users?            @relation(references: [user_id])
+  updater             tbl_users?            @relation("VehicleIssueUpdater", fields: [issue_responder], references: [user_id])
   reserved_vehicle    tbl_reserved_vehicles @relation(fields: [reserved_vehicle_id], references: [reserved_vehicle_id])
 }
+
 model tbl_jwt_blacklist {
   id         String    @id @default(uuid())
   token      String    @unique
