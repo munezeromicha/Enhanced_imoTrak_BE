@@ -180,7 +180,7 @@ export const updateIssueMessage = async (issueId: string, message: string, user:
     data: {
       message: message,
       updated_at: new Date(),
-      issue_responder: user.email,
+      issue_responder: user.user_id,
       issue_status: 'CLOSED',
     },
     include: {
