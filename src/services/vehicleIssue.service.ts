@@ -181,6 +181,7 @@ export const updateIssueMessage = async (issueId: string, message: string, user:
       message: message,
       updated_at: new Date(),
       issue_responder: user.user_id,
+      issue_status: 'CLOSED',
     },
     include: {
       reserved_vehicle: {
