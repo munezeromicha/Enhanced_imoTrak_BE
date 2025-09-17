@@ -1,4 +1,6 @@
 import { PrismaClient, tbl_vehicle_models, tbl_vehicles } from '@prisma/client';
+import { Response } from 'express';
+import { ServerResponse } from 'http';
 
 const prisma = new PrismaClient();
 
@@ -55,3 +57,67 @@ export async function updateVehicle(id: string, data: Partial<Omit<tbl_vehicles,
 export async function deleteVehicle(id: string) {
   return prisma.tbl_vehicles.delete({ where: { vehicle_id: id } });
 } 
+
+
+// Location Services
+type SSEResponse = Response & ServerResponse;
+interface Coords {
+  latitude: number;
+  longitude: number;
+  altitude: number | null;
+  accuracy: number;
+  altitudeAccuracy: number | null;
+  heading: number | null;
+  speed: number | null;
+}
+
+export interface Location {
+  vehicle_id: string;
+  coords: Coords;
+  timestamp: string | number; // ISO string or Unix ms timestamp
+}
+
+const vehicleLocations = new Map<string, Location>();           // vehicle_id -> latest location
+const vehicleClients = new Map<string, Set<Response>>();        // vehicle_id -> Set of SSE response objects
+
+export async function saveAndBroadcastLocation(location: Location): Promise<void> {
+  const { vehicle_id } = location;
+  if (!vehicle_id) return;
+
+  // Save the latest location
+  vehicleLocations.set(vehicle_id, location);
+
+  const data = `data: ${JSON.stringify(location)}\n\n`;
+
+  // Broadcast to all SSE clients watching this vehicle
+  const clients = vehicleClients.get(vehicle_id);
+  if (clients) {
+    for (const res of clients) {
+      res.write(data);
+    }
+  }
+}
+
+export async function addSSEClient(vehicleId: string, res: Response): Promise<void> {
+  if (!vehicleClients.has(vehicleId)) {
+    vehicleClients.set(vehicleId, new Set());
+  }
+
+  vehicleClients.get(vehicleId)!.add(res);
+
+  // Clean up when the client disconnects
+  res.on('close', () => {
+    const clients = vehicleClients.get(vehicleId);
+    if (!clients) return;
+
+    clients.delete(res);
+    if (clients.size === 0) {
+      vehicleClients.delete(vehicleId);
+    }
+  });
+}
+
+export async function getLatestLocation(vehicleId: string): Promise<Location | null> {
+  return vehicleLocations.get(vehicleId) || null;
+}
+

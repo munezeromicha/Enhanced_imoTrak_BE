@@ -24,4 +24,18 @@ export const vehicleSchema = z.object({
   organization_id: z.string().uuid(),
 });
 
+export const locationUpdateSchema = z.object({
+  vehicle_id: z.string(),
+  coords: z.object({
+    latitude: z.number().min(-90).max(90),
+    longitude: z.number().min(-180).max(180),
+    altitude: z.number().nullable(), // may be null
+    accuracy: z.number().min(0),
+    altitudeAccuracy: z.number().min(0).nullable(),
+    heading: z.number().min(0).max(360).nullable(),
+    speed: z.number().min(0).nullable()
+  }),
+  timestamp: z.number().int() // Unix time in milliseconds
+});
+
 export const vehicleUpdateSchema = vehicleSchema.partial(); 
