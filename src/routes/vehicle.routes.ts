@@ -431,6 +431,6 @@ router.delete('/vehicles/:id', authenticateToken, attachPositionAccess, deleteVe
  */
 
 router.post('/vehicles/:id/locations', validateBody(locationUpdateSchema), updateVehicleLocationsController);
-router.get('/vehicles/:id/locations/stream',streamVehicleLocationController);
+router.get('/vehicles/:id/locations/stream', authenticateToken, attachPositionAccess, streamVehicleLocationController);
 
 export default router; 
