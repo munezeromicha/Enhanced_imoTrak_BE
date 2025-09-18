@@ -13,7 +13,7 @@ import {
   updateVehicleLocationsController,
   streamVehicleLocationController
 } from '../controllers/vehicle.controllers';
-import { authenticateToken } from '../middlewares/auth.middleware';
+import { authenticateQueryToken, authenticateToken } from '../middlewares/auth.middleware';
 import { attachPositionAccess } from '../middlewares/attachPositionAccess';
 import { validateBody } from '../middlewares/bodyValidator';
 import { upload } from '../middlewares/multer';
@@ -429,8 +429,51 @@ router.delete('/vehicles/:id', authenticateToken, attachPositionAccess, deleteVe
  *       404:
  *         description: Vehicle not found
  */
+router.get('/vehicles/:id/locations/stream',  authenticateQueryToken, attachPositionAccess, streamVehicleLocationController);
+
+/**
+ * @openapi
+ * /v2/vehicles/{id}/locations/stream:
+ *   get:
+ *     summary: Stream live geolocation updates for a vehicle
+ *     description: |
+ *       Opens a Server-Sent Events (SSE) connection that streams real-time location updates of the specified vehicle.
+ *       The client must provide a valid access token as a query parameter for authorization.
+ *     tags:
+ *       - Vehicle Location
+ *     parameters:
+ *       - name: id
+ *         in: path
+ *         required: true
+ *         description: UUID of the vehicle to stream locations for
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *       - name: token
+ *         in: query
+ *         required: true
+ *         description: JWT access token for authorization
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: SSE stream started successfully
+ *         content:
+ *           text/event-stream:
+ *             schema:
+ *               type: string
+ *               description: |
+ *                 Server-Sent Events stream that sends JSON payloads with vehicle location updates.
+ *                 Each event's data field contains a JSON object with vehicle location information.
+ *       401:
+ *         description: Unauthorized – invalid or missing token
+ *       403:
+ *         description: Forbidden – User does not have permission to view vehicle locations
+ *       404:
+ *         description: Vehicle not found
+ */
 
 router.post('/vehicles/:id/locations', validateBody(locationUpdateSchema), updateVehicleLocationsController);
-router.get('/vehicles/:id/locations/stream', authenticateToken, attachPositionAccess, streamVehicleLocationController);
+
 
 export default router; 

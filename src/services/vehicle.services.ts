@@ -1,6 +1,7 @@
 import { PrismaClient, tbl_vehicle_models, tbl_vehicles } from '@prisma/client';
 import { Response } from 'express';
 import { ServerResponse } from 'http';
+import { AppError } from '../utils/Error';
 
 const prisma = new PrismaClient();
 
@@ -119,5 +120,42 @@ export async function addSSEClient(vehicleId: string, res: Response): Promise<vo
 
 export async function getLatestLocation(vehicleId: string): Promise<Location | null> {
   return vehicleLocations.get(vehicleId) || null;
+}
+
+export async function isUserInSameOrganizationAsVehicle(userId: string, vehicleId: string): Promise<boolean> {
+  // Fetch all organization IDs from user's positions
+  const user = await prisma.tbl_users.findUnique({
+    where: { user_id: userId },
+    select: {
+      positions: {
+        select: {
+          unit: {
+            select: {
+              organization_id: true
+            }
+          }
+        }
+      }
+    }
+  });
+
+  if (!user || user.positions.length === 0) {
+    throw new AppError('User or user organizations not found', 404);
+  }
+
+  const userOrgIds = user.positions.map(pos => pos.unit.organization_id);
+
+  // Fetch the vehicle's organization ID
+  const vehicle = await prisma.tbl_vehicles.findUnique({
+    where: { vehicle_id: vehicleId },
+    select: { organization_id: true }
+  });
+
+  if (!vehicle) {
+    throw new AppError('Vehicle not found', 404);
+  }
+
+  // Check if vehicle organization ID matches any of the user's organizations
+  return userOrgIds.includes(vehicle.organization_id);
 }
 

@@ -188,13 +188,18 @@ export async function updateVehicleLocationsController(req: Request, res: Respon
 
 
 export async function streamVehicleLocationController(req: Request, res: Response, next: NextFunction) {
-  console.log("streamVehicleLocationController called", req.params.id, req.headers);
   try {
     const vehicleId = req.params.id;
     const authReq = req as AuthenticatedRequest;
-    if (authReq.user.position_access.vehicles.view !== true) 
-      throw new AppError('You do not have permission to view vehicles', 403);
-
+    if (!authReq.user) {
+      return res.status(401).end();
+    }
+    if (authReq.user?.position_access?.vehicles.view !== true) 
+      return res.status(403).end();
+    const sameOrg = await vehicleService.isUserInSameOrganizationAsVehicle(authReq.user.user_id, vehicleId);
+    if (!sameOrg) {
+      return res.status(403).end();
+    } 
     // Set headers for SSE
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
