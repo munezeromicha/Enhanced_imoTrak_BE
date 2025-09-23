@@ -20,6 +20,7 @@ export async function authenticateToken(
   res: Response,
   next: NextFunction
 ) {
+  console.log("authenticateToken called", req.headers);
   try {
     const authHeader = req.headers.authorization;
     const token = authHeader && authHeader.split(' ')[1]; 
@@ -108,6 +109,51 @@ export async function authenticateVerifyToken(
       next(error);
     } else {
       next(new AppError('Invalid or expired invitation', 401));
+    }
+  }
+}
+
+export async function authenticateQueryToken(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+) {
+
+  try {
+    // 1. Get token from query param
+    const token = typeof req.query.token === 'string' ? req.query.token : null;
+
+    if (!token) {
+      throw new AppError('Access token required in query parameter', 401);
+    }
+
+    // 2. Check if token is blacklisted
+    const blacklistedToken = await prisma.tbl_jwt_blacklist.findUnique({
+      where: { token }
+    });
+
+    if (blacklistedToken) {
+      throw new AppError('Token has been revoked', 401);
+    }
+
+    // 3. Verify token
+    const decoded = verifyToken(token);
+    req.user = decoded;
+
+    // 4. Extract metadata (IP, user agent, etc.)
+    const { ip, userAgent } = getRequestMeta(req);
+    const userId = decoded.user_id;
+
+    // 5. Store metadata in request context (for logging, tracing, etc.)
+    setRequestContext({ userId, ip, userAgent });
+
+    // 6. Done
+    next();
+  } catch (error) {
+    if (error instanceof AppError) {
+      next(error);
+    } else {
+      return res.status(401).end()
     }
   }
 }

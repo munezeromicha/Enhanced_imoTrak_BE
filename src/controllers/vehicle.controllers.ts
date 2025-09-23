@@ -3,7 +3,7 @@ import * as vehicleService from '../services/vehicle.services';
 import { uploadToCloudinary } from '../utils/cloudinary';
 import { AuthenticatedRequest } from '../types/access';
 import { AppError } from '../utils/Error';
-
+import { ServerResponse } from 'http';
 function checkVehiclePermission(req: AuthenticatedRequest, action: keyof AuthenticatedRequest['user']['position_access']['vehicles']) {
   if (!req.user?.position_access?.vehicles?.[action]) {
     throw new AppError(`You do not have permission to ${String(action)} vehicles`, 403);
@@ -154,4 +154,68 @@ export async function deleteVehicleController(req: Request, res: Response, next:
     }
     next(error);
   }
-} 
+}
+
+export async function updateVehicleLocationsController(req: Request, res: Response, next: NextFunction) {
+  try {
+    const pathVehicleId = req.params.id;
+    const { vehicle_id, coords, timestamp } = req.body;
+
+    // Basic validation
+    if (!vehicle_id || !coords || !timestamp) {
+      return res.status(400).json({ error: 'Missing vehicle_id, coords, or timestamp in request body.' });
+    }
+
+    if (pathVehicleId !== vehicle_id) {
+      return res.status(400).json({ error: 'Vehicle ID in path and body must match.' });
+    }
+
+    // Construct location object (we use ISO string for consistency)
+    const location: vehicleService.Location = {
+      vehicle_id,
+      coords,
+      timestamp: typeof timestamp === 'number' ? new Date(timestamp).toISOString() : timestamp,
+    };
+
+    // Broadcast + update in-memory
+    await vehicleService.saveAndBroadcastLocation(location);
+
+    return res.status(200).json({ status: 'Location received and broadcasted' });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+
+export async function streamVehicleLocationController(req: Request, res: Response, next: NextFunction) {
+  try {
+    const vehicleId = req.params.id;
+    const authReq = req as AuthenticatedRequest;
+    if (!authReq.user) {
+      return res.status(401).end();
+    }
+    if (authReq.user?.position_access?.vehicles.view !== true) 
+      return res.status(403).end();
+    const sameOrg = await vehicleService.isUserInSameOrganizationAsVehicle(authReq.user.user_id, vehicleId);
+    if (!sameOrg) {
+      return res.status(403).end();
+    } 
+    // Set headers for SSE
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.flushHeaders(); // flush the headers to establish the SSE stream
+
+    // Optionally send last known location immediately
+    const latest = vehicleService.getLatestLocation(vehicleId);
+    if (latest) {
+      const ssePayload = `data: ${JSON.stringify(latest)}\n\n`;
+      (res as unknown as ServerResponse).write(ssePayload);
+    }
+
+    // Register this client for future location updates
+    vehicleService.addSSEClient(vehicleId, res);
+  } catch (error) {
+    next(error);
+  }
+}

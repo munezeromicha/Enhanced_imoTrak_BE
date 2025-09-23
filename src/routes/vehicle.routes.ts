@@ -9,13 +9,15 @@ import {
   getAllVehiclesController,
   getVehicleByIdController,
   updateVehicleController,
-  deleteVehicleController
+  deleteVehicleController,
+  updateVehicleLocationsController,
+  streamVehicleLocationController
 } from '../controllers/vehicle.controllers';
-import { authenticateToken } from '../middlewares/auth.middleware';
+import { authenticateQueryToken, authenticateToken } from '../middlewares/auth.middleware';
 import { attachPositionAccess } from '../middlewares/attachPositionAccess';
 import { validateBody } from '../middlewares/bodyValidator';
 import { upload } from '../middlewares/multer';
-import { vehicleModelSchema, vehicleModelUpdateSchema, vehicleSchema, vehicleUpdateSchema } from '../schemas/vehicle.schema';
+import { locationUpdateSchema, vehicleModelSchema, vehicleModelUpdateSchema, vehicleSchema, vehicleUpdateSchema } from '../schemas/vehicle.schema';
 
 const router = Router();
 
@@ -332,5 +334,146 @@ router.get('/vehicles', authenticateToken, attachPositionAccess, getAllVehiclesC
 router.get('/vehicles/:id', authenticateToken, attachPositionAccess, getVehicleByIdController);
 router.put('/vehicles/:id', authenticateToken, attachPositionAccess, validateBody(vehicleUpdateSchema), updateVehicleController);
 router.delete('/vehicles/:id', authenticateToken, attachPositionAccess, deleteVehicleController);
+
+// Vehicle locations
+
+/**
+ * @openapi
+ * /v2/vehicles/{id}/locations:
+ *   post:
+ *     summary: Submit live geolocation data for a vehicle
+ *     description: Receives geolocation updates from a vehicle's GPS device or mobile browser and updates the vehicle's current location.
+ *     tags:
+ *       - Vehicle Location
+ *     parameters:
+ *       - name: id
+ *         in: path
+ *         required: true
+ *         description: UUID of the vehicle to update location for
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               vehicle_id:
+ *                 type: string
+ *                 format: uuid
+ *                 description: Vehicle UUID (should match path param)
+ *               coords:
+ *                 type: object
+ *                 properties:
+ *                   latitude:
+ *                     type: number
+ *                     format: float
+ *                     minimum: -90
+ *                     maximum: 90
+ *                   longitude:
+ *                     type: number
+ *                     format: float
+ *                     minimum: -180
+ *                     maximum: 180
+ *                   altitude:
+ *                     type: number
+ *                     format: float
+ *                     nullable: true
+ *                   accuracy:
+ *                     type: number
+ *                     format: float
+ *                     minimum: 0
+ *                   altitudeAccuracy:
+ *                     type: number
+ *                     format: float
+ *                     minimum: 0
+ *                     nullable: true
+ *                   heading:
+ *                     type: number
+ *                     format: float
+ *                     minimum: 0
+ *                     maximum: 360
+ *                     nullable: true
+ *                   speed:
+ *                     type: number
+ *                     format: float
+ *                     minimum: 0
+ *                     nullable: true
+ *               timestamp:
+ *                 type: number
+ *                 format: int64
+ *                 description: Unix timestamp in milliseconds
+ *     responses:
+ *       200:
+ *         description: Location successfully updated
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: Location received
+ *       400:
+ *         description: Invalid request body
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ZodValidationError'
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden – User does not have access to this vehicle
+ *       404:
+ *         description: Vehicle not found
+ */
+router.get('/vehicles/:id/locations/stream',  authenticateQueryToken, attachPositionAccess, streamVehicleLocationController);
+
+/**
+ * @openapi
+ * /v2/vehicles/{id}/locations/stream:
+ *   get:
+ *     summary: Stream live geolocation updates for a vehicle
+ *     description: |
+ *       Opens a Server-Sent Events (SSE) connection that streams real-time location updates of the specified vehicle.
+ *       The client must provide a valid access token as a query parameter for authorization.
+ *     tags:
+ *       - Vehicle Location
+ *     parameters:
+ *       - name: id
+ *         in: path
+ *         required: true
+ *         description: UUID of the vehicle to stream locations for
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *       - name: token
+ *         in: query
+ *         required: true
+ *         description: JWT access token for authorization
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: SSE stream started successfully
+ *         content:
+ *           text/event-stream:
+ *             schema:
+ *               type: string
+ *               description: |
+ *                 Server-Sent Events stream that sends JSON payloads with vehicle location updates.
+ *                 Each event's data field contains a JSON object with vehicle location information.
+ *       401:
+ *         description: Unauthorized – invalid or missing token
+ *       403:
+ *         description: Forbidden – User does not have permission to view vehicle locations
+ *       404:
+ *         description: Vehicle not found
+ */
+
+router.post('/vehicles/:id/locations', validateBody(locationUpdateSchema), updateVehicleLocationsController);
+
 
 export default router; 
