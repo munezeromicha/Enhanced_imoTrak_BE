@@ -13,7 +13,6 @@ model tbl_auth {
   password    String?
   updated_at  DateTime?
   user_status UserStatus @default(ACTIVE)
-  isVerified  Boolean    @default(false)
   is_verified Boolean    @default(false)
   user        tbl_users?
 }
