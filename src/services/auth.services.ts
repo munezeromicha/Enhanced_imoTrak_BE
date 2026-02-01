@@ -268,7 +268,7 @@ export async function verifyUserByEmailService(email: string, token: string) {
     throw new AppError('User not found', 404);
   }
 
-  if (authRecord.isVerified) {
+  if (authRecord.is_verified) {
     throw new AppError('User is already verified', 409);
   }
 
@@ -317,7 +317,7 @@ export async function setPasswordAndVerifyService(email: string, newPassword: st
     throw new AppError('User not found', 404);
   }
 
-  if (authRecord.isVerified) {
+  if (authRecord.is_verified) {
     throw new AppError('Account is already verified', 409);
   }
 
@@ -339,7 +339,7 @@ export async function setPasswordAndVerifyService(email: string, newPassword: st
       where: { email },
       data: {
         password: hashedPassword,
-        isVerified: true,
+        is_verified: true,
         updated_at: new Date(),
       },
     }),
@@ -380,7 +380,7 @@ export async function resendInvitationService(email: string) {
     throw new AppError('User not found', 404);
   }
 
-  if (authRecord.isVerified) {
+  if (authRecord.is_verified) {
     throw new AppError('User is already verified', 409);
   }
 
