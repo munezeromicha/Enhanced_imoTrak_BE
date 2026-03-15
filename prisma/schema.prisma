@@ -139,6 +139,7 @@ model tbl_vehicles {
   reservations      tbl_reserved_vehicles[]
   organization      tbl_organizations       @relation(fields: [organization_id], references: [organization_id])
   vehicle_model     tbl_vehicle_models      @relation(fields: [vehicle_model_id], references: [vehicle_model_id])
+  locations         tbl_vehicle_locations[]
 }
 
 model tbl_reserved_vehicles {
@@ -155,6 +156,14 @@ model tbl_reserved_vehicles {
   returned_by_user    tbl_users?           @relation("ReservationReturnedBy", fields: [returned_by], references: [user_id])
   vehicle             tbl_vehicles         @relation(fields: [vehicle_id], references: [vehicle_id])
   isuues              tbl_vehicle_issues[]
+}
+
+model tbl_vehicle_locations {
+  location_id String @id @default(uuid())
+  vehicle_id  String
+  coords      Json
+  timestamp   DateTime @default(now())
+  vehicle     tbl_vehicles @relation(fields: [vehicle_id], references: [vehicle_id])
 }
 
 model tbl_unit {
