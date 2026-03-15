@@ -48,7 +48,7 @@ export async function getAllVehicles(organizationId: string) {
 }
 
 export async function getVehicleById(id: string) {
-  return prisma.tbl_vehicles.findUnique({ where: { vehicle_id: id }, include: { organization: true, vehicle_model: true } });
+  return prisma.tbl_vehicles.findUnique({ where: { vehicle_id: id }, include: { organization: true, vehicle_model: true, locations: true } });
 }
 
 export async function updateVehicle(id: string, data: Partial<Omit<tbl_vehicles, 'vehicle_id' | 'created_at' | 'last_service_date' | 'reservations'>>) {
