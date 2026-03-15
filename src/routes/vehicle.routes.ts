@@ -198,6 +198,35 @@ const router = Router();
  *         description: Vehicle model deleted
  *
  * /v2/vehicles:
+ *   get:
+ *     summary: Get all vehicles
+ *     tags: [Vehicles]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: startDate
+ *         required: false
+ *         description: Filter by availability - only vehicles available in the date range (ISO date or date-time)
+ *         schema:
+ *           type: string
+ *           format: date
+ *       - in: query
+ *         name: endDate
+ *         required: false
+ *         description: End of availability range (use with startDate)
+ *         schema:
+ *           type: string
+ *           format: date
+ *     responses:
+ *       200:
+ *         description: List of vehicles
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Vehicle'
  *   post:
  *     summary: Create a vehicle
  *     tags: [Vehicles]
@@ -243,20 +272,6 @@ const router = Router();
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/Vehicle'
- *   get:
- *     summary: Get all vehicles
- *     tags: [Vehicles]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: List of vehicles
- *         content:
- *           application/json:
- *             schema:
- *               type: array
- *               items:
- *                 $ref: '#/components/schemas/Vehicle'
  *
  * /v2/vehicles/{id}:
  *   get:

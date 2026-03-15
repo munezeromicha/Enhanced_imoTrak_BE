@@ -2,6 +2,7 @@ import { PrismaClient, tbl_vehicle_models, tbl_vehicles } from '@prisma/client';
 import { Response } from 'express';
 import { ServerResponse } from 'http';
 import { AppError } from '../utils/Error';
+import * as reservationService from './reservation.services';
 
 const prisma = new PrismaClient();
 
@@ -34,15 +35,58 @@ export async function createVehicle(data: Omit<tbl_vehicles, 'vehicle_id' | 'cre
   return prisma.tbl_vehicles.create({ data });
 }
 
-export async function getAllVehicles(organizationId: string) {
-  // Get all vehicles from the specified organization
+/**
+ * Get all vehicles for an organization.
+ * When startDate and endDate are provided, returns only vehicles available for that date range (for reservation).
+ */
+export async function getAllVehicles(
+  organizationId: string,
+  startDate?: string,
+  endDate?: string
+) {
+  const useAvailabilityFilter =
+    startDate &&
+    endDate &&
+    startDate.trim() !== '' &&
+    endDate.trim() !== '';
+
+  if (useAvailabilityFilter) {
+    try {
+      const available = await reservationService.getAvailableVehiclesForDateRange(
+        startDate,
+        endDate,
+        organizationId
+      );
+      const vehicleIds = available.map((v) => v.vehicle_id);
+      if (vehicleIds.length === 0) {
+        return [];
+      }
+      return prisma.tbl_vehicles.findMany({
+        where: {
+          organization_id: organizationId,
+          vehicle_id: { in: vehicleIds },
+        },
+        include: {
+          organization: true,
+          vehicle_model: true,
+        },
+      });
+    } catch {
+      // Invalid range or past dates: return all vehicles
+      return prisma.tbl_vehicles.findMany({
+        where: { organization_id: organizationId },
+        include: { organization: true, vehicle_model: true },
+      });
+    }
+  }
+
   return prisma.tbl_vehicles.findMany({
     where: {
       organization_id: organizationId,
     },
-    include: { 
-      organization: true, 
-      vehicle_model: true 
+    include: {
+      organization: true,
+      vehicle_model: true,
     },
   });
 }

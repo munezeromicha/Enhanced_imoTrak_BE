@@ -108,7 +108,9 @@ export async function getAllVehiclesController(req: Request, res: Response, next
   try {
     checkVehiclePermission(req as AuthenticatedRequest, 'view');
     const organizationId = (req as AuthenticatedRequest).user.organization_id;
-    const vehicles = await vehicleService.getAllVehicles(organizationId);
+    const startDate = typeof req.query.startDate === 'string' ? req.query.startDate : undefined;
+    const endDate = typeof req.query.endDate === 'string' ? req.query.endDate : undefined;
+    const vehicles = await vehicleService.getAllVehicles(organizationId, startDate, endDate);
     res.json({ data: vehicles });
   } catch (error) {
     next(error);
