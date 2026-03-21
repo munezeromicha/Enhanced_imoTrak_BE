@@ -26,6 +26,19 @@ export const createReservation = async (req: AuthenticatedRequest, res: Response
     checkPermission(req, 'create');
     const body = createReservationSchema.parse(req.body);
     const user_id = req.user.user_id;
+    if (req.body.departure_date && req.body.expected_returning_date) {
+      const departure = new Date(req.body.departure_date);
+      const returnDate = new Date(req.body.expected_returning_date);
+      const now = new Date();
+      
+      if (departure < now) {
+        throw new Error('Departure date cannot be in the past');
+      }
+      
+      if (returnDate <= departure) {
+        throw new Error('Return date must be after departure date');
+      }
+    }
     const reservation = await reservationService.createReservation({ ...body, user_id });
     res.status(201).json({ message: 'Reservation created', data: reservation });
   } catch (error) {

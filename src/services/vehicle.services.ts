@@ -92,7 +92,7 @@ export async function getAllVehicles(
 }
 
 export async function getVehicleById(id: string) {
-  return prisma.tbl_vehicles.findUnique({ where: { vehicle_id: id }, include: { organization: true, vehicle_model: true } });
+  return prisma.tbl_vehicles.findUnique({ where: { vehicle_id: id }, include: { organization: true, vehicle_model: true, locations: true } });
 }
 
 export async function updateVehicle(id: string, data: Partial<Omit<tbl_vehicles, 'vehicle_id' | 'created_at' | 'last_service_date' | 'reservations'>>) {
@@ -119,7 +119,7 @@ interface Coords {
 export interface Location {
   vehicle_id: string;
   coords: Coords;
-  timestamp: string | number; // ISO string or Unix ms timestamp
+  timestamp: string | number | Date; // ISO string or Unix ms timestamp
 }
 
 const vehicleLocations = new Map<string, Location>();           // vehicle_id -> latest location
@@ -130,7 +130,13 @@ export async function saveAndBroadcastLocation(location: Location): Promise<void
   if (!vehicle_id) return;
 
   // Save the latest location
-  vehicleLocations.set(vehicle_id, location);
+  await prisma.tbl_vehicle_locations.create({
+    data: {
+      vehicle_id,
+      coords: JSON.stringify(location.coords),
+      timestamp: new Date(location.timestamp as string | number),
+    },
+  });
 
   const data = `data: ${JSON.stringify(location)}\n\n`;
 

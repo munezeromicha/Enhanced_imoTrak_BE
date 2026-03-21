@@ -69,6 +69,7 @@ const router = Router();
  *       properties:
  *         vehicle_id:
  *           type: string
+ *           format: uuid
  *         plate_number:
  *           type: string
  *         transmission_mode:
@@ -76,8 +77,10 @@ const router = Router();
  *           enum: [MANUAL, AUTOMATIC, SEMI_AUTOMATIC]
  *         vehicle_model_id:
  *           type: string
+ *           format: uuid
  *         vehicle_photo:
  *           type: string
+ *           format: uri
  *         vehicle_year:
  *           type: integer
  *         vehicle_status:
@@ -93,6 +96,84 @@ const router = Router();
  *           format: date-time
  *         organization_id:
  *           type: string
+ *           format: uuid
+ *         organization:
+ *           $ref: '#/components/schemas/Organization'
+ *         vehicle_model:
+ *           $ref: '#/components/schemas/VehicleModel'
+ *         locations:
+ *           type: array
+ *           items:
+ *             $ref: '#/components/schemas/VehicleLocation'
+ *     Organization:
+ *       type: object
+ *       properties:
+ *         organization_id:
+ *           type: string
+ *           format: uuid
+ *         organization_name:
+ *           type: string
+ *         street_address:
+ *           type: string
+ *         organization_phone:
+ *           type: string
+ *         organization_email:
+ *           type: string
+ *         organization_logo:
+ *           type: string
+ *           format: uri
+ *         created_at:
+ *           type: string
+ *           format: date-time
+ *         organization_customId:
+ *           type: string
+ *         organization_status:
+ *           type: string
+ *           enum: [ACTIVE, INACTIVE, DELETED, SUSPENDED]
+ *     VehicleLocation:
+ *       type: object
+ *       properties:
+ *         location_id:
+ *           type: string
+ *           format: uuid
+ *         vehicle_id:
+ *           type: string
+ *           format: uuid
+ *         coords:
+ *           $ref: '#/components/schemas/Coords'
+ *         timestamp:
+ *           type: string
+ *           format: date-time
+ *     Coords:
+ *       type: object
+ *       properties:
+ *         latitude:
+ *           type: number
+ *           minimum: -90
+ *           maximum: 90
+ *         longitude:
+ *           type: number
+ *           minimum: -180
+ *           maximum: 180
+ *         altitude:
+ *           type: number
+ *           nullable: true
+ *         accuracy:
+ *           type: number
+ *           minimum: 0
+ *         altitudeAccuracy:
+ *           type: number
+ *           minimum: 0
+ *           nullable: true
+ *         heading:
+ *           type: number
+ *           minimum: 0
+ *           maximum: 360
+ *           nullable: true
+ *         speed:
+ *           type: number
+ *           minimum: 0
+ *           nullable: true
  *
  * /v2/vehicle-models:
  *   post:
@@ -291,7 +372,52 @@ const router = Router();
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/Vehicle'
+ *               type: object
+ *               properties:
+ *                 data:
+ *                   $ref: '#/components/schemas/Vehicle'
+ *             example:
+ *               data:
+ *                 vehicle_id: "550e8400-e29b-41d4-a716-446655440000"
+ *                 plate_number: "RAC123A"
+ *                 transmission_mode: "MANUAL"
+ *                 vehicle_model_id: "550e8400-e29b-41d4-a716-446655440001"
+ *                 vehicle_photo: "https://example.com/vehicle-photo.jpg"
+ *                 vehicle_year: 2020
+ *                 vehicle_status: "AVAILABLE"
+ *                 energy_type: "Diesel"
+ *                 last_service_date: "2024-01-15T10:30:00.000Z"
+ *                 created_at: "2024-01-01T08:00:00.000Z"
+ *                 organization_id: "550e8400-e29b-41d4-a716-446655440002"
+ *                 organization:
+ *                   organization_id: "550e8400-e29b-41d4-a716-446655440002"
+ *                   organization_name: "Emergency Services"
+ *                   street_address: "123 Main St, City, Country"
+ *                   organization_phone: "+1234567890"
+ *                   organization_email: "contact@emergency.org"
+ *                   organization_logo: "https://example.com/logo.png"
+ *                   created_at: "2024-01-01T08:00:00.000Z"
+ *                   organization_customId: "ORG001"
+ *                   organization_status: "ACTIVE"
+ *                 vehicle_model:
+ *                   vehicle_model_id: "550e8400-e29b-41d4-a716-446655440001"
+ *                   vehicle_model_name: "Toyota Hiace"
+ *                   vehicle_type: "VAN"
+ *                   manufacturer_name: "Toyota"
+ *                   created_at: "2024-01-01T08:00:00.000Z"
+ *                   vehicle_capacity: 15
+ *                 locations:
+ *                   - location_id: "550e8400-e29b-41d4-a716-446655440003"
+ *                     vehicle_id: "550e8400-e29b-41d4-a716-446655440000"
+ *                     coords:
+ *                       latitude: -1.2921
+ *                       longitude: 36.8219
+ *                       altitude: 1685.4
+ *                       accuracy: 10.5
+ *                       altitudeAccuracy: 2.3
+ *                       heading: 45.2
+ *                       speed: 5.8
+ *                     timestamp: "2024-03-15T14:30:00.000Z"
  *       404:
  *         description: Vehicle not found
  *   put:
