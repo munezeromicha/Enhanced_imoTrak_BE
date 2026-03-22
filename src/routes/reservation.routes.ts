@@ -4,17 +4,14 @@ import {
   createReservation,
   cancelReservation,
   updateReservationStatus,
-  assignVehicle,
+  assignMultipleVehicles,
   completeReservation,
   getAllReservations,
   deleteReservation,
-  updateOdometerFuel,
   getMyReservations,
   updateReservationReason,
-  assignVehicleWithOdometerFuel,
-  getReservationById,
-  assignMultipleVehicles,
   assignMultipleVehiclesWithOdometerFuel,
+  getReservationById,
   updateMultipleVehiclesWithOdometerFuel,
   getAvailableVehicles,
   addVehicleToReservation,
@@ -28,9 +25,7 @@ import {
   assignVehicleSchema,
   assignMultipleVehiclesSchema,
   assignMultipleVehiclesWithOdometerFuelSchema,
-  startReservationSchema,
   completeReservationSchema,
-  odometerFuelSchema,
   getAvailableVehiclesSchema,
 } from '../schemas/reservation.schema';
 import { authenticateToken } from '../middlewares/auth.middleware';
@@ -175,48 +170,6 @@ router.patch('/:id/status', authenticateToken, attachPositionAccess, validateBod
 
 /**
  * @openapi
- * /v2/reservations/{id}/assign-vehicle:
- *   post:
- *     summary: Assign a vehicle to a reservation
- *     security:
- *       - bearerAuth: []
- *     tags:
- *       - Reservations
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *           format: uuid
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             $ref: '#/components/schemas/AssignVehicle'
- *           example:
- *             vehicle_id: "c4d5e6f7-1234-5678-9abc-def012345678"
- *     responses:
- *       200:
- *         description: Vehicle assigned
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Reservation'
- *             example:
- *               reservation_id: "b3b1c2d3-e4f5-6789-abcd-1234567890ef"
- *               reservation_status: "APPROVED"
- *               reserved_vehicles:
- *                 - reserved_vehicle_id: "d5e6f7a8-2345-6789-abcd-ef0123456789"
- *                   vehicle_id: "c4d5e6f7-1234-5678-9abc-def012345678"
- *       400:
- *         description: Bad request
- */
-router.post('/:id/assign-vehicle', authenticateToken, attachPositionAccess, validateBody(assignVehicleSchema), withAuthUser(assignVehicle));
-
-/**
- * @openapi
  * /v2/reservations/{id}/assign-multiple-vehicles:
  *   post:
  *     summary: Assign multiple vehicles to a reservation at once (sets status to ACCEPTED)
@@ -311,38 +264,6 @@ router.post('/:id/assign-vehicle', authenticateToken, attachPositionAccess, vali
 router.post('/:id/assign-multiple-vehicles', authenticateToken, attachPositionAccess, validateBody(assignMultipleVehiclesSchema), withAuthUser(assignMultipleVehicles));
 
 /**
- * @openapi
- * /v2/reservations/{reservedVehicleId}/odometer-fuel:
- *   post:
- *     summary: Update starting odometer and fuel provided
- *     security:
- *       - bearerAuth: []
- *     tags:
- *       - Reservations
- *     parameters:
- *       - in: path
- *         name: reservedVehicleId
- *         required: true
- *         schema:
- *           type: string
- *           format: uuid
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             $ref: '#/components/schemas/OdometerFuel'
- *           example:
- *             starting_odometer: 12000
- *             fuel_provided: 50
- *     responses:
- *       200:
- *         description: Odometer and fuel updated
- *       400:
- *         description: Bad request
- */
-router.post('/:reservedVehicleId/odometer-fuel', authenticateToken, attachPositionAccess, validateBody(odometerFuelSchema), withAuthUser(updateOdometerFuel));
-
 /**
  * @openapi
  * /v2/reservations/{reservedVehicleId}/complete:
@@ -591,62 +512,6 @@ router.post(
 );
 
 /**
- * @openapi
- * /v2/reservations/{id}/assign-vehicle-odometer:
- *   post:
- *     summary: Assign a vehicle to a reservation and set odometer/fuel in one call
- *     security:
- *       - bearerAuth: []
- *     tags:
- *       - Reservations
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *           format: uuid
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               vehicle_id:
- *                 type: string
- *                 format: uuid
- *               starting_odometer:
- *                 type: integer
- *                 default: 0
- *                 example: 0
- *               fuel_provided:
- *                 type: integer
- *                 default: 0
- *                 example: 0
- *           example:
- *             vehicle_id: "c4d5e6f7-1234-5678-9abc-def012345678"
- *             starting_odometer: 0
- *             fuel_provided: 0
- *     responses:
- *       200:
- *         description: Vehicle assigned with odometer/fuel
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 message:
- *                   type: string
- *                 data:
- *                   type: array
- *                   items:
- *                     type: object
- *       400:
- *         description: Bad request
- */
-router.post('/:id/assign-vehicle-odometer', authenticateToken, attachPositionAccess, withAuthUser(assignVehicleWithOdometerFuel));
-
 /**
  * @openapi
  * /v2/reservations/{id}/assign-multiple-vehicles-odometer:
