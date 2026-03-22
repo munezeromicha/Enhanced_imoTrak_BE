@@ -118,8 +118,9 @@ interface Coords {
 
 export interface Location {
   vehicle_id: string;
+  reserved_vehicle_id?: string;   // ties the ping to a specific trip
   coords: Coords;
-  timestamp: string | number | Date; // ISO string or Unix ms timestamp
+  timestamp: string | number | Date;
 }
 
 const vehicleLocations = new Map<string, Location>();           // vehicle_id -> latest location
@@ -133,6 +134,7 @@ export async function saveAndBroadcastLocation(location: Location): Promise<void
   await prisma.tbl_vehicle_locations.create({
     data: {
       vehicle_id,
+      reserved_vehicle_id: location.reserved_vehicle_id ?? null,
       coords: JSON.stringify(location.coords),
       timestamp: new Date(location.timestamp as string | number),
     },
@@ -174,32 +176,33 @@ export async function getLatestLocation(vehicleId: string): Promise<Location | n
 
 export async function getVehicleLocationHistory(
   vehicleId: string,
-  from?: string,
-  to?: string
+  reservedVehicleId?: string,
 ) {
-  const where: { vehicle_id: string; timestamp?: { gte?: Date; lte?: Date } } = { vehicle_id: vehicleId };
-
-  if (from || to) {
-    where.timestamp = {};
-    if (from) where.timestamp.gte = new Date(from);
-    if (to)   where.timestamp.lte = new Date(to);
-  }
-
   return prisma.tbl_vehicle_locations.findMany({
-    where,
+    where: {
+      vehicle_id: vehicleId,
+      ...(reservedVehicleId ? { reserved_vehicle_id: reservedVehicleId } : {}),
+    },
     orderBy: { timestamp: 'asc' },
   });
 }
-  // Fetch all organization IDs from user's positions
+
+// Also allow fetching a trip's path directly by reserved_vehicle_id alone
+export async function getTripLocationHistory(reservedVehicleId: string) {
+  return prisma.tbl_vehicle_locations.findMany({
+    where: { reserved_vehicle_id: reservedVehicleId },
+    orderBy: { timestamp: 'asc' },
+  });
+}
+
+export async function isUserInSameOrganizationAsVehicle(userId: string, vehicleId: string): Promise<boolean> {
   const user = await prisma.tbl_users.findUnique({
     where: { user_id: userId },
     select: {
       positions: {
         select: {
           unit: {
-            select: {
-              organization_id: true
-            }
+            select: { organization_id: true }
           }
         }
       }
@@ -212,7 +215,6 @@ export async function getVehicleLocationHistory(
 
   const userOrgIds = user.positions.map(pos => pos.unit.organization_id);
 
-  // Fetch the vehicle's organization ID
   const vehicle = await prisma.tbl_vehicles.findUnique({
     where: { vehicle_id: vehicleId },
     select: { organization_id: true }
@@ -222,7 +224,6 @@ export async function getVehicleLocationHistory(
     throw new AppError('Vehicle not found', 404);
   }
 
-  // Check if vehicle organization ID matches any of the user's organizations
   return userOrgIds.includes(vehicle.organization_id);
 }
 

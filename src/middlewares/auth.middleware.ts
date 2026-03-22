@@ -28,13 +28,18 @@ export async function authenticateToken(
       throw new AppError('Access token required', 401);
     }
 
-    // Check if token is blacklisted
-    const blacklistedToken = await prisma.tbl_jwt_blacklist.findUnique({
-      where: { token }
-    });
-
-    if (blacklistedToken) {
-      throw new AppError('Token has been revoked', 401);
+    // Check if token is blacklisted — skip if DB is unreachable
+    try {
+      const blacklistedToken = await prisma.tbl_jwt_blacklist.findUnique({
+        where: { token }
+      });
+      if (blacklistedToken) {
+        throw new AppError('Token has been revoked', 401);
+      }
+    } catch (dbError) {
+      if (dbError instanceof AppError) throw dbError;
+      // DB unreachable — fail open, don't log the user out
+      console.warn('Blacklist check skipped (DB unreachable):', (dbError as Error).message);
     }
 
     // Verify token
@@ -127,13 +132,17 @@ export async function authenticateQueryToken(
       throw new AppError('Access token required in query parameter', 401);
     }
 
-    // 2. Check if token is blacklisted
-    const blacklistedToken = await prisma.tbl_jwt_blacklist.findUnique({
-      where: { token }
-    });
-
-    if (blacklistedToken) {
-      throw new AppError('Token has been revoked', 401);
+    // 2. Check if token is blacklisted — skip if DB is unreachable
+    try {
+      const blacklistedToken = await prisma.tbl_jwt_blacklist.findUnique({
+        where: { token }
+      });
+      if (blacklistedToken) {
+        throw new AppError('Token has been revoked', 401);
+      }
+    } catch (dbError) {
+      if (dbError instanceof AppError) throw dbError;
+      console.warn('Blacklist check skipped (DB unreachable):', (dbError as Error).message);
     }
 
     // 3. Verify token

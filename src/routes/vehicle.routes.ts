@@ -13,6 +13,7 @@ import {
   updateVehicleLocationsController,
   streamVehicleLocationController,
   getVehicleLocationHistoryController,
+  getTripLocationHistoryController,
 } from '../controllers/vehicle.controllers';
 import { authenticateQueryToken, authenticateToken } from '../middlewares/auth.middleware';
 import { attachPositionAccess } from '../middlewares/attachPositionAccess';
@@ -571,9 +572,12 @@ router.delete('/vehicles/:id', authenticateToken, attachPositionAccess, deleteVe
  *       404:
  *         description: Vehicle not found
  */
-router.get('/vehicles/:id/locations/stream',  authenticateQueryToken, attachPositionAccess, streamVehicleLocationController);
+router.get('/vehicles/:id/locations/stream', authenticateQueryToken, attachPositionAccess, streamVehicleLocationController);
 router.get('/vehicles/:id/locations', authenticateToken, attachPositionAccess, getVehicleLocationHistoryController);
 router.post('/vehicles/:id/locations', validateBody(locationUpdateSchema), updateVehicleLocationsController);
+
+// Trip-scoped location history: GET /v2/trips/:reservedVehicleId/locations
+router.get('/trips/:reservedVehicleId/locations', authenticateToken, attachPositionAccess, getTripLocationHistoryController);
 
 
 export default router; 
