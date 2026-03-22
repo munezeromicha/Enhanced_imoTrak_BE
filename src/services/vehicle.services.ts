@@ -172,7 +172,24 @@ export async function getLatestLocation(vehicleId: string): Promise<Location | n
   return vehicleLocations.get(vehicleId) || null;
 }
 
-export async function isUserInSameOrganizationAsVehicle(userId: string, vehicleId: string): Promise<boolean> {
+export async function getVehicleLocationHistory(
+  vehicleId: string,
+  from?: string,
+  to?: string
+) {
+  const where: { vehicle_id: string; timestamp?: { gte?: Date; lte?: Date } } = { vehicle_id: vehicleId };
+
+  if (from || to) {
+    where.timestamp = {};
+    if (from) where.timestamp.gte = new Date(from);
+    if (to)   where.timestamp.lte = new Date(to);
+  }
+
+  return prisma.tbl_vehicle_locations.findMany({
+    where,
+    orderBy: { timestamp: 'asc' },
+  });
+}
   // Fetch all organization IDs from user's positions
   const user = await prisma.tbl_users.findUnique({
     where: { user_id: userId },

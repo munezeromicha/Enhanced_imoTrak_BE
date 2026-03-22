@@ -164,6 +164,17 @@ export async function deleteVehicleController(req: Request, res: Response, next:
   }
 }
 
+export async function getVehicleLocationHistoryController(req: Request, res: Response, next: NextFunction) {
+  try {
+    checkVehiclePermission(req as AuthenticatedRequest, 'viewSingle');
+    const { from, to } = req.query as { from?: string; to?: string };
+    const history = await vehicleService.getVehicleLocationHistory(req.params.id, from, to);
+    res.json({ data: history });
+  } catch (error) {
+    next(error);
+  }
+}
+
 export async function updateVehicleLocationsController(req: Request, res: Response, next: NextFunction) {
   try {
     const pathVehicleId = req.params.id;
