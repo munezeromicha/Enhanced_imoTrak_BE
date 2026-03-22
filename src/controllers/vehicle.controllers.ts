@@ -131,7 +131,13 @@ export async function getVehicleByIdController(req: Request, res: Response, next
 export async function updateVehicleController(req: Request, res: Response, next: NextFunction) {
   try {
     checkVehiclePermission(req as AuthenticatedRequest, 'update');
-    const vehicle = await vehicleService.updateVehicle(req.params.id, req.body);
+    let vehiclePhotoUrl = req.body.vehicle_photo;
+    if (req.file) {
+      vehiclePhotoUrl = await uploadToCloudinary(req.file.buffer, 'vehicles');
+    }
+    const updates = { ...req.body };
+    if (vehiclePhotoUrl) updates.vehicle_photo = vehiclePhotoUrl;
+    const vehicle = await vehicleService.updateVehicle(req.params.id, updates);
     res.json({ message: 'Vehicle updated', data: vehicle });
   } catch (error: any) {
     if (error.code === 'P2002') {

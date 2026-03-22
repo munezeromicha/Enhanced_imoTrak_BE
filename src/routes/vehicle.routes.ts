@@ -473,7 +473,7 @@ router.delete('/vehicle-models/:id', authenticateToken, attachPositionAccess, de
 router.post('/vehicles', authenticateToken, attachPositionAccess, upload.single('vehicle_photo'), validateBody(vehicleSchema), createVehicleController);
 router.get('/vehicles', authenticateToken, attachPositionAccess, getAllVehiclesController);
 router.get('/vehicles/:id', authenticateToken, attachPositionAccess, getVehicleByIdController);
-router.put('/vehicles/:id', authenticateToken, attachPositionAccess, validateBody(vehicleUpdateSchema), updateVehicleController);
+router.put('/vehicles/:id', authenticateToken, attachPositionAccess, upload.single('vehicle_photo'), validateBody(vehicleUpdateSchema), updateVehicleController);
 router.delete('/vehicles/:id', authenticateToken, attachPositionAccess, deleteVehicleController);
 
 // Vehicle locations
