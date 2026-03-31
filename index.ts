@@ -6,6 +6,7 @@ import helmet from 'helmet';
 import { Request, Response } from 'express';
 import { swaggerUi, swaggerSpec } from './src/utils/swagger';
 import { errorHandler } from './src/middlewares/errorHandler';
+import { auditLogger } from './src/middlewares/auditLogger.middleware';
 import routes from './src/routes';
 import { startTokenCleanupScheduler } from './src/utils/tokenCleanup';
 
@@ -13,16 +14,12 @@ dotenv.config();
 
 const app = express();
 
-app.use(cors({
-  origin: true,
-  credentials: true
-}));
-
+app.use(cors({ origin: true, credentials: true }));
 app.use(helmet());
 app.use(express.json());
 app.use(morgan('short'));
 
-app.use('/v2', routes);
+app.use('/v2', auditLogger, routes);
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 app.get('/', (req: Request, res: Response) => {
