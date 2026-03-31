@@ -67,6 +67,7 @@ model tbl_notifications {
   user_id              String
   notification_title   String
   notification_message String
+  is_read              Boolean   @default(false)
   created_at           DateTime  @default(now())
   user                 tbl_users @relation(fields: [user_id], references: [user_id])
 }

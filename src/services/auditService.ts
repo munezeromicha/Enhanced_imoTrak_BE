@@ -21,12 +21,16 @@ export async function getAuditLogs(filters: {
   };
 
   // Apply filters
-  if (filters.name || filters.email || filters.organization) {
+  if (filters.name || filters.email) {
     where.user = {
-      ...(filters.name && { name: { contains: filters.name, mode: 'insensitive' } }),
-      ...(filters.email && { email: { contains: filters.email, mode: 'insensitive' } }),
-      ...(filters.organization && {
-        organization: { contains: filters.organization, mode: 'insensitive' },
+      ...(filters.name && {
+        OR: [
+          { first_name: { contains: filters.name, mode: 'insensitive' } },
+          { last_name:  { contains: filters.name, mode: 'insensitive' } },
+        ],
+      }),
+      ...(filters.email && {
+        auth: { email: { contains: filters.email, mode: 'insensitive' } },
       }),
     };
   }
@@ -34,7 +38,11 @@ export async function getAuditLogs(filters: {
   const [logs, total] = await Promise.all([
     prisma.tbl_audit_logs.findMany({
       where,
-      include: { user: true },
+      include: {
+        user: {
+          include: { auth: true },
+        },
+      },
       orderBy: { timestamp: 'desc' },
       skip,
       take: limit,
