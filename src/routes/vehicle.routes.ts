@@ -11,7 +11,9 @@ import {
   updateVehicleController,
   deleteVehicleController,
   updateVehicleLocationsController,
-  streamVehicleLocationController
+  streamVehicleLocationController,
+  getVehicleLocationHistoryController,
+  getTripLocationHistoryController,
 } from '../controllers/vehicle.controllers';
 import { authenticateQueryToken, authenticateToken } from '../middlewares/auth.middleware';
 import { attachPositionAccess } from '../middlewares/attachPositionAccess';
@@ -279,6 +281,35 @@ const router = Router();
  *         description: Vehicle model deleted
  *
  * /v2/vehicles:
+ *   get:
+ *     summary: Get all vehicles
+ *     tags: [Vehicles]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: startDate
+ *         required: false
+ *         description: Filter by availability - only vehicles available in the date range (ISO date or date-time)
+ *         schema:
+ *           type: string
+ *           format: date
+ *       - in: query
+ *         name: endDate
+ *         required: false
+ *         description: End of availability range (use with startDate)
+ *         schema:
+ *           type: string
+ *           format: date
+ *     responses:
+ *       200:
+ *         description: List of vehicles
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Vehicle'
  *   post:
  *     summary: Create a vehicle
  *     tags: [Vehicles]
@@ -324,20 +355,6 @@ const router = Router();
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/Vehicle'
- *   get:
- *     summary: Get all vehicles
- *     tags: [Vehicles]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: List of vehicles
- *         content:
- *           application/json:
- *             schema:
- *               type: array
- *               items:
- *                 $ref: '#/components/schemas/Vehicle'
  *
  * /v2/vehicles/{id}:
  *   get:
@@ -458,7 +475,7 @@ router.delete('/vehicle-models/:id', authenticateToken, attachPositionAccess, de
 router.post('/vehicles', authenticateToken, attachPositionAccess, upload.single('vehicle_photo'), validateBody(vehicleSchema), createVehicleController);
 router.get('/vehicles', authenticateToken, attachPositionAccess, getAllVehiclesController);
 router.get('/vehicles/:id', authenticateToken, attachPositionAccess, getVehicleByIdController);
-router.put('/vehicles/:id', authenticateToken, attachPositionAccess, validateBody(vehicleUpdateSchema), updateVehicleController);
+router.put('/vehicles/:id', authenticateToken, attachPositionAccess, upload.single('vehicle_photo'), validateBody(vehicleUpdateSchema), updateVehicleController);
 router.delete('/vehicles/:id', authenticateToken, attachPositionAccess, deleteVehicleController);
 
 // Vehicle locations
@@ -555,51 +572,12 @@ router.delete('/vehicles/:id', authenticateToken, attachPositionAccess, deleteVe
  *       404:
  *         description: Vehicle not found
  */
-router.get('/vehicles/:id/locations/stream',  authenticateQueryToken, attachPositionAccess, streamVehicleLocationController);
-
-/**
- * @openapi
- * /v2/vehicles/{id}/locations/stream:
- *   get:
- *     summary: Stream live geolocation updates for a vehicle
- *     description: |
- *       Opens a Server-Sent Events (SSE) connection that streams real-time location updates of the specified vehicle.
- *       The client must provide a valid access token as a query parameter for authorization.
- *     tags:
- *       - Vehicle Location
- *     parameters:
- *       - name: id
- *         in: path
- *         required: true
- *         description: UUID of the vehicle to stream locations for
- *         schema:
- *           type: string
- *           format: uuid
- *       - name: token
- *         in: query
- *         required: true
- *         description: JWT access token for authorization
- *         schema:
- *           type: string
- *     responses:
- *       200:
- *         description: SSE stream started successfully
- *         content:
- *           text/event-stream:
- *             schema:
- *               type: string
- *               description: |
- *                 Server-Sent Events stream that sends JSON payloads with vehicle location updates.
- *                 Each event's data field contains a JSON object with vehicle location information.
- *       401:
- *         description: Unauthorized – invalid or missing token
- *       403:
- *         description: Forbidden – User does not have permission to view vehicle locations
- *       404:
- *         description: Vehicle not found
- */
-
+router.get('/vehicles/:id/locations/stream', authenticateQueryToken, attachPositionAccess, streamVehicleLocationController);
+router.get('/vehicles/:id/locations', authenticateToken, attachPositionAccess, getVehicleLocationHistoryController);
 router.post('/vehicles/:id/locations', validateBody(locationUpdateSchema), updateVehicleLocationsController);
+
+// Trip-scoped location history: GET /v2/trips/:reservedVehicleId/locations
+router.get('/trips/:reservedVehicleId/locations', authenticateToken, attachPositionAccess, getTripLocationHistoryController);
 
 
 export default router; 

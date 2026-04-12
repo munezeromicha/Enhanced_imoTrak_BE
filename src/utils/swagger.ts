@@ -15,9 +15,9 @@ const options: swaggerJSDoc.Options = {
       description: 'API documentation for Imotrak Backend',
     },
     servers: [
-      { url: 'https://imotrak-api.urbinaryhub.rw/' },
-      { url: `http://localhost:${PORT}` },
-      { url: 'https://imoteack.onrender.com' },
+      // { url: 'https://imotrak-api.urbinaryhub.rw/' },
+      // { url: `http://localhost:${PORT}` },
+      { url: 'https://imotrak.ur.ac.rw' },
     ],
     components: {
       securitySchemes: {

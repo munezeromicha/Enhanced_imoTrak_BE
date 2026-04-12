@@ -13,6 +13,17 @@ export const getUserNotifications = async (req: AuthenticatedRequest, res: Respo
   }
 };
 
+export const markNotificationAsRead = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const user_id = req.user!.user_id;
+    const notification_id = req.params.id;
+    await notificationService.markNotificationAsRead(notification_id, user_id);
+    res.json({ message: 'Notification marked as read' });
+  } catch (error) {
+    res.status(400).json({ message: error instanceof Error ? error.message : 'Unknown error' });
+  }
+};
+
 export const deleteNotification = async (req: AuthenticatedRequest, res: Response) => {
   try {
     const user_id = req.user!.user_id;

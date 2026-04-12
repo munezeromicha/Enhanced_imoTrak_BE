@@ -108,7 +108,9 @@ export async function getAllVehiclesController(req: Request, res: Response, next
   try {
     checkVehiclePermission(req as AuthenticatedRequest, 'view');
     const organizationId = (req as AuthenticatedRequest).user.organization_id;
-    const vehicles = await vehicleService.getAllVehicles(organizationId);
+    const startDate = typeof req.query.startDate === 'string' ? req.query.startDate : undefined;
+    const endDate = typeof req.query.endDate === 'string' ? req.query.endDate : undefined;
+    const vehicles = await vehicleService.getAllVehicles(organizationId, startDate, endDate);
     res.json({ data: vehicles });
   } catch (error) {
     next(error);
@@ -129,7 +131,13 @@ export async function getVehicleByIdController(req: Request, res: Response, next
 export async function updateVehicleController(req: Request, res: Response, next: NextFunction) {
   try {
     checkVehiclePermission(req as AuthenticatedRequest, 'update');
-    const vehicle = await vehicleService.updateVehicle(req.params.id, req.body);
+    let vehiclePhotoUrl = req.body.vehicle_photo;
+    if (req.file) {
+      vehiclePhotoUrl = await uploadToCloudinary(req.file.buffer, 'vehicles');
+    }
+    const updates = { ...req.body };
+    if (vehiclePhotoUrl) updates.vehicle_photo = vehiclePhotoUrl;
+    const vehicle = await vehicleService.updateVehicle(req.params.id, updates);
     res.json({ message: 'Vehicle updated', data: vehicle });
   } catch (error: any) {
     if (error.code === 'P2002') {
@@ -156,12 +164,32 @@ export async function deleteVehicleController(req: Request, res: Response, next:
   }
 }
 
+export async function getVehicleLocationHistoryController(req: Request, res: Response, next: NextFunction) {
+  try {
+    checkVehiclePermission(req as AuthenticatedRequest, 'viewSingle');
+    const reservedVehicleId = typeof req.query.trip === 'string' ? req.query.trip : undefined;
+    const history = await vehicleService.getVehicleLocationHistory(req.params.id, reservedVehicleId);
+    res.json({ data: history });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function getTripLocationHistoryController(req: Request, res: Response, next: NextFunction) {
+  try {
+    checkVehiclePermission(req as AuthenticatedRequest, 'viewSingle');
+    const history = await vehicleService.getTripLocationHistory(req.params.reservedVehicleId);
+    res.json({ data: history });
+  } catch (error) {
+    next(error);
+  }
+}
+
 export async function updateVehicleLocationsController(req: Request, res: Response, next: NextFunction) {
   try {
     const pathVehicleId = req.params.id;
-    const { vehicle_id, coords, timestamp } = req.body;
+    const { vehicle_id, coords, timestamp, reserved_vehicle_id } = req.body;
 
-    // Basic validation
     if (!vehicle_id || !coords || !timestamp) {
       return res.status(400).json({ error: 'Missing vehicle_id, coords, or timestamp in request body.' });
     }
@@ -170,9 +198,9 @@ export async function updateVehicleLocationsController(req: Request, res: Respon
       return res.status(400).json({ error: 'Vehicle ID in path and body must match.' });
     }
 
-    // Construct location object (we use ISO string for consistency)
     const location: vehicleService.Location = {
       vehicle_id,
+      reserved_vehicle_id: reserved_vehicle_id ?? undefined,
       coords,
       timestamp: typeof timestamp === 'number' ? new Date(timestamp).toISOString() : timestamp,
     };

@@ -38,4 +38,7 @@ export const locationUpdateSchema = z.object({
   timestamp: z.number().int() // Unix time in milliseconds
 });
 
-export const vehicleUpdateSchema = vehicleSchema.partial(); 
+export const vehicleUpdateSchema = vehicleSchema.partial().extend({
+  vehicle_model_id: z.string().uuid().optional().or(z.literal('')).transform(v => v === '' ? undefined : v),
+  organization_id: z.string().uuid().optional().or(z.literal('')).transform(v => v === '' ? undefined : v),
+});

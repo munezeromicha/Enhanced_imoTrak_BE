@@ -64,6 +64,13 @@ export async function getUserNotifications(user_id: string) {
   });
 }
 
+export async function markNotificationAsRead(notification_id: string, user_id: string) {
+  return prisma.tbl_notifications.update({
+    where: { notification_id, user_id },
+    data: { is_read: true },
+  });
+}
+
 export async function deleteNotification(notification_id: string, user_id: string) {
   // Only allow user to delete their own notification
   return prisma.tbl_notifications.delete({

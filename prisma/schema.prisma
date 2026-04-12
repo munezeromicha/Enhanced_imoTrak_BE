@@ -67,6 +67,7 @@ model tbl_notifications {
   user_id              String
   notification_title   String
   notification_message String
+  is_read              Boolean   @default(false)
   created_at           DateTime  @default(now())
   user                 tbl_users @relation(fields: [user_id], references: [user_id])
 }
@@ -143,27 +144,30 @@ model tbl_vehicles {
 }
 
 model tbl_reserved_vehicles {
-  reserved_vehicle_id String               @id @default(uuid())
+  reserved_vehicle_id String                  @id @default(uuid())
   vehicle_id          String
   reservation_id      String
-  created_at          DateTime             @default(now())
+  created_at          DateTime                @default(now())
   starting_odometer   Int
   returned_odometer   Int?
   fuel_provided       Int?
   returned_date       DateTime?
   returned_by         String?
-  reservation         tbl_reservations     @relation(fields: [reservation_id], references: [reservation_id])
-  returned_by_user    tbl_users?           @relation("ReservationReturnedBy", fields: [returned_by], references: [user_id])
-  vehicle             tbl_vehicles         @relation(fields: [vehicle_id], references: [vehicle_id])
+  reservation         tbl_reservations        @relation(fields: [reservation_id], references: [reservation_id])
+  returned_by_user    tbl_users?              @relation("ReservationReturnedBy", fields: [returned_by], references: [user_id])
+  vehicle             tbl_vehicles            @relation(fields: [vehicle_id], references: [vehicle_id])
   isuues              tbl_vehicle_issues[]
+  locations           tbl_vehicle_locations[]
 }
 
 model tbl_vehicle_locations {
-  location_id String @id @default(uuid())
-  vehicle_id  String
-  coords      Json
-  timestamp   DateTime @default(now())
-  vehicle     tbl_vehicles @relation(fields: [vehicle_id], references: [vehicle_id])
+  location_id         String                 @id @default(uuid())
+  vehicle_id          String
+  reserved_vehicle_id String?
+  coords              Json
+  timestamp           DateTime               @default(now())
+  vehicle             tbl_vehicles           @relation(fields: [vehicle_id], references: [vehicle_id])
+  reserved_vehicle    tbl_reserved_vehicles? @relation(fields: [reserved_vehicle_id], references: [reserved_vehicle_id])
 }
 
 model tbl_unit {

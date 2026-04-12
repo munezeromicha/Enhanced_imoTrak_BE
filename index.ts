@@ -6,6 +6,7 @@ import helmet from 'helmet';
 import { Request, Response } from 'express';
 import { swaggerUi, swaggerSpec } from './src/utils/swagger';
 import { errorHandler } from './src/middlewares/errorHandler';
+import { auditLogger } from './src/middlewares/auditLogger.middleware';
 import routes from './src/routes';
 import { startTokenCleanupScheduler } from './src/utils/tokenCleanup';
 
@@ -13,8 +14,24 @@ dotenv.config();
 
 const app = express();
 
+// Configure CORS to allow frontend origins
+const allowedOrigins = process.env.CORS_ORIGINS
+  ? process.env.CORS_ORIGINS.split(',')
+  : ['http://localhost:3000', 'https://imotrak.ur.ac.rw'];
+
 app.use(cors({
-  origin: true,
+  origin: (origin, callback) => {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) {
+      callback(null, true);
+      return;
+    }
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('CORS policy: Origin not allowed'));
+    }
+  },
   credentials: true
 }));
 
@@ -22,7 +39,7 @@ app.use(helmet());
 app.use(express.json());
 app.use(morgan('short'));
 
-app.use('/v2', routes);
+app.use('/v2', auditLogger, routes);
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 app.get('/', (req: Request, res: Response) => {

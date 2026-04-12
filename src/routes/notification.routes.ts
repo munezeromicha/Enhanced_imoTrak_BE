@@ -1,5 +1,5 @@
 import { NextFunction, Request, Response, RequestHandler,Router } from 'express';
-import { getUserNotifications, deleteNotification, sendNotification } from '../controllers/notification.controllers';
+import { getUserNotifications, deleteNotification, sendNotification, markNotificationAsRead } from '../controllers/notification.controllers';
 import { authenticateToken } from '../middlewares/auth.middleware';
 import { validateBody } from '../middlewares/bodyValidator';
 import { createNotificationSchema } from '../schemas/notification.schema';
@@ -54,6 +54,7 @@ router.get('/', authenticateToken, withAuthUser(getUserNotifications));
  *       200:
  *         description: Notification deleted
  */
+router.patch('/:id/read', authenticateToken, withAuthUser(markNotificationAsRead));
 router.delete('/:id', authenticateToken, withAuthUser(deleteNotification));
 
 /**

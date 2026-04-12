@@ -2,6 +2,7 @@ import { PrismaClient, tbl_vehicle_models, tbl_vehicles } from '@prisma/client';
 import { Response } from 'express';
 import { ServerResponse } from 'http';
 import { AppError } from '../utils/Error';
+import * as reservationService from './reservation.services';
 
 const prisma = new PrismaClient();
 
@@ -34,15 +35,58 @@ export async function createVehicle(data: Omit<tbl_vehicles, 'vehicle_id' | 'cre
   return prisma.tbl_vehicles.create({ data });
 }
 
-export async function getAllVehicles(organizationId: string) {
-  // Get all vehicles from the specified organization
+/**
+ * Get all vehicles for an organization.
+ * When startDate and endDate are provided, returns only vehicles available for that date range (for reservation).
+ */
+export async function getAllVehicles(
+  organizationId: string,
+  startDate?: string,
+  endDate?: string
+) {
+  const useAvailabilityFilter =
+    startDate &&
+    endDate &&
+    startDate.trim() !== '' &&
+    endDate.trim() !== '';
+
+  if (useAvailabilityFilter) {
+    try {
+      const available = await reservationService.getAvailableVehiclesForDateRange(
+        startDate,
+        endDate,
+        organizationId
+      );
+      const vehicleIds = available.map((v) => v.vehicle_id);
+      if (vehicleIds.length === 0) {
+        return [];
+      }
+      return prisma.tbl_vehicles.findMany({
+        where: {
+          organization_id: organizationId,
+          vehicle_id: { in: vehicleIds },
+        },
+        include: {
+          organization: true,
+          vehicle_model: true,
+        },
+      });
+    } catch {
+      // Invalid range or past dates: return all vehicles
+      return prisma.tbl_vehicles.findMany({
+        where: { organization_id: organizationId },
+        include: { organization: true, vehicle_model: true },
+      });
+    }
+  }
+
   return prisma.tbl_vehicles.findMany({
     where: {
       organization_id: organizationId,
     },
-    include: { 
-      organization: true, 
-      vehicle_model: true 
+    include: {
+      organization: true,
+      vehicle_model: true,
     },
   });
 }
@@ -74,8 +118,9 @@ interface Coords {
 
 export interface Location {
   vehicle_id: string;
+  reserved_vehicle_id?: string;   // ties the ping to a specific trip
   coords: Coords;
-  timestamp: string | number | Date; // ISO string or Unix ms timestamp
+  timestamp: string | number | Date;
 }
 
 const vehicleLocations = new Map<string, Location>();           // vehicle_id -> latest location
@@ -89,6 +134,7 @@ export async function saveAndBroadcastLocation(location: Location): Promise<void
   await prisma.tbl_vehicle_locations.create({
     data: {
       vehicle_id,
+      reserved_vehicle_id: location.reserved_vehicle_id ?? null,
       coords: JSON.stringify(location.coords),
       timestamp: new Date(location.timestamp as string | number),
     },
@@ -128,17 +174,35 @@ export async function getLatestLocation(vehicleId: string): Promise<Location | n
   return vehicleLocations.get(vehicleId) || null;
 }
 
+export async function getVehicleLocationHistory(
+  vehicleId: string,
+  reservedVehicleId?: string,
+) {
+  return prisma.tbl_vehicle_locations.findMany({
+    where: {
+      vehicle_id: vehicleId,
+      ...(reservedVehicleId ? { reserved_vehicle_id: reservedVehicleId } : {}),
+    },
+    orderBy: { timestamp: 'asc' },
+  });
+}
+
+// Also allow fetching a trip's path directly by reserved_vehicle_id alone
+export async function getTripLocationHistory(reservedVehicleId: string) {
+  return prisma.tbl_vehicle_locations.findMany({
+    where: { reserved_vehicle_id: reservedVehicleId },
+    orderBy: { timestamp: 'asc' },
+  });
+}
+
 export async function isUserInSameOrganizationAsVehicle(userId: string, vehicleId: string): Promise<boolean> {
-  // Fetch all organization IDs from user's positions
   const user = await prisma.tbl_users.findUnique({
     where: { user_id: userId },
     select: {
       positions: {
         select: {
           unit: {
-            select: {
-              organization_id: true
-            }
+            select: { organization_id: true }
           }
         }
       }
@@ -151,7 +215,6 @@ export async function isUserInSameOrganizationAsVehicle(userId: string, vehicleI
 
   const userOrgIds = user.positions.map(pos => pos.unit.organization_id);
 
-  // Fetch the vehicle's organization ID
   const vehicle = await prisma.tbl_vehicles.findUnique({
     where: { vehicle_id: vehicleId },
     select: { organization_id: true }
@@ -161,7 +224,6 @@ export async function isUserInSameOrganizationAsVehicle(userId: string, vehicleI
     throw new AppError('Vehicle not found', 404);
   }
 
-  // Check if vehicle organization ID matches any of the user's organizations
   return userOrgIds.includes(vehicle.organization_id);
 }
 

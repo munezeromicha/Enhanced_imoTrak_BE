@@ -7,9 +7,7 @@ import {
   assignVehicleSchema,
   assignMultipleVehiclesSchema,
   assignMultipleVehiclesWithOdometerFuelSchema,
-  startReservationSchema,
   completeReservationSchema,
-  odometerFuelSchema,
 } from '../schemas/reservation.schema';
 import { z } from 'zod';
 import { RequestStatus } from '@prisma/client';
@@ -76,21 +74,6 @@ export const updateReservationStatus = async (req: AuthenticatedRequest, res: Re
   }
 };
 
-export const assignVehicle = async (req: AuthenticatedRequest, res: Response) => {
-  try {
-    checkPermission(req, 'assignVehicle');
-    const { vehicle_id } = assignVehicleSchema.parse(req.body);
-    const reservationId = req.params.id;
-    const reviewerId = req.user.user_id;
-    const organizationId = req.user.organization_id;
-    const reservedVehicle = await reservationService.assignVehicle(reservationId, vehicle_id, reviewerId, organizationId);
-    res.status(200).json({ message: 'Vehicle assigned', data: reservedVehicle });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unknown error';
-    res.status(400).json({ message });
-  }
-};
-
 export const assignMultipleVehicles = async (req: AuthenticatedRequest, res: Response) => {
   try {
     checkPermission(req, 'assignVehicle');
@@ -103,20 +86,6 @@ export const assignMultipleVehicles = async (req: AuthenticatedRequest, res: Res
       message: `${vehicle_ids.length} vehicle(s) assigned successfully`, 
       data: reservedVehicles 
     });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unknown error';
-    res.status(400).json({ message });
-  }
-};
-
-export const updateOdometerFuel = async (req: AuthenticatedRequest, res: Response) => {
-  try {
-    checkPermission(req, 'odometerFuel');
-    const { starting_odometer, fuel_provided } = odometerFuelSchema.parse(req.body);
-    const reservedVehicleId = req.params.reservedVehicleId;
-    const user_id = req.user.user_id;
-    await reservationService.updateOdometerFuel(reservedVehicleId, starting_odometer, fuel_provided, user_id);
-    res.status(200).json({ message: 'Odometer and fuel updated' });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
     res.status(400).json({ message });
@@ -184,29 +153,6 @@ export const updateReservationReason = async (req: AuthenticatedRequest, res: Re
     const user_id = req.user.user_id;
     const updated = await reservationService.updateReservationReason(reservationId, reason, user_id);
     res.status(200).json({ message: 'Reason updated', data: updated });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unknown error';
-    res.status(400).json({ message });
-  }
-};
-
-export const assignVehicleWithOdometerFuel = async (req: AuthenticatedRequest, res: Response) => {
-  try {
-    checkPermission(req, 'assignVehicle');
-    const { vehicle_id, starting_odometer = 0, fuel_provided = 0 } = req.body;
-    if (!vehicle_id) {
-      return res.status(400).json({ message: 'vehicle_id is required' });
-    }
-    const reservationId = req.params.id;
-    const reviewerId = req.user.user_id;
-    const reservedVehicles = await reservationService.assignVehicleWithOdometerFuel(
-      reservationId,
-      vehicle_id,
-      reviewerId,
-      starting_odometer,
-      fuel_provided
-    );
-    res.status(200).json({ message: 'Vehicle assigned with odometer/fuel', data: reservedVehicles });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
     res.status(400).json({ message });
