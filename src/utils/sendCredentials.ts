@@ -157,7 +157,7 @@ export async function sendInvitationEmail(
             margin-top: 20px;
             padding: 12px 24px;
             background-color: #036bb3;
-            color: white;
+            color: #fff;
             text-decoration: none;
             border-radius: 6px;
             font-weight: bold;
