@@ -157,7 +157,7 @@ export async function sendInvitationEmail(
             margin-top: 20px;
             padding: 12px 24px;
             background-color: #036bb3;
-            color: white;
+            color: #fff;
             text-decoration: none;
             border-radius: 6px;
             font-weight: bold;
@@ -189,7 +189,22 @@ export async function sendInvitationEmail(
             To get started, click the button below to accept your invitation and set up your account.
           </div>
 
-          <a href="${inviteLink}" class="button">Accept Your Invitation</a>
+          <a 
+            href="${inviteLink}" 
+            style="
+              display: inline-block;
+              margin-top: 20px;
+              padding: 12px 24px;
+              background-color: #036bb3;
+              color: #ffffff;
+              text-decoration: none;
+              border-radius: 6px;
+              font-weight: bold;
+              font-size: 16px;
+            "
+          >
+            Accept Your Invitation
+          </a>
 
           <div class="manual-link">
             If the button doesn't work, copy and paste this link into your browser:<br>
