@@ -60,6 +60,10 @@ export async function loginUser(email: string, password: string) {
     organization_name: position.unit.organization.organization_name,
   }));
 
+  if (positionsData.length === 0) {
+    throw new AppError('No position assigned to this account. Please contact your administrator.', 403);
+  }
+
   return positionsData
 }
 
