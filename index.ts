@@ -14,7 +14,27 @@ dotenv.config();
 
 const app = express();
 
-app.use(cors({ origin: true, credentials: true }));
+// Configure CORS to allow frontend origins
+const allowedOrigins = process.env.CORS_ORIGINS
+  ? process.env.CORS_ORIGINS.split(',')
+  : ['http://localhost:3000', 'https://imotrak.ur.ac.rw'];
+
+app.use(cors({
+  origin: (origin, callback) => {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) {
+      callback(null, true);
+      return;
+    }
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('CORS policy: Origin not allowed'));
+    }
+  },
+  credentials: true
+}));
+
 app.use(helmet());
 app.use(express.json());
 app.use(morgan('short'));
