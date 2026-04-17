@@ -3,7 +3,7 @@ import { authenticateToken } from '../middlewares/auth.middleware';
 import { attachPositionAccess } from '../middlewares/attachPositionAccess';
 import { validateBody } from '../middlewares/bodyValidator';
 import { createUserSchema, updateUserSchema } from '../schemas/user.schema';
-import { createUserController, getAllUnverifiedUsersController, getSingleUnverifiedUserController, getSingleUserWithPositionsController, getUsersWithPositionsController, updateUserController } from '../controllers/user.controllers';
+import { createUserController, getAllUnverifiedUsersController, getSingleUnverifiedUserController, getSingleUserWithPositionsController, getUsersWithPositionsController, updateMyProfileController, updateUserController } from '../controllers/user.controllers';
 
 const usersRoutes = Router();
 
@@ -271,6 +271,14 @@ usersRoutes.get(
   authenticateToken,
   attachPositionAccess,
   getSingleUserWithPositionsController
+);
+
+// Self-service profile update (authenticated user)
+usersRoutes.patch(
+  '/me',
+  authenticateToken,
+  validateBody(updateUserSchema),
+  updateMyProfileController
 );
 
 /**

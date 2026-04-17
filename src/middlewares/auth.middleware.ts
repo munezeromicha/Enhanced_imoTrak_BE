@@ -20,7 +20,6 @@ export async function authenticateToken(
   res: Response,
   next: NextFunction
 ) {
-  console.log("authenticateToken called", req.headers);
   try {
     const authHeader = req.headers.authorization;
     const token = authHeader && authHeader.split(' ')[1]; 

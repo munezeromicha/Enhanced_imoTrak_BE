@@ -436,3 +436,51 @@ export const getSingleUnverifiedUserService = async (
   });
 };
 
+export const updateMyProfileService = async (
+  user_id: string,
+  data: {
+    first_name?: string;
+    last_name?: string;
+    user_phone?: string;
+    user_gender?: 'MALE' | 'FEMALE';
+    user_dob?: Date;
+    street_address?: string | null;
+    user_nid?: string;
+    user_photo?: string | null;
+  }
+) => {
+  const updated = await prisma.tbl_users.update({
+    where: { user_id },
+    data,
+    select: {
+      user_id: true,
+      first_name: true,
+      last_name: true,
+      user_nid: true,
+      user_phone: true,
+      user_gender: true,
+      user_dob: true,
+      user_photo: true,
+      street_address: true,
+      auth: {
+        select: {
+          email: true,
+        },
+      },
+    },
+  });
+
+  return {
+    user_id: updated.user_id,
+    first_name: updated.first_name,
+    last_name: updated.last_name,
+    email: updated.auth?.email,
+    user_nid: updated.user_nid,
+    user_phone: updated.user_phone,
+    user_gender: updated.user_gender,
+    user_dob: updated.user_dob,
+    user_photo: updated.user_photo,
+    street_address: updated.street_address,
+  };
+};
+

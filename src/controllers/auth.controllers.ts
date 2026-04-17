@@ -60,10 +60,8 @@ export async function loginWithPositionController(req: Request, res: Response, n
 
 export async function logoutController(req: Request, res: Response, next: NextFunction) {
   try {
-    console.log('Logout endpoint hit. Headers:', req.headers);
     const authHeader = req.headers.authorization;
     const token = authHeader && authHeader.split(' ')[1];
-    console.log('Extracted token:', token);
 
     if (!token) {
       throw new AppError('Access token required', 401);

@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { createUserService, getSingleUserWithPositionsService, getUnverifiedUsersService, getUsersWithPositionsService, getSingleUnverifiedUserService, updateUserService } from '../services/user.services';
+import { createUserService, getSingleUserWithPositionsService, getUnverifiedUsersService, getUsersWithPositionsService, getSingleUnverifiedUserService, updateUserService, updateMyProfileService } from '../services/user.services';
 import { AppError } from '../utils/Error';
 import { position_accesses } from '../types/access';
 
@@ -162,6 +162,27 @@ export const updateUserController = async (
 
     res.status(200).json({
       message: 'User updated successfully',
+      data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const updateMyProfileController = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    if (!req.user?.user_id) {
+      throw new AppError('Unauthorized', 401);
+    }
+
+    const result = await updateMyProfileService(req.user.user_id, req.body);
+
+    res.status(200).json({
+      message: 'Profile updated successfully',
       data: result,
     });
   } catch (error) {
