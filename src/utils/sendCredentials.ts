@@ -106,7 +106,7 @@ export async function sendInvitationEmail(
   unit: string,
   organization: string
 ) {
-  const FRONT_APP = process.env.FRONT_APP; // e.g., https://app.imotrak.com
+  const FRONT_APP = process.env.CLIENT_URL; // e.g., https://app.imotrak.com
   const inviteLink = `${FRONT_APP}/verify?token=${token}`;
 
   const mailOptions = {
