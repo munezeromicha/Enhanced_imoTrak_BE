@@ -9,6 +9,7 @@ import { errorHandler } from './src/middlewares/errorHandler';
 import { auditLogger } from './src/middlewares/auditLogger.middleware';
 import routes from './src/routes';
 import { startTokenCleanupScheduler } from './src/utils/tokenCleanup';
+import { autoMigrateIfNeeded } from './src/utils/autoMigrate';
 
 dotenv.config();
 
@@ -51,11 +52,20 @@ app.use(errorHandler);
 const PORT = process.env.PORT || 4000;
 const baseUrl = process.env.BASE_URL || `http://localhost:${PORT}`;
 
-app.listen(PORT, () => {
-  console.log(`Server is running at ${baseUrl}`);
-  console.log(`For documentation hit : ${baseUrl}/api-docs`);
+async function start() {
+  await autoMigrateIfNeeded();
 
-  startTokenCleanupScheduler();
+  app.listen(PORT, () => {
+    console.log(`Server is running at ${baseUrl}`);
+    console.log(`For documentation hit : ${baseUrl}/api-docs`);
+
+    startTokenCleanupScheduler();
+  });
+}
+
+start().catch((err) => {
+  console.error('Startup failed:', err);
+  process.exit(1);
 });
 
 
