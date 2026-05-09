@@ -65,10 +65,15 @@ export async function getUserNotifications(user_id: string) {
 }
 
 export async function markNotificationAsRead(notification_id: string, user_id: string) {
-  return prisma.tbl_notifications.update({
+  // Use updateMany to avoid requiring a compound unique constraint
+  const result = await prisma.tbl_notifications.updateMany({
     where: { notification_id, user_id },
     data: { is_read: true },
   });
+  if (result.count === 0) {
+    throw new Error('Notification not found');
+  }
+  return result;
 }
 
 export async function deleteNotification(notification_id: string, user_id: string) {

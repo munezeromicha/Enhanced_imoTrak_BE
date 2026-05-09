@@ -92,7 +92,12 @@ export async function getAllVehicles(
 }
 
 export async function getVehicleById(id: string) {
-  return prisma.tbl_vehicles.findUnique({ where: { vehicle_id: id }, include: { organization: true, vehicle_model: true, locations: true } });
+  // Avoid eager-loading locations here (can be large and has caused production failures when schema drift exists).
+  // Location history is available via /v2/vehicles/:id/locations.
+  return prisma.tbl_vehicles.findUnique({
+    where: { vehicle_id: id },
+    include: { organization: true, vehicle_model: true },
+  });
 }
 
 export async function updateVehicle(id: string, data: Partial<Omit<tbl_vehicles, 'vehicle_id' | 'created_at' | 'last_service_date' | 'reservations'>>) {

@@ -195,7 +195,7 @@ export async function cancelReservation(reservationId: string, reason: string, u
 
   // Only allow cancel if status is UNDER_REVIEW or APPROVED
   if (!([RequestStatus.UNDER_REVIEW, RequestStatus.APPROVED] as RequestStatus[]).includes(reservation.reservation_status)) {
-    throw new Error('Cannot cancel reservation in current status');
+    throw new Error('Journey has already started, Can not cancel this reservation');
   }
 
   // If not reviewer, must be the owner
