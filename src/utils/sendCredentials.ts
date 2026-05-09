@@ -63,6 +63,7 @@ export async function sendForgotPasswordEmail(email: string, password: string) {
             border-radius: 6px;
             font-weight: bold;
             font-size: 16px;
+            color: white;
           }
           .footer {
             margin-top: 30px;
