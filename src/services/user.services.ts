@@ -484,3 +484,130 @@ export const updateMyProfileService = async (
   };
 };
 
+/**
+ * Permanently removes a user and dependent rows. Intended for hub SuperAdmin
+ * (position_access.organizations.create + users.delete).
+ *
+ * Clears nullable FKs pointing at the user, deletes reservations they own (and
+ * related reserved vehicles, issues, locations), then audit logs, notifications,
+ * JWT blacklist, the user row, and auth row — all in one transaction.
+ */
+export async function deleteUserPermanentlyService(params: {
+  targetUserId: string;
+  actorUserId: string;
+}) {
+  const { targetUserId, actorUserId } = params;
+
+  if (targetUserId === actorUserId) {
+    throw new AppError('You cannot delete your own account', 400);
+  }
+
+  const existing = await prisma.tbl_users.findUnique({
+    where: { user_id: targetUserId },
+    select: { user_id: true, auth_id: true },
+  });
+
+  if (!existing) {
+    throw new AppError('User not found', 404);
+  }
+
+  // Pre-compute IDs OUTSIDE the transaction so the transaction itself stays
+  // short. A new reservation racing in here would still be deleted by the
+  // post-transaction cleanup below, so the user row never has dangling FKs.
+  const ownedReservationsPre = await prisma.tbl_reservations.findMany({
+    where: { user_id: targetUserId },
+    select: { reservation_id: true },
+  });
+  const reservationIds = ownedReservationsPre.map((r) => r.reservation_id);
+
+  const reservedRowsPre = reservationIds.length
+    ? await prisma.tbl_reserved_vehicles.findMany({
+        where: { reservation_id: { in: reservationIds } },
+        select: { reserved_vehicle_id: true },
+      })
+    : [];
+  const reservedIds = reservedRowsPre.map((r) => r.reserved_vehicle_id);
+
+  await prisma.$transaction(
+    async (tx) => {
+      // 1) Null out all nullable FKs pointing at this user. These are all
+      //    independent of each other so we can fire them in parallel.
+      await Promise.all([
+        tx.tbl_position.updateMany({
+          where: { user_id: targetUserId },
+          data: { user_id: null },
+        }),
+        tx.tbl_reservations.updateMany({
+          where: { approved_by: targetUserId },
+          data: { approved_by: null },
+        }),
+        tx.tbl_reservations.updateMany({
+          where: { canceled_by: targetUserId },
+          data: { canceled_by: null },
+        }),
+        tx.tbl_reservations.updateMany({
+          where: { completed_by: targetUserId },
+          data: { completed_by: null },
+        }),
+        tx.tbl_reservations.updateMany({
+          where: { reviewed_by: targetUserId },
+          data: { reviewed_by: null },
+        }),
+        tx.tbl_reserved_vehicles.updateMany({
+          where: { returned_by: targetUserId },
+          data: { returned_by: null },
+        }),
+        tx.tbl_vehicle_issues.updateMany({
+          where: { issue_responder: targetUserId },
+          data: { issue_responder: null },
+        }),
+        tx.tbl_users.updateMany({
+          where: { updated_by_user_id: targetUserId },
+          data: { updated_by_user_id: null },
+        }),
+      ]);
+
+      // 2) Delete dependents of the user's reservations (issues + locations
+      //    on their reserved vehicles), again in parallel because they touch
+      //    different tables.
+      if (reservedIds.length > 0) {
+        await Promise.all([
+          tx.tbl_vehicle_issues.deleteMany({
+            where: { reserved_vehicle_id: { in: reservedIds } },
+          }),
+          tx.tbl_vehicle_locations.deleteMany({
+            where: { reserved_vehicle_id: { in: reservedIds } },
+          }),
+        ]);
+      }
+
+      // 3) Reserved vehicles, then reservations (FK order matters here).
+      if (reservationIds.length > 0) {
+        await tx.tbl_reserved_vehicles.deleteMany({
+          where: { reservation_id: { in: reservationIds } },
+        });
+        await tx.tbl_reservations.deleteMany({
+          where: { user_id: targetUserId },
+        });
+      }
+
+      // 4) Logs / notifications / sessions in parallel.
+      await Promise.all([
+        tx.tbl_audit_logs.deleteMany({ where: { user_id: targetUserId } }),
+        tx.tbl_notifications.deleteMany({ where: { user_id: targetUserId } }),
+        tx.tbl_jwt_blacklist.deleteMany({ where: { user_id: targetUserId } }),
+      ]);
+
+      // 5) Finally the user itself, then their auth row (FK from user→auth).
+      await tx.tbl_users.delete({ where: { user_id: targetUserId } });
+      await tx.tbl_auth.delete({ where: { auth_id: existing.auth_id } });
+    },
+    {
+      // Generous timeouts: this runs on a remote DB (Neon) where each
+      // round-trip can be ~300ms, and admin user-deletes are rare.
+      maxWait: 10_000,
+      timeout: 30_000,
+    },
+  );
+}
+

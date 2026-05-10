@@ -15,23 +15,39 @@ dotenv.config();
 
 const app = express();
 
-// Configure CORS to allow frontend origins
-const allowedOrigins = process.env.CORS_ORIGINS
-  ? process.env.CORS_ORIGINS.split(',')
-  : ['http://localhost:3000', 'https://imotrak.ur.ac.rw'];
+// Configure CORS to allow frontend origins.
+// In production, only origins listed in CORS_ORIGINS (or the defaults) are
+// accepted. In development, any localhost/127.0.0.1 origin is also accepted
+// regardless of port, so `npm run dev` falling back to a non-3000 port (or
+// hitting the API via 127.0.0.1) doesn't break the app.
+const allowedOrigins = (
+  process.env.CORS_ORIGINS
+    ? process.env.CORS_ORIGINS.split(',')
+    : ['http://localhost:3000', 'https://imotrak.ur.ac.rw']
+).map((o) => o.trim()).filter(Boolean);
+
+const isDev = process.env.NODE_ENV !== 'production';
+const localhostOrigin = /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/i;
 
 app.use(cors({
   origin: (origin, callback) => {
-    // Allow requests with no origin (like mobile apps or curl requests)
+    // No-origin requests (curl, server-to-server, same-origin fetches).
     if (!origin) {
       callback(null, true);
       return;
     }
     if (allowedOrigins.includes(origin)) {
       callback(null, true);
-    } else {
-      callback(new Error('CORS policy: Origin not allowed'));
+      return;
     }
+    if (isDev && localhostOrigin.test(origin)) {
+      callback(null, true);
+      return;
+    }
+    console.warn(
+      `[cors] rejected origin "${origin}". Allowed: ${allowedOrigins.join(', ') || '(none)'}`,
+    );
+    callback(new Error(`CORS policy: Origin "${origin}" not allowed`));
   },
   credentials: true
 }));

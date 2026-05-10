@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { createUserService, getSingleUserWithPositionsService, getUnverifiedUsersService, getUsersWithPositionsService, getSingleUnverifiedUserService, updateUserService, updateMyProfileService } from '../services/user.services';
+import { createUserService, deleteUserPermanentlyService, getSingleUserWithPositionsService, getUnverifiedUsersService, getUsersWithPositionsService, getSingleUnverifiedUserService, updateUserService, updateMyProfileService } from '../services/user.services';
 import { AppError } from '../utils/Error';
 import { position_accesses } from '../types/access';
 
@@ -138,6 +138,36 @@ export const getSingleUserWithPositionsController = async (
     res.status(200).json({
       message: 'User retrieved successfully',
       data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+function isSuperAdminAccess(access: position_accesses | undefined): boolean {
+  return !!(access?.organizations?.create && access?.users?.delete);
+}
+
+export const deleteUserController = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    if (!isSuperAdminAccess(req.user?.position_access)) {
+      throw new AppError('Only SuperAdmin can permanently delete users', 403);
+    }
+
+    const { user_id } = req.params;
+    const actorUserId = req.user!.user_id;
+
+    await deleteUserPermanentlyService({
+      targetUserId: user_id,
+      actorUserId,
+    });
+
+    res.status(200).json({
+      message: 'User and related data deleted successfully',
     });
   } catch (error) {
     next(error);
