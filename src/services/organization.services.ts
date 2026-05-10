@@ -127,6 +127,14 @@ export async function createPositionService(data: {
   return position;
 }
 
+// The SuperAdmin role is the protected hub-admin position. It must never be
+// deactivated/deleted because doing so would lock everyone out of admin work.
+const PROTECTED_POSITION_NAME = 'superadmin';
+
+export function isProtectedSuperAdminPosition(positionName: string | null | undefined) {
+  return (positionName ?? '').trim().toLowerCase() === PROTECTED_POSITION_NAME;
+}
+
 export async function softDeletePositionService(positionId: string, userId: string, userAccess: any) {
   if (!userAccess?.positions?.delete) {
     throw new AppError('You do not have permission to delete positions', 403);
@@ -141,6 +149,10 @@ export async function softDeletePositionService(positionId: string, userId: stri
 
   if (!position) {
     throw new AppError('Position not found', 404);
+  }
+
+  if (isProtectedSuperAdminPosition(position.position_name)) {
+    throw new AppError('The SuperAdmin position cannot be deactivated or deleted', 403);
   }
 
   // Get the requesting user's organization
@@ -429,6 +441,16 @@ export const updatePositionService = async ({
 
   if (position.unit.organization_id !== user.organization_id && !user.position_access?.organizations.create) {
     throw new AppError('You can only update positions within your organization', 403);
+  }
+
+  // Prevent silent deactivation of the protected SuperAdmin position via the
+  // update endpoint (which would otherwise be a backdoor around the delete
+  // guard).
+  if (
+    isProtectedSuperAdminPosition(position.position_name) &&
+    (updateData as { position_status?: string }).position_status === 'INACTIVE'
+  ) {
+    throw new AppError('The SuperAdmin position cannot be deactivated', 403);
   }
 
   const updatedPosition = await prisma.tbl_position.update({
