@@ -9,10 +9,6 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "nodemon index.ts",
     "seed": "ts-node prisma/seed.ts",
-    "prisma:status": "prisma migrate status",
-    "prisma:deploy": "prisma migrate deploy",
-    "prisma:resolve:applied": "prisma migrate resolve --applied",
-    "prisma:resolve:rolled-back": "prisma migrate resolve --rolled-back",
     "deploy": "docker build . -t ghcr.io/programmerdatch/imotrack-backend:latest && docker push ghcr.io/programmerdatch/imotrack-backend:latest"
   },
   "repository": {
