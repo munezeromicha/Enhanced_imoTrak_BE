@@ -64,7 +64,12 @@ async function start() {
 }
 
 start().catch((err) => {
-  console.error('Startup failed:', err);
+  console.error('Startup failed:', err?.message || err);
+  if (err?.cause) {
+    const cause: any = err.cause;
+    if (cause?.stdout) console.error('cause stdout:\n' + cause.stdout.toString());
+    if (cause?.stderr) console.error('cause stderr:\n' + cause.stderr.toString());
+  }
   process.exit(1);
 });
 
