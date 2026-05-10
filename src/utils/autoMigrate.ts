@@ -15,6 +15,16 @@ function parseList(v: string | undefined): string[] {
     .filter(Boolean);
 }
 
+type ResolveMode = 'applied' | 'rolled-back' | null;
+
+function parseResolveMode(v: string | undefined): ResolveMode {
+  if (!v) return null;
+  const norm = v.toLowerCase().trim().replace('_', '-');
+  if (norm === 'applied') return 'applied';
+  if (norm === 'rolled-back' || norm === 'rolledback') return 'rolled-back';
+  return null;
+}
+
 function getPrismaCmd(): string {
   // Use local prisma binary (no npx) for deterministic behavior in containers.
   return process.platform === 'win32'
@@ -45,10 +55,6 @@ function logError(line: string) {
  * `prisma migrate deploy` runs, by providing one of:
  *   - RESOLVE_MIGRATIONS_AS_APPLIED=<name1>,<name2>
  *   - RESOLVE_MIGRATIONS_AS_ROLLED_BACK=<name1>,<name2>
- *
- * This is the standard recovery flow for the P3009 error
- * (https://pris.ly/d/migrate-resolve) but driven by env vars so that it can
- * happen automatically on the next container start, with no shell access.
  */
 async function resolveOperatorRequestedMigrations() {
   const applied = parseList(process.env.RESOLVE_MIGRATIONS_AS_APPLIED);
@@ -57,31 +63,27 @@ async function resolveOperatorRequestedMigrations() {
   if (applied.length === 0 && rolledBack.length === 0) return;
 
   for (const name of rolledBack) {
-    log(`Marking migration as rolled-back: ${name}`);
-    try {
-      const { stdout } = await runPrisma(['migrate', 'resolve', '--rolled-back', name]);
-      if (stdout.trim()) log(stdout.trim());
-    } catch (err: any) {
-      const stderr = (err.stderr || '').toString();
-      const stdout = (err.stdout || '').toString();
-      logError(`Failed to mark ${name} as rolled-back.`);
-      if (stdout) logError('stdout:\n' + stdout);
-      if (stderr) logError('stderr:\n' + stderr);
-    }
+    await resolveMigration(name, 'rolled-back');
   }
-
   for (const name of applied) {
-    log(`Marking migration as applied: ${name}`);
-    try {
-      const { stdout } = await runPrisma(['migrate', 'resolve', '--applied', name]);
-      if (stdout.trim()) log(stdout.trim());
-    } catch (err: any) {
-      const stderr = (err.stderr || '').toString();
-      const stdout = (err.stdout || '').toString();
-      logError(`Failed to mark ${name} as applied.`);
-      if (stdout) logError('stdout:\n' + stdout);
-      if (stderr) logError('stderr:\n' + stderr);
-    }
+    await resolveMigration(name, 'applied');
+  }
+}
+
+async function resolveMigration(name: string, mode: 'applied' | 'rolled-back'): Promise<boolean> {
+  const flag = mode === 'applied' ? '--applied' : '--rolled-back';
+  log(`Resolving migration ${flag} ${name}`);
+  try {
+    const { stdout } = await runPrisma(['migrate', 'resolve', flag, name]);
+    if (stdout.trim()) log(stdout.trim());
+    return true;
+  } catch (err: any) {
+    const stderr = (err.stderr || '').toString();
+    const stdout = (err.stdout || '').toString();
+    logError(`Failed to resolve ${name} ${flag}.`);
+    if (stdout) logError('stdout:\n' + stdout);
+    if (stderr) logError('stderr:\n' + stderr);
+    return false;
   }
 }
 
@@ -99,28 +101,20 @@ function printP3009Help(failedMigration?: string) {
       '',
       'Recovery options:',
       '',
-      '  A) If the failed migration was actually fully applied to the DB',
-      '     (e.g. the container was killed mid-migration but all SQL ran),',
-      '     mark it as applied:',
+      '  A) Fully automatic, generic (handles any future P3009 too):',
+      '       AUTO_RESOLVE_FAILED_MIGRATIONS=applied        # if the SQL did run',
+      '       AUTO_RESOLVE_FAILED_MIGRATIONS=rolled-back    # if the SQL did NOT run',
+      '     Then restart the container.',
       '',
-      `       npx prisma migrate resolve --applied ${target}`,
-      '',
-      '  B) If the migration left the DB in a partial state and you have',
-      '     manually undone its changes (or the changes were never made),',
-      '     mark it as rolled-back so Prisma will retry it:',
-      '',
-      `       npx prisma migrate resolve --rolled-back ${target}`,
-      '',
-      '  C) Let this container resolve it automatically on the next start',
-      '     by setting one of the following env vars on the service:',
-      '',
+      '  B) Targeted, pre-deploy resolve (specific migrations only):',
       `       RESOLVE_MIGRATIONS_AS_APPLIED=${target}`,
       `       RESOLVE_MIGRATIONS_AS_ROLLED_BACK=${target}`,
+      '     Then restart the container.',
       '',
-      '  From inside the container you can also run:',
+      '  C) From inside the container:',
       '       npm run prisma:status',
-      '       npm run prisma:resolve:applied -- ' + target,
-      '       npm run prisma:resolve:rolled-back -- ' + target,
+      `       npm run prisma:resolve:applied -- ${target}`,
+      `       npm run prisma:resolve:rolled-back -- ${target}`,
       '',
       'Docs: https://pris.ly/d/migrate-resolve',
       '================================================================',
@@ -139,16 +133,40 @@ function extractFailedMigrationName(text: string): string | undefined {
 }
 
 /**
+ * Runs `prisma migrate deploy`. Returns the result on success; on failure,
+ * returns the captured stdout/stderr so the caller can decide what to do.
+ */
+async function deployOnce(): Promise<{ ok: true } | { ok: false; stdout: string; stderr: string; raw: any }> {
+  try {
+    const { stdout, stderr } = await runPrisma(['migrate', 'deploy']);
+    if (stdout.trim()) log('stdout:\n' + stdout.trim());
+    if (stderr.trim()) log('stderr:\n' + stderr.trim());
+    return { ok: true };
+  } catch (err: any) {
+    return {
+      ok: false,
+      stdout: (err.stdout || '').toString(),
+      stderr: (err.stderr || '').toString(),
+      raw: err,
+    };
+  }
+}
+
+/**
  * Runs `prisma migrate deploy` on startup (intended for production environments
  * where you don't have shell access, but have automated deployments).
  *
  * Controls:
- * - ENABLE_AUTO_MIGRATE=true              -> force enable
- * - DISABLE_AUTO_MIGRATE=true             -> force disable (wins)
- * - NODE_ENV=production                   -> enables by default (unless disabled)
- * - MIGRATE_NON_BLOCKING=true             -> log+continue if migrate fails (don't crash)
- * - RESOLVE_MIGRATIONS_AS_APPLIED=a,b     -> pre-mark these as applied before deploy
- * - RESOLVE_MIGRATIONS_AS_ROLLED_BACK=a,b -> pre-mark these as rolled-back before deploy
+ * - ENABLE_AUTO_MIGRATE=true                       -> force enable
+ * - DISABLE_AUTO_MIGRATE=true                      -> force disable (wins)
+ * - NODE_ENV=production                            -> enables by default
+ * - MIGRATE_NON_BLOCKING=true                      -> log+continue if migrate fails
+ * - RESOLVE_MIGRATIONS_AS_APPLIED=a,b              -> pre-mark these as applied
+ * - RESOLVE_MIGRATIONS_AS_ROLLED_BACK=a,b          -> pre-mark these as rolled-back
+ * - AUTO_RESOLVE_FAILED_MIGRATIONS=applied         -> on P3009, auto-resolve the
+ *                                                     failed migration as applied,
+ *                                                     then retry deploy
+ * - AUTO_RESOLVE_FAILED_MIGRATIONS=rolled-back     -> same, but as rolled-back
  */
 export async function autoMigrateIfNeeded() {
   if (isTruthy(process.env.DISABLE_AUTO_MIGRATE)) {
@@ -165,38 +183,70 @@ export async function autoMigrateIfNeeded() {
     throw new Error('DATABASE_URL is not set; cannot run prisma migrate deploy');
   }
 
-  // Step 1: optionally resolve any failed migrations the operator has approved.
   await resolveOperatorRequestedMigrations();
 
-  // Step 2: attempt the deploy.
   log('Running `prisma migrate deploy`...');
-  try {
-    const { stdout, stderr } = await runPrisma(['migrate', 'deploy']);
-    if (stdout.trim()) log('stdout:\n' + stdout.trim());
-    if (stderr.trim()) log('stderr:\n' + stderr.trim());
-    log('Migrations applied successfully.');
-  } catch (err: any) {
-    const stdout = (err.stdout || '').toString();
-    const stderr = (err.stderr || '').toString();
+  let result = await deployOnce();
 
-    logError('`prisma migrate deploy` failed.');
-    if (stdout) logError('stdout:\n' + stdout);
-    if (stderr) logError('stderr:\n' + stderr);
+  // P3009 auto-recovery loop. Each iteration resolves at most one failed
+  // migration (the one Prisma is currently complaining about) and retries.
+  // We cap the number of iterations to the number of migrations to avoid
+  // any chance of an infinite loop.
+  const autoMode = parseResolveMode(process.env.AUTO_RESOLVE_FAILED_MIGRATIONS);
+  const maxIterations = 20;
+  let iterations = 0;
+  const alreadyResolved = new Set<string>();
 
-    const combined = stdout + '\n' + stderr;
-    if (combined.includes('P3009')) {
-      const failedName = extractFailedMigrationName(combined);
-      printP3009Help(failedName);
+  while (!result.ok && autoMode && iterations < maxIterations) {
+    const combined = result.stdout + '\n' + result.stderr;
+    if (!combined.includes('P3009')) break;
+
+    const failedName = extractFailedMigrationName(combined);
+    if (!failedName) break;
+
+    if (alreadyResolved.has(failedName)) {
+      logError(`Auto-resolve already attempted for ${failedName}; aborting recovery loop.`);
+      break;
     }
 
-    if (isTruthy(process.env.MIGRATE_NON_BLOCKING)) {
-      logError('MIGRATE_NON_BLOCKING is set; continuing startup despite migrate failure.');
-      return;
-    }
+    logError('`prisma migrate deploy` failed with P3009.');
+    if (result.stderr) logError('stderr:\n' + result.stderr);
 
-    // Re-throw a cleaner error so the outer `start()` log is readable.
-    const e = new Error('prisma migrate deploy failed (see logs above for details)');
-    (e as any).cause = err;
-    throw e;
+    log(
+      `AUTO_RESOLVE_FAILED_MIGRATIONS=${autoMode}; auto-resolving ${failedName} and retrying deploy...`,
+    );
+
+    const resolved = await resolveMigration(failedName, autoMode);
+    alreadyResolved.add(failedName);
+    if (!resolved) break;
+
+    iterations += 1;
+    log(`Retrying \`prisma migrate deploy\` (attempt ${iterations + 1})...`);
+    result = await deployOnce();
   }
+
+  if (result.ok) {
+    log('Migrations applied successfully.');
+    return;
+  }
+
+  // Final failure path.
+  logError('`prisma migrate deploy` failed.');
+  if (result.stdout) logError('stdout:\n' + result.stdout);
+  if (result.stderr) logError('stderr:\n' + result.stderr);
+
+  const combined = result.stdout + '\n' + result.stderr;
+  if (combined.includes('P3009')) {
+    const failedName = extractFailedMigrationName(combined);
+    printP3009Help(failedName);
+  }
+
+  if (isTruthy(process.env.MIGRATE_NON_BLOCKING)) {
+    logError('MIGRATE_NON_BLOCKING is set; continuing startup despite migrate failure.');
+    return;
+  }
+
+  const e = new Error('prisma migrate deploy failed (see logs above for details)');
+  (e as any).cause = result.raw;
+  throw e;
 }
