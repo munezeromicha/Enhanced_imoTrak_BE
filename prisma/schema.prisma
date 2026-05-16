@@ -287,3 +287,12 @@ enum IssueStatus {
   OPEN
   CLOSED
 }
+
+model tbl_contacts {
+  contact_id String   @id @default(uuid())
+  name       String
+  email      String
+  message    String
+  created_at DateTime @default(now())
+  is_read    Boolean  @default(false)
+}

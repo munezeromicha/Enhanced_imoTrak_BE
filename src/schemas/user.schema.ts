@@ -24,4 +24,5 @@ export const updateUserSchema = z.object({
   user_gender: z.enum(['MALE', 'FEMALE']).optional(),
   user_dob: z.coerce.date().optional(),
   street_address: z.string().nullable().optional(),
+  user_photo: z.string().nullable().optional(),
 });

@@ -4,6 +4,7 @@ import { attachPositionAccess } from '../middlewares/attachPositionAccess';
 import { validateBody } from '../middlewares/bodyValidator';
 import { createUserSchema, updateUserSchema } from '../schemas/user.schema';
 import { createUserController, deleteUserController, getAllUnverifiedUsersController, getSingleUnverifiedUserController, getSingleUserWithPositionsController, getUsersWithPositionsController, updateMyProfileController, updateUserController } from '../controllers/user.controllers';
+import { upload } from '../middlewares/multer';
 
 const usersRoutes = Router();
 
@@ -277,6 +278,7 @@ usersRoutes.get(
 usersRoutes.patch(
   '/me',
   authenticateToken,
+  upload.single('user_photo'),
   validateBody(updateUserSchema),
   updateMyProfileController
 );

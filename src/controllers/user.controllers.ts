@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { createUserService, deleteUserPermanentlyService, getSingleUserWithPositionsService, getUnverifiedUsersService, getUsersWithPositionsService, getSingleUnverifiedUserService, updateUserService, updateMyProfileService } from '../services/user.services';
 import { AppError } from '../utils/Error';
+import { uploadToCloudinary } from '../utils/cloudinary';
 import { position_accesses } from '../types/access';
 
 interface AuthenticatedRequest extends Request {
@@ -209,7 +210,19 @@ export const updateMyProfileController = async (
       throw new AppError('Unauthorized', 401);
     }
 
-    const result = await updateMyProfileService(req.user.user_id, req.body);
+    let user_photo = req.body.user_photo;
+
+    // Handle file upload if a file was sent
+    if (req.file) {
+      user_photo = await uploadToCloudinary(req.file.buffer, 'Imotrak/users/avatars');
+    }
+
+    const payload = {
+      ...req.body,
+      ...(user_photo && { user_photo })
+    };
+
+    const result = await updateMyProfileService(req.user.user_id, payload);
 
     res.status(200).json({
       message: 'Profile updated successfully',

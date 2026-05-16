@@ -4,7 +4,7 @@ import { logAudit } from '../utils/get-meta'; // your existing logger
 
 const prisma = new PrismaClient();
 
-prisma.$use(async (params, next) => {
+prisma.$use(async (params: any, next: any) => {
   const result = await next(params);
 
   const context = getRequestContext();
