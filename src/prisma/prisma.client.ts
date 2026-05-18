@@ -9,7 +9,8 @@ prisma.$use(async (params: any, next: any) => {
 
   const context = getRequestContext();
   const isWrite = ['create', 'update', 'delete'].includes(params.action);
-  const skipLog = params.model === 'tbl_audit_logs';
+  const skipLog =
+    params.model === 'tbl_audit_logs' || params.model === 'tbl_contacts';
 
   if (isWrite && context && !skipLog) {
     try {

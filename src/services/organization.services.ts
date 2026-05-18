@@ -228,6 +228,7 @@ export async function getUnitsService(organization_id?: string) {
     include: {
       positions: true,
     },
+    orderBy: { created_at: 'desc' },
   });
   return units;
 }
