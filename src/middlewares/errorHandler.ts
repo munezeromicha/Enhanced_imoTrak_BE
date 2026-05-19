@@ -16,9 +16,19 @@ export const errorHandler = (
     });
   }
 
+  // Table/column missing — migration not applied on this database.
+  if (err?.code === 'P2021' || err?.code === 'P2022') {
+    console.error(err);
+    return res.status(503).json({
+      message:
+        'Database schema is out of date. Apply pending migrations (prisma migrate deploy) and restart the API.',
+      data: null,
+    });
+  }
+
   if (!err.statusCode) {
-    console.error(err)
-    return res.status(500).json({message: 'Something went wrong'})
+    console.error(err);
+    return res.status(500).json({ message: 'Something went wrong' });
   }
 
   const statusCode = err.statusCode;

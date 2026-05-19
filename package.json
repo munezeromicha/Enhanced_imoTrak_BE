@@ -13,6 +13,9 @@
     "prisma:deploy": "prisma migrate deploy",
     "prisma:resolve:applied": "prisma migrate resolve --applied",
     "prisma:resolve:rolled-back": "prisma migrate resolve --rolled-back",
+    "migrate:deploy": "prisma migrate deploy",
+    "migrate:status": "prisma migrate status",
+    "start:prod": "npm run migrate:deploy && node dist/index.js",
     "deploy": "docker build . -t ghcr.io/programmerdatch/imotrack-backend:latest && docker push ghcr.io/programmerdatch/imotrack-backend:latest"
   },
   "repository": {
