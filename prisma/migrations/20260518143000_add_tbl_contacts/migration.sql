@@ -9,6 +9,3 @@ CREATE TABLE IF NOT EXISTS "public"."tbl_contacts" (
 
     CONSTRAINT "tbl_contacts_pkey" PRIMARY KEY ("contact_id")
 );
-
-CREATE INDEX IF NOT EXISTS "tbl_contacts_created_at_idx" ON "public"."tbl_contacts"("created_at");
-CREATE INDEX IF NOT EXISTS "tbl_contacts_is_read_idx" ON "public"."tbl_contacts"("is_read");

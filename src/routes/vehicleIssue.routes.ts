@@ -575,5 +575,6 @@ issueRoutes.delete('/:id', authenticateToken, attachPositionAccess, controller.r
 issueRoutes.patch('/:id/message', authenticateToken, attachPositionAccess, validateBody(updateVehicleIssueMessageSchema), controller.updateMessage);
 issueRoutes.post('/:id/replies', authenticateToken, attachPositionAccess, controller.addReply);
 issueRoutes.post('/:id/replacement', authenticateToken, attachPositionAccess, controller.approveReplacement);
+issueRoutes.patch('/:id/close', authenticateToken, attachPositionAccess, controller.closeIssue);
 
 export default issueRoutes;

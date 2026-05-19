@@ -35,7 +35,7 @@ export async function sendVehicleIssueEmailNotification({ user_id, to_email, iss
   });
   const emailSubject = `New Message on Vehicle Issue: ${issue_title}`;
   const emailBody = `
-Greetings, Turabakengurukiye,
+Greetings, Turabasuhuje,
 
 A new message has been added to your vehicle issue: "${issue_title}"
 

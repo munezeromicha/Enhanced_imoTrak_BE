@@ -3,6 +3,8 @@ import * as issueService from '../services/vehicleIssue.service';
 import { position_accesses } from '../types/access';
 import { AppError } from '../utils/Error';
 import { updateVehicleIssueMessageSchema } from '../schemas/vehicleIssue.schema';
+import { approveReplacementSchema } from '../schemas/driver.schema';
+import { assertOrganizationDriverManagement } from '../utils/driverAccess';
 
 interface AuthenticatedRequest extends Request {
   user?: {
@@ -116,7 +118,8 @@ export const updateMessage = async (req: AuthenticatedRequest, res: Response, ne
 export const addReply = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
     const issueId = req.params.id;
-    const { reply_content } = req.body;
+    const reply_content =
+      req.body.reply_content ?? req.body.replyContent;
     if (!reply_content) {
       throw new AppError('Reply content is required', 400);
     }
@@ -132,22 +135,61 @@ export const addReply = async (req: AuthenticatedRequest, res: Response, next: N
 
 export const approveReplacement = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
-    if (!req.user?.position_access?.vehicleIssues?.update) {
-      throw new AppError('Access denied. You are not allowed to approve vehicle replacements.', 403);
+    const canAssignToReservation =
+      req.user?.position_access?.reservations?.update &&
+      req.user?.position_access?.reservations?.view;
+    const canManageIssues = req.user?.position_access?.vehicleIssues?.update;
+
+    if (!canAssignToReservation && !canManageIssues) {
+      throw new AppError(
+        'Access denied. You need reservation assignment or vehicle issue management permissions.',
+        403
+      );
     }
+
+    assertOrganizationDriverManagement(req);
+
     const issueId = req.params.id;
-    const { replacement_vehicle_id, replacement_driver_id } = req.body;
-    if (!replacement_vehicle_id || !replacement_driver_id) {
-      throw new AppError('Replacement vehicle and driver IDs are required', 400);
-    }
+    const { replacement_vehicle_id, replacement_driver_id, staff_message } =
+      approveReplacementSchema.parse(req.body);
+
     const updatedIssue = await issueService.approveVehicleReplacement(
       issueId,
       replacement_vehicle_id,
       replacement_driver_id,
-      req.user!
+      req.user!,
+      staff_message
     );
     res.status(200).json({
-      message: 'Vehicle replacement approved successfully',
+      message:
+        'Additional vehicle and driver assigned. Issue remains open until closed by the reporter.',
+      data: updatedIssue,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const closeIssue = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const issueId = req.params.id;
+    const closingNote =
+      typeof req.body?.closing_note === 'string'
+        ? req.body.closing_note
+        : undefined;
+
+    const updatedIssue = await issueService.closeIssueByUser(
+      issueId,
+      req.user!,
+      closingNote
+    );
+
+    res.status(200).json({
+      message: 'Issue closed successfully',
       data: updatedIssue,
     });
   } catch (error) {

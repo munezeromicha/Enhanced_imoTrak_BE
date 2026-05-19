@@ -1,6 +1,7 @@
 // src/services/reservation.services.ts
 import { PrismaClient, RequestStatus } from '@prisma/client';
 import { createNotification } from './notification.service';
+import { assertDriverNotOnAnotherVehicleInReservation } from '../utils/driverAssignment';
 const prisma = new PrismaClient();
 
 // Helper function to check for date conflicts between reservations
@@ -596,8 +597,12 @@ export async function assignMultipleVehiclesWithOdometerFuel(reservationId: stri
       });
       createdReservedVehicles.push(reservedVehicle);
 
-      // If driver_id is provided, create the active driver assignment
       if (vehicleData.driver_id) {
+        await assertDriverNotOnAnotherVehicleInReservation(
+          tx,
+          reservationId,
+          vehicleData.driver_id
+        );
         await tx.tbl_reserved_vehicle_drivers.create({
           data: {
             reserved_vehicle_id: reservedVehicle.reserved_vehicle_id,
@@ -721,7 +726,12 @@ export async function updateMultipleVehiclesWithOdometerFuel(reservationId: stri
 
         if (vehicleData.driver_id) {
           if (!activeAssignment || activeAssignment.driver_id !== vehicleData.driver_id) {
-            // Deactivate old assignment
+            await assertDriverNotOnAnotherVehicleInReservation(
+              tx,
+              reservationId,
+              vehicleData.driver_id,
+              { excludeReservedVehicleId: rv.reserved_vehicle_id }
+            );
             if (activeAssignment) {
               await tx.tbl_reserved_vehicle_drivers.update({
                 where: { assignment_id: activeAssignment.assignment_id },
@@ -1418,8 +1428,12 @@ export async function addVehicleToReservation(
     },
   });
 
-  // Assign driver if provided
   if (driverId) {
+    await assertDriverNotOnAnotherVehicleInReservation(
+      prisma,
+      reservationId,
+      driverId
+    );
     await prisma.tbl_reserved_vehicle_drivers.create({
       data: {
         reserved_vehicle_id: reservedVehicle.reserved_vehicle_id,

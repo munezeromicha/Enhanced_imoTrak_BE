@@ -3,13 +3,28 @@ import { AppError } from '../utils/Error';
 
 const prisma = new PrismaClient();
 
-export async function createDriver(data: {
-  user_id: string;
-  license_number: string;
-  license_category: string;
-  experience_years: number;
-}) {
-  // Check if user already has a driver profile
+export async function createDriver(
+  data: {
+    user_id: string;
+    license_number: string;
+    license_category: string;
+    experience_years: number;
+  },
+  organizationId: string
+) {
+  const userInOrg = await prisma.tbl_position.findFirst({
+    where: {
+      user_id: data.user_id,
+      unit: { organization_id: organizationId },
+    },
+  });
+  if (!userInOrg) {
+    throw new AppError(
+      'User must be assigned to a position in your organization before becoming a driver',
+      400
+    );
+  }
+
   const existingDriver = await prisma.tbl_drivers.findUnique({
     where: { user_id: data.user_id },
   });
@@ -95,43 +110,69 @@ export async function getDriverByUserId(userId: string) {
   });
 }
 
-export async function getAllDrivers(organizationId: string) {
-  return prisma.tbl_drivers.findMany({
-    where: {
-      user: {
-        positions: {
-          some: {
-            unit: {
-              organization_id: organizationId,
-            },
-          },
-        },
-      },
-    },
+const driverInclude = {
+  user: true,
+  assignments: {
+    where: { is_active: true },
     include: {
-      user: true,
-      assignments: {
-        where: {
-          is_active: true,
-        },
+      reserved_vehicle: {
         include: {
-          reserved_vehicle: {
+          vehicle: {
             include: {
-              vehicle: {
-                include: {
-                  vehicle_model: true,
-                },
-              },
-              reservation: true,
+              vehicle_model: true,
+            },
+          },
+          reservation: true,
+        },
+      },
+    },
+  },
+} as const;
+
+export async function getAllDrivers(organizationId: string) {
+  const orgPositions = await prisma.tbl_position.findMany({
+    where: {
+      unit: { organization_id: organizationId },
+      user_id: { not: null },
+    },
+    select: { user_id: true },
+  });
+
+  const userIds = [
+    ...new Set(
+      orgPositions.map((p) => p.user_id).filter((id): id is string => id != null)
+    ),
+  ];
+
+  const [byOrgUsers, byOrgFleet] = await Promise.all([
+    userIds.length > 0
+      ? prisma.tbl_drivers.findMany({
+          where: { user_id: { in: userIds } },
+          include: driverInclude,
+        })
+      : Promise.resolve([]),
+    prisma.tbl_drivers.findMany({
+      where: {
+        assignments: {
+          some: {
+            reserved_vehicle: {
+              vehicle: { organization_id: organizationId },
             },
           },
         },
       },
-    },
-    orderBy: {
-      created_at: 'desc',
-    },
-  });
+      include: driverInclude,
+    }),
+  ]);
+
+  const merged = new Map<string, (typeof byOrgUsers)[number]>();
+  for (const driver of [...byOrgUsers, ...byOrgFleet]) {
+    merged.set(driver.driver_id, driver);
+  }
+
+  return Array.from(merged.values()).sort(
+    (a, b) => b.created_at.getTime() - a.created_at.getTime()
+  );
 }
 
 export async function getDriverTripHistory(driverId: string) {

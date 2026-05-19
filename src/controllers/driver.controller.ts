@@ -3,6 +3,7 @@ import { AuthenticatedRequest } from '../types/access';
 import * as driverService from '../services/driver.service';
 import { createDriverSchema, updateDriverSchema } from '../schemas/driver.schema';
 import { AppError } from '../utils/Error';
+import { assertOrganizationDriverManagement } from '../utils/driverAccess';
 
 function checkUserPermission(req: AuthenticatedRequest, action: 'create' | 'view' | 'update' | 'delete') {
   if (!req.user?.position_access?.users?.[action]) {
@@ -12,9 +13,10 @@ function checkUserPermission(req: AuthenticatedRequest, action: 'create' | 'view
 
 export const createDriver = async (req: AuthenticatedRequest, res: Response) => {
   try {
+    assertOrganizationDriverManagement(req);
     checkUserPermission(req, 'create');
     const body = createDriverSchema.parse(req.body);
-    const driver = await driverService.createDriver(body);
+    const driver = await driverService.createDriver(body, req.user.organization_id);
     res.status(201).json({
       message: 'Driver profile created successfully',
       data: driver,
@@ -27,6 +29,7 @@ export const createDriver = async (req: AuthenticatedRequest, res: Response) => 
 
 export const updateDriver = async (req: AuthenticatedRequest, res: Response) => {
   try {
+    assertOrganizationDriverManagement(req);
     checkUserPermission(req, 'update');
     const driverId = req.params.id;
     const body = updateDriverSchema.parse(req.body);
@@ -43,6 +46,7 @@ export const updateDriver = async (req: AuthenticatedRequest, res: Response) => 
 
 export const getDriverById = async (req: AuthenticatedRequest, res: Response) => {
   try {
+    assertOrganizationDriverManagement(req);
     checkUserPermission(req, 'view');
     const driverId = req.params.id;
     const driver = await driverService.getDriverById(driverId);
@@ -61,7 +65,10 @@ export const getSelfDriverProfile = async (req: AuthenticatedRequest, res: Respo
     const userId = req.user.user_id;
     const driver = await driverService.getDriverByUserId(userId);
     if (!driver) {
-      return res.status(404).json({ message: 'No driver profile associated with this user account' });
+      return res.status(200).json({
+        message: 'No driver profile associated with this user account',
+        data: null,
+      });
     }
     res.status(200).json({
       message: 'Driver profile retrieved successfully',
@@ -75,6 +82,7 @@ export const getSelfDriverProfile = async (req: AuthenticatedRequest, res: Respo
 
 export const getAllDrivers = async (req: AuthenticatedRequest, res: Response) => {
   try {
+    assertOrganizationDriverManagement(req);
     checkUserPermission(req, 'view');
     const organizationId = req.user.organization_id;
     const drivers = await driverService.getAllDrivers(organizationId);

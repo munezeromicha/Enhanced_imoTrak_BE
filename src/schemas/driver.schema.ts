@@ -21,4 +21,5 @@ export const issueReplySchema = z.object({
 export const approveReplacementSchema = z.object({
   replacement_vehicle_id: z.string().uuid('Invalid replacement vehicle ID'),
   replacement_driver_id: z.string().uuid('Invalid replacement driver ID'),
+  staff_message: z.string().max(5000).optional(),
 });
