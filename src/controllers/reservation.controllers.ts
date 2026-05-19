@@ -19,6 +19,13 @@ function checkPermission(req: AuthenticatedRequest, action: keyof AuthenticatedR
   }
 }
 
+function checkAnyPermission(req: AuthenticatedRequest, actions: Array<keyof AuthenticatedRequest['user']['position_access']['reservations']>) {
+  const hasAny = actions.some(action => req.user?.position_access?.reservations?.[action]);
+  if (!hasAny) {
+    throw new Error('Forbidden: insufficient reservation permissions');
+  }
+}
+
 export const createReservation = async (req: AuthenticatedRequest, res: Response) => {
   try {
     checkPermission(req, 'create');
@@ -108,9 +115,10 @@ export const completeReservation = async (req: AuthenticatedRequest, res: Respon
 
 export const getAllReservations = async (req: AuthenticatedRequest, res: Response) => {
   try {
-    checkPermission(req, 'view');
+    // Allow full-view managers OR drivers with viewAssigned permission
+    checkAnyPermission(req, ['view', 'viewAssigned']);
     const organizationId = req.user.organization_id;
-    const reservations = await reservationService.getAllReservations(organizationId);
+    const reservations = await reservationService.getAllReservations(organizationId, req.user);
     res.status(200).json({ data: reservations });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
@@ -230,11 +238,11 @@ export const getAvailableVehicles = async (req: AuthenticatedRequest, res: Respo
 
 export const getReservationById = async (req: AuthenticatedRequest, res: Response) => {
   try {
-    // Check if user has view permission or if they own the reservation
     const hasViewPermission = req.user?.position_access?.reservations?.view;
     const hasViewOwnPermission = req.user?.position_access?.reservations?.viewOwn;
+    const hasViewAssignedPermission = req.user?.position_access?.reservations?.viewAssigned;
     
-    if (!hasViewPermission && !hasViewOwnPermission) {
+    if (!hasViewPermission && !hasViewOwnPermission && !hasViewAssignedPermission) {
       return res.status(403).json({ message: 'Forbidden: insufficient reservation permissions' });
     }
     
@@ -246,9 +254,15 @@ export const getReservationById = async (req: AuthenticatedRequest, res: Respons
       return res.status(404).json({ message: 'Reservation not found' });
     }
     
-    // If user only has viewOwn permission, check if they own the reservation
-    if (!hasViewPermission && hasViewOwnPermission && reservation.user_id !== req.user.user_id) {
-      return res.status(403).json({ message: 'Forbidden: can only view own reservations' });
+    const isOwner = reservation.user_id === req.user.user_id;
+    const isAssignedDriver = reservation.reserved_vehicles?.some((rv: any) => 
+      rv.drivers?.some((d: any) => d.driver?.user_id === req.user.user_id)
+    );
+
+    const isAuthorized = hasViewPermission || (hasViewOwnPermission && isOwner) || (hasViewAssignedPermission && isAssignedDriver);
+    
+    if (!isAuthorized) {
+      return res.status(403).json({ message: 'Forbidden: not authorized to view this reservation' });
     }
     
     res.status(200).json({ data: reservation });
@@ -262,6 +276,7 @@ export const addVehicleToReservation = async (req: AuthenticatedRequest, res: Re
   try {
     checkPermission(req, 'assignVehicle');
     const { vehicle_id } = assignVehicleSchema.parse(req.body);
+    const driverId = req.body.driver_id || null;
     const reservationId = req.params.id;
     const reviewerId = req.user.user_id;
     const organizationId = req.user.organization_id;
@@ -270,7 +285,8 @@ export const addVehicleToReservation = async (req: AuthenticatedRequest, res: Re
       reservationId, 
       vehicle_id, 
       reviewerId, 
-      organizationId
+      organizationId,
+      driverId
     );
     
     res.status(200).json({ 

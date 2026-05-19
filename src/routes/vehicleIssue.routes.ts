@@ -573,5 +573,7 @@ issueRoutes.delete('/:id', authenticateToken, attachPositionAccess, controller.r
  *         description: Issue not found
  */
 issueRoutes.patch('/:id/message', authenticateToken, attachPositionAccess, validateBody(updateVehicleIssueMessageSchema), controller.updateMessage);
+issueRoutes.post('/:id/replies', authenticateToken, attachPositionAccess, controller.addReply);
+issueRoutes.post('/:id/replacement', authenticateToken, attachPositionAccess, controller.approveReplacement);
 
 export default issueRoutes;

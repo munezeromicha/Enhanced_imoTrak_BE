@@ -57,6 +57,7 @@ export const assignMultipleVehiclesWithOdometerFuelSchema = z.object({
     vehicle_id: z.string().min(1),
     starting_odometer: z.number().int().min(0).default(0),
     fuel_provided: z.number().int().min(0).default(0),
+    driver_id: z.string().uuid().optional().nullable(),
   })).min(1),
 });
 

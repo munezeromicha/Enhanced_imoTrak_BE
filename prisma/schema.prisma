@@ -42,6 +42,9 @@ model tbl_users {
   reserved_vehicles_returned tbl_reserved_vehicles[] @relation("ReservationReturnedBy")
   auth                       tbl_auth                @relation(fields: [auth_id], references: [auth_id])
   updater_issues             tbl_vehicle_issues[]    @relation("VehicleIssueUpdater")
+  driver                     tbl_drivers?
+  reported_issues            tbl_vehicle_issues[]    @relation("UserReportedIssues")
+  issue_replies              tbl_vehicle_issue_replies[]
 }
 
 model tbl_audit_logs {
@@ -158,6 +161,11 @@ model tbl_reserved_vehicles {
   vehicle             tbl_vehicles            @relation(fields: [vehicle_id], references: [vehicle_id])
   isuues              tbl_vehicle_issues[]
   locations           tbl_vehicle_locations[]
+  replaced_by_id      String?                 @unique
+  replaced_by         tbl_reserved_vehicles?  @relation("VehicleReplacement", fields: [replaced_by_id], references: [reserved_vehicle_id])
+  replacement_for     tbl_reserved_vehicles?  @relation("VehicleReplacement")
+  drivers             tbl_reserved_vehicle_drivers[]
+  issue_replacements  tbl_vehicle_issues[]    @relation("IssueReplacementReservedVehicle")
 }
 
 model tbl_vehicle_locations {
@@ -198,18 +206,28 @@ model tbl_position {
 }
 
 model tbl_vehicle_issues {
-  issue_id            String                @id @default(uuid())
-  issue_title         String
-  issue_status        IssueStatus           @default(OPEN)
-  issue_description   String
-  issue_date          DateTime              @default(now())
-  created_at          DateTime              @default(now())
-  updated_at          DateTime?             @default(now())
-  issue_responder     String?
-  reserved_vehicle_id String
-  message             String?
-  updater             tbl_users?            @relation("VehicleIssueUpdater", fields: [issue_responder], references: [user_id])
-  reserved_vehicle    tbl_reserved_vehicles @relation(fields: [reserved_vehicle_id], references: [reserved_vehicle_id])
+  issue_id                        String                 @id @default(uuid())
+  issue_title                     String
+  issue_status                    IssueStatus            @default(OPEN)
+  issue_description               String
+  issue_date                      DateTime               @default(now())
+  created_at                      DateTime               @default(now())
+  updated_at                      DateTime?              @default(now())
+  issue_responder                 String?
+  reserved_vehicle_id             String
+  message                         String?
+  updater                         tbl_users?             @relation("VehicleIssueUpdater", fields: [issue_responder], references: [user_id])
+  reserved_vehicle                tbl_reserved_vehicles  @relation(fields: [reserved_vehicle_id], references: [reserved_vehicle_id])
+  reported_by_user_id             String?
+  reported_by_driver_id           String?
+  severity_level                  IssueSeverity          @default(LOW)
+  replacement_requested           Boolean                @default(false)
+  replacement_status              String?
+  replacement_reserved_vehicle_id String?
+  reported_by_user                tbl_users?             @relation("UserReportedIssues", fields: [reported_by_user_id], references: [user_id])
+  reported_by_driver              tbl_drivers?           @relation("DriverReportedIssues", fields: [reported_by_driver_id], references: [driver_id])
+  replacement_reserved_vehicle    tbl_reserved_vehicles? @relation("IssueReplacementReservedVehicle", fields: [replacement_reserved_vehicle_id], references: [reserved_vehicle_id])
+  replies                         tbl_vehicle_issue_replies[]
 }
 
 model tbl_jwt_blacklist {
@@ -295,4 +313,60 @@ model tbl_contacts {
   message    String
   created_at DateTime @default(now())
   is_read    Boolean  @default(false)
+}
+
+model tbl_drivers {
+  driver_id        String                       @id @default(uuid())
+  user_id          String                       @unique
+  license_number   String                       @unique
+  license_category String
+  experience_years Int
+  driver_status    DriverStatus                 @default(AVAILABLE)
+  created_at       DateTime                     @default(now())
+  updated_at       DateTime                     @updatedAt
+
+  user             tbl_users                    @relation(fields: [user_id], references: [user_id])
+  assignments      tbl_reserved_vehicle_drivers[]
+  replies          tbl_vehicle_issue_replies[]
+  reported_issues  tbl_vehicle_issues[]         @relation("DriverReportedIssues")
+}
+
+model tbl_reserved_vehicle_drivers {
+  assignment_id       String                @id @default(uuid())
+  reserved_vehicle_id String
+  driver_id           String
+  assigned_at         DateTime              @default(now())
+  is_active           Boolean               @default(true)
+  unassigned_at       DateTime?
+  created_at          DateTime              @default(now())
+
+  reserved_vehicle    tbl_reserved_vehicles @relation(fields: [reserved_vehicle_id], references: [reserved_vehicle_id])
+  driver              tbl_drivers           @relation(fields: [driver_id], references: [driver_id])
+}
+
+model tbl_vehicle_issue_replies {
+  reply_id      String             @id @default(uuid())
+  issue_id      String
+  user_id       String?
+  driver_id     String?
+  reply_content String
+  created_at    DateTime           @default(now())
+
+  issue         tbl_vehicle_issues @relation(fields: [issue_id], references: [issue_id])
+  user          tbl_users?         @relation(fields: [user_id], references: [user_id])
+  driver        tbl_drivers?       @relation(fields: [driver_id], references: [driver_id])
+}
+
+enum DriverStatus {
+  AVAILABLE
+  ON_TRIP
+  INACTIVE
+}
+
+enum IssueSeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+  DANGER
 }

@@ -8,6 +8,7 @@ import issueRoutes from "./vehicleIssue.routes";
 import notificationRoutes from './notification.routes';
 import historyRoutes from "./audit.routes";
 import contactRoutes from "./contact.route";
+import driverRoutes from "./driver.routes";
 
 const routes = Router();
 
@@ -20,5 +21,6 @@ routes.use('/reservations', reservationRoutes);
 routes.use('/issues', issueRoutes);
 routes.use('/notifications', notificationRoutes);
 routes.use('/contacts', contactRoutes);
+routes.use('/drivers', driverRoutes);
 
 export default routes;

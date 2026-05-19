@@ -14,7 +14,6 @@ interface AuthenticatedRequest extends Request {
   };
 }
 
-
 export const getAll = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
     if (!req.user?.position_access?.vehicleIssues?.view) {
@@ -27,7 +26,6 @@ export const getAll = async (req: AuthenticatedRequest, res: Response, next: Nex
       message: 'Vehicle issues retrieved successfully.',
       data: issues,
     });
-
   } catch (err: any) {
     next(err);
   }
@@ -36,49 +34,63 @@ export const getAll = async (req: AuthenticatedRequest, res: Response, next: Nex
 export const getById = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
     if (!req.user?.position_access?.vehicleIssues?.view) {
-      throw new AppError('Access denied. U are not allowed to view this vehicle issue.', 403);
+      throw new AppError('Access denied. You are not allowed to view this vehicle issue.', 403);
     }
     const issue = await issueService.getIssueById(req.params.id, req.user);
     
     if (!issue) return res.status(404).json({ message: 'Issue not found' });
     res.json({
-      message: 'issue retrieved successfully',
-      data:issue
+      message: 'Issue retrieved successfully',
+      data: issue
     });
-      
   } catch (error) {
-    next(error)
+    next(error);
   }
 };
 
-export const create = async (req: AuthenticatedRequest, res: Response) => {
-  if (!req.user?.position_access?.vehicleIssues?.report) {
-    throw new AppError('Access denied. U are not allowed to create vehicle issues.', 403);
+export const create = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  try {
+    if (!req.user?.position_access?.vehicleIssues?.report) {
+      throw new AppError('Access denied. You are not allowed to create vehicle issues.', 403);
+    }
+    const { issue_title, issue_description, reserved_vehicle_id, issue_date, severity_level, replacement_requested } = req.body;
+    const newIssue = await issueService.createIssue(
+      { issue_title, issue_description, reserved_vehicle_id, issue_date, severity_level, replacement_requested },
+      req.user
+    );
+    res.status(201).json(newIssue);
+  } catch (err: any) {
+    next(err);
   }
-  const { issue_title, issue_description, reserved_vehicle_id, issue_date } = req.body;
-  const newIssue = await issueService.createIssue({ issue_title, issue_description, reserved_vehicle_id, issue_date }, req.user);
-  res.status(201).json(newIssue);
 };
 
-export const update = async (req: AuthenticatedRequest, res: Response) => {
-  if (!req.user?.position_access?.vehicleIssues?.update) {
-    throw new AppError('Access denied. U are not allowed to edit vehicle issues.', 403);
-  }
-  const issue = await issueService.getIssueById(req.params.id, req.user);
+export const update = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  try {
+    if (!req.user?.position_access?.vehicleIssues?.update) {
+      throw new AppError('Access denied. You are not allowed to edit vehicle issues.', 403);
+    }
+    const issue = await issueService.getIssueById(req.params.id, req.user);
 
-  if (issue?.issue_status === 'CLOSED') {
-    throw new AppError('Cannot update a closed issue.', 400);
+    if (issue?.issue_status === 'CLOSED') {
+      throw new AppError('Cannot update a closed issue.', 400);
+    }
+    const updatedIssue = await issueService.updateIssue(req.params.id, req.body, req.user);
+    res.json(updatedIssue);
+  } catch (err: any) {
+    next(err);
   }
-  const updatedIssue = await issueService.updateIssue(req.params.id, req.body, req.user);
-  res.json(updatedIssue);
 };
 
-export const remove = async (req: AuthenticatedRequest, res: Response) => {
-  if (!req.user?.position_access?.vehicleIssues?.delete) {
-    throw new AppError('Access denied. U are not allowed to delete vehicle issues.', 403);
+export const remove = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  try {
+    if (!req.user?.position_access?.vehicleIssues?.delete) {
+      throw new AppError('Access denied. You are not allowed to delete vehicle issues.', 403);
+    }
+    await issueService.deleteIssue(req.params.id);
+    res.status(204).send();
+  } catch (err: any) {
+    next(err);
   }
-  await issueService.deleteIssue(req.params.id);
-  res.status(204).send();
 };
 
 export const updateMessage = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
@@ -94,6 +106,48 @@ export const updateMessage = async (req: AuthenticatedRequest, res: Response, ne
     
     res.status(200).json({
       message: 'Vehicle issue message updated successfully',
+      data: updatedIssue,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const addReply = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  try {
+    const issueId = req.params.id;
+    const { reply_content } = req.body;
+    if (!reply_content) {
+      throw new AppError('Reply content is required', 400);
+    }
+    const reply = await issueService.addIssueReply(issueId, reply_content, req.user!);
+    res.status(201).json({
+      message: 'Reply added successfully',
+      data: reply,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const approveReplacement = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  try {
+    if (!req.user?.position_access?.vehicleIssues?.update) {
+      throw new AppError('Access denied. You are not allowed to approve vehicle replacements.', 403);
+    }
+    const issueId = req.params.id;
+    const { replacement_vehicle_id, replacement_driver_id } = req.body;
+    if (!replacement_vehicle_id || !replacement_driver_id) {
+      throw new AppError('Replacement vehicle and driver IDs are required', 400);
+    }
+    const updatedIssue = await issueService.approveVehicleReplacement(
+      issueId,
+      replacement_vehicle_id,
+      replacement_driver_id,
+      req.user!
+    );
+    res.status(200).json({
+      message: 'Vehicle replacement approved successfully',
       data: updatedIssue,
     });
   } catch (error) {

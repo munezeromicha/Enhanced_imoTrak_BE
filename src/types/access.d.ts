@@ -51,7 +51,8 @@ export interface position_accesses {
     odometerFuel: boolean; 
     start: boolean; 
     complete: boolean; 
-    viewOwn: boolean; 
+    viewOwn: boolean;
+    viewAssigned: boolean;
     updateReason: boolean;
   };
   vehicleIssues: {

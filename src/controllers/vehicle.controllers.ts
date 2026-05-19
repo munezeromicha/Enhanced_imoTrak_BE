@@ -1,9 +1,12 @@
 import { Request, Response, NextFunction } from 'express';
+import { PrismaClient } from '@prisma/client';
 import * as vehicleService from '../services/vehicle.services';
 import { uploadToCloudinary } from '../utils/cloudinary';
 import { AuthenticatedRequest } from '../types/access';
 import { AppError } from '../utils/Error';
 import { ServerResponse } from 'http';
+
+const prisma = new PrismaClient();
 function checkVehiclePermission(req: AuthenticatedRequest, action: keyof AuthenticatedRequest['user']['position_access']['vehicles']) {
   if (!req.user?.position_access?.vehicles?.[action]) {
     throw new AppError(`You do not have permission to ${String(action)} vehicles`, 403);
@@ -119,7 +122,31 @@ export async function getAllVehiclesController(req: Request, res: Response, next
 
 export async function getVehicleByIdController(req: Request, res: Response, next: NextFunction) {
   try {
-    checkVehiclePermission(req as AuthenticatedRequest, 'viewSingle');
+    const authReq = req as AuthenticatedRequest;
+    let isAssigned = false;
+    
+    // Check if caller is a driver assigned to this vehicle
+    const driverProfile = await prisma.tbl_drivers.findUnique({
+      where: { user_id: authReq.user?.user_id },
+    });
+    if (driverProfile) {
+      const assignment = await prisma.tbl_reserved_vehicle_drivers.findFirst({
+        where: {
+          driver_id: driverProfile.driver_id,
+          reserved_vehicle: {
+            vehicle_id: req.params.id,
+          },
+        },
+      });
+      if (assignment) {
+        isAssigned = true;
+      }
+    }
+
+    if (!isAssigned) {
+      checkVehiclePermission(authReq, 'viewSingle');
+    }
+
     const vehicle = await vehicleService.getVehicleById(req.params.id);
     if (!vehicle) throw new AppError('Vehicle not found', 404);
     res.json({ data: vehicle });
@@ -166,7 +193,31 @@ export async function deleteVehicleController(req: Request, res: Response, next:
 
 export async function getVehicleLocationHistoryController(req: Request, res: Response, next: NextFunction) {
   try {
-    checkVehiclePermission(req as AuthenticatedRequest, 'viewSingle');
+    const authReq = req as AuthenticatedRequest;
+    let isAssigned = false;
+    
+    // Check if caller is a driver assigned to this vehicle
+    const driverProfile = await prisma.tbl_drivers.findUnique({
+      where: { user_id: authReq.user?.user_id },
+    });
+    if (driverProfile) {
+      const assignment = await prisma.tbl_reserved_vehicle_drivers.findFirst({
+        where: {
+          driver_id: driverProfile.driver_id,
+          reserved_vehicle: {
+            vehicle_id: req.params.id,
+          },
+        },
+      });
+      if (assignment) {
+        isAssigned = true;
+      }
+    }
+
+    if (!isAssigned) {
+      checkVehiclePermission(authReq, 'viewSingle');
+    }
+
     const reservedVehicleId = typeof req.query.trip === 'string' ? req.query.trip : undefined;
     const history = await vehicleService.getVehicleLocationHistory(req.params.id, reservedVehicleId);
     res.json({ data: history });
@@ -177,7 +228,29 @@ export async function getVehicleLocationHistoryController(req: Request, res: Res
 
 export async function getTripLocationHistoryController(req: Request, res: Response, next: NextFunction) {
   try {
-    checkVehiclePermission(req as AuthenticatedRequest, 'viewSingle');
+    const authReq = req as AuthenticatedRequest;
+    let isAssigned = false;
+    
+    // Check if caller is a driver assigned to this trip's vehicle
+    const driverProfile = await prisma.tbl_drivers.findUnique({
+      where: { user_id: authReq.user?.user_id },
+    });
+    if (driverProfile) {
+      const assignment = await prisma.tbl_reserved_vehicle_drivers.findFirst({
+        where: {
+          driver_id: driverProfile.driver_id,
+          reserved_vehicle_id: req.params.reservedVehicleId,
+        },
+      });
+      if (assignment) {
+        isAssigned = true;
+      }
+    }
+
+    if (!isAssigned) {
+      checkVehiclePermission(authReq, 'viewSingle');
+    }
+
     const history = await vehicleService.getTripLocationHistory(req.params.reservedVehicleId);
     res.json({ data: history });
   } catch (error) {
