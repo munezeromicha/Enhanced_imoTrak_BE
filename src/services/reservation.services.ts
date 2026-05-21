@@ -1,7 +1,10 @@
 // src/services/reservation.services.ts
 import { PrismaClient, RequestStatus } from '@prisma/client';
 import { createNotification } from './notification.service';
-import { assertDriverNotOnAnotherVehicleInReservation } from '../utils/driverAssignment';
+import {
+  assertDriverNotOnAnotherVehicleInReservation,
+  assertNoDuplicateDriversInPayload,
+} from '../utils/driverAssignment';
 const prisma = new PrismaClient();
 
 // Helper function to check for date conflicts between reservations
@@ -161,24 +164,42 @@ export async function createReservation(data: {
     },
   });
   // Notify approvers in the same org
-  const user = await prisma.tbl_users.findUnique({ where: { user_id: data.user_id }, include: { positions: { include: { unit: { include: { organization: true } } } } } });
-  const orgId = user?.positions[0]?.unit.organization.organization_id;
+  const user = await prisma.tbl_users.findUnique({
+    where: { user_id: data.user_id },
+    include: {
+      position_assignments: {
+        include: {
+          position: {
+            include: { unit: { include: { organization: true } } },
+          },
+        },
+      },
+    },
+  });
+  const orgId =
+    user?.position_assignments[0]?.position.unit.organization.organization_id;
   if (orgId) {
-    // Find all users with approve/reject/cancel access in this org
-    const approverPositions = await prisma.tbl_position.findMany({
+    const approverAssignments = await prisma.tbl_user_position_assignments.findMany({
       where: {
-        unit: { organization_id: orgId },
-        position_access: { path: ['reservations', 'update'], equals: true },
+        position: {
+          unit: { organization_id: orgId },
+          position_access: { path: ['reservations', 'update'], equals: true },
+        },
       },
       include: { user: { include: { auth: true } } },
     });
-    for (const pos of approverPositions) {
-      if (pos.user && pos.user.user_id !== data.user_id) { // skip requester
+    const notified = new Set<string>();
+    for (const assignment of approverAssignments) {
+      if (
+        assignment.user.user_id !== data.user_id &&
+        !notified.has(assignment.user.user_id)
+      ) {
+        notified.add(assignment.user.user_id);
         await createNotification({
-          user_id: pos.user.user_id,
+          user_id: assignment.user.user_id,
           notification_title: 'New Reservation Request',
           notification_message: `A new reservation request has been submitted and requires your review.`,
-          email: pos.user.auth?.email || undefined,
+          email: assignment.user.auth?.email || undefined,
         });
       }
     }
@@ -364,10 +385,12 @@ export async function assignVehicle(reservationId: string, vehicleId: string, re
     where: { 
       reservation_id: reservationId,
       user: {
-        positions: {
+        position_assignments: {
           some: {
-            unit: {
-              organization_id: organizationId,
+            position: {
+              unit: {
+                organization_id: organizationId,
+              },
             },
           },
         },
@@ -435,10 +458,12 @@ export async function assignMultipleVehicles(reservationId: string, vehicleIds: 
     where: { 
       reservation_id: reservationId,
       user: {
-        positions: {
+        position_assignments: {
           some: {
-            unit: {
-              organization_id: organizationId,
+            position: {
+              unit: {
+                organization_id: organizationId,
+              },
             },
           },
         },
@@ -529,10 +554,12 @@ export async function assignMultipleVehiclesWithOdometerFuel(reservationId: stri
     where: { 
       reservation_id: reservationId,
       user: {
-        positions: {
+        position_assignments: {
           some: {
-            unit: {
-              organization_id: organizationId,
+            position: {
+              unit: {
+                organization_id: organizationId,
+              },
             },
           },
         },
@@ -540,6 +567,9 @@ export async function assignMultipleVehiclesWithOdometerFuel(reservationId: stri
     }
   });
   if (!reservation) throw new Error('Reservation not found');
+
+  assertNoDuplicateDriversInPayload(vehiclesData);
+
   if (reservation.reservation_status === RequestStatus.IN_PROGRESS) {
     throw new Error('Cannot assign vehicles when reservation is in progress');
   }
@@ -658,10 +688,12 @@ export async function updateMultipleVehiclesWithOdometerFuel(reservationId: stri
     where: { 
       reservation_id: reservationId,
       user: {
-        positions: {
+        position_assignments: {
           some: {
-            unit: {
-              organization_id: organizationId,
+            position: {
+              unit: {
+                organization_id: organizationId,
+              },
             },
           },
         },
@@ -670,6 +702,8 @@ export async function updateMultipleVehiclesWithOdometerFuel(reservationId: stri
     include: { reserved_vehicles: true }
   });
   if (!reservation) throw new Error('Reservation not found');
+
+  assertNoDuplicateDriversInPayload(vehiclesData);
   
   // Only allow update if reservation is ACCEPTED or APPROVED and not IN_PROGRESS
   if (reservation.reservation_status === RequestStatus.IN_PROGRESS) {
@@ -995,10 +1029,12 @@ export async function getAllReservations(organizationId: string, user?: { user_i
   // Base org filter — every reservation must belong to the same org
   const orgFilter: any = {
     user: {
-      positions: {
+      position_assignments: {
         some: {
-          unit: {
-            organization_id: organizationId,
+          position: {
+            unit: {
+              organization_id: organizationId,
+            },
           },
         },
       },
@@ -1252,10 +1288,12 @@ export async function getReservationById(reservationId: string, organizationId: 
     where: { 
       reservation_id: reservationId,
       user: {
-        positions: {
+        position_assignments: {
           some: {
-            unit: {
-              organization_id: organizationId,
+            position: {
+              unit: {
+                organization_id: organizationId,
+              },
             },
           },
         },
@@ -1365,10 +1403,12 @@ export async function addVehicleToReservation(
     where: { 
       reservation_id: reservationId,
       user: {
-        positions: {
+        position_assignments: {
           some: {
-            unit: {
-              organization_id: organizationId,
+            position: {
+              unit: {
+                organization_id: organizationId,
+              },
             },
           },
         },
@@ -1482,10 +1522,12 @@ export async function removeVehicleFromReservation(reservationId: string, vehicl
     where: { 
       reservation_id: reservationId,
       user: {
-        positions: {
+        position_assignments: {
           some: {
-            unit: {
-              organization_id: organizationId,
+            position: {
+              unit: {
+                organization_id: organizationId,
+              },
             },
           },
         },

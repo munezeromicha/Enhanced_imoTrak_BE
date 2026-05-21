@@ -12,10 +12,12 @@ export async function createDriver(
   },
   organizationId: string
 ) {
-  const userInOrg = await prisma.tbl_position.findFirst({
+  const userInOrg = await prisma.tbl_user_position_assignments.findFirst({
     where: {
       user_id: data.user_id,
-      unit: { organization_id: organizationId },
+      position: {
+        unit: { organization_id: organizationId },
+      },
     },
   });
   if (!userInOrg) {
@@ -130,19 +132,16 @@ const driverInclude = {
 } as const;
 
 export async function getAllDrivers(organizationId: string) {
-  const orgPositions = await prisma.tbl_position.findMany({
+  const orgAssignments = await prisma.tbl_user_position_assignments.findMany({
     where: {
-      unit: { organization_id: organizationId },
-      user_id: { not: null },
+      position: {
+        unit: { organization_id: organizationId },
+      },
     },
     select: { user_id: true },
   });
 
-  const userIds = [
-    ...new Set(
-      orgPositions.map((p) => p.user_id).filter((id): id is string => id != null)
-    ),
-  ];
+  const userIds = [...new Set(orgAssignments.map((a) => a.user_id))];
 
   const [byOrgUsers, byOrgFleet] = await Promise.all([
     userIds.length > 0

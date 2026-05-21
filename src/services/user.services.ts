@@ -5,6 +5,11 @@ import argon2 from 'argon2';
 import jwt from 'jsonwebtoken';
 import dotenv from 'dotenv';
 import { AppError } from '../utils/Error';
+import {
+  createUserPositionAssignment,
+  mapAssignmentsToPositions,
+  userPositionAssignmentsInclude,
+} from '../utils/userPositions';
 
 dotenv.config();
 
@@ -87,18 +92,8 @@ export async function createUserService(data: CreateUserPayload) {
       },
     });
 
-    // Assign user to position
-    await tx.tbl_position.update({
-      where: { position_id },
-      data: { user_id: user.user_id },
-      include: {
-        unit: {
-          include: {
-            organization: true,
-          },
-        },
-      },
-    });
+    // Assign user to position (multiple users can share the same position)
+    await createUserPositionAssignment(tx, user.user_id, position_id);
 
     return {
       user,
@@ -126,10 +121,12 @@ export const getUsersWithPositionsService = async (organization_id?: string) => 
   const users = await prisma.tbl_users.findMany({
     where: organization_id
       ? {
-          positions: {
+          position_assignments: {
             some: {
-              unit: {
-                organization_id,
+              position: {
+                unit: {
+                  organization_id,
+                },
               },
             },
           },
@@ -146,22 +143,26 @@ export const getUsersWithPositionsService = async (organization_id?: string) => 
           email: true,
         },
       },
-      positions: {
+      position_assignments: {
         select: {
-          position_id: true,
-          position_name: true,
-          position_description: true,
-          position_status: true,
-          unit: {
+          position: {
             select: {
-              unit_id: true,
-              unit_name: true,
-              organization: {
+              position_id: true,
+              position_name: true,
+              position_description: true,
+              position_status: true,
+              unit: {
                 select: {
-                  organization_id: true,
-                  organization_name: true,
-                  organization_email: true,
-                  organization_phone: true,
+                  unit_id: true,
+                  unit_name: true,
+                  organization: {
+                    select: {
+                      organization_id: true,
+                      organization_name: true,
+                      organization_email: true,
+                      organization_phone: true,
+                    },
+                  },
                 },
               },
             },
@@ -178,7 +179,7 @@ export const getUsersWithPositionsService = async (organization_id?: string) => 
     email: user.auth?.email,
     user_gender: user.user_gender,
     user_phone: user.user_phone,
-    positions: user.positions.map((pos) => ({
+    positions: user.position_assignments.map((a) => a.position).map((pos) => ({
       position_id: pos.position_id,
       position_name: pos.position_name,
       position_description: pos.position_description,
@@ -195,44 +196,27 @@ export const getUsersWithPositionsService = async (organization_id?: string) => 
 export const getSingleUserWithPositionsService = async (user_id: string) => {
   const user = await prisma.tbl_users.findUnique({
     where: { user_id },
-    include:{
+    include: {
       auth: {
         select: {
           email: true,
         },
       },
-      positions: {
-        select: {
-          position_id: true,
-          position_name: true,
-          position_description: true,
-          position_status: true,
-          unit: {
-            select: {
-              unit_id: true,
-              unit_name: true,
-              organization: {
-                select: {
-                  organization_id: true,
-                  organization_name: true,
-                  organization_email: true,
-                  organization_phone: true,
-                },
-              },
-            },
-          },
-        },
-      },
-    }
+      ...userPositionAssignmentsInclude,
+    },
   });
 
   if (!user) {
     throw new AppError('User not found', 404);
   }
 
-  const {auth, ...resp} = user; 
+  const { auth, position_assignments, ...rest } = user;
 
-  return {email:auth.email, ...resp};
+  return {
+    email: auth.email,
+    ...rest,
+    positions: mapAssignmentsToPositions(user),
+  };
 };
 
 export const updateUserService = async (
@@ -249,37 +233,18 @@ export const updateUserService = async (
           email: true
         }
       },
-      positions: {
-        select: {
-          position_id: true,
-          position_name: true,
-          position_description: true,
-          position_status: true,
-          unit: {
-            select: {
-              unit_id: true,
-              unit_name: true,
-              organization: {
-                select: {
-                  organization_id: true,
-                  organization_name: true,
-                  organization_email: true,
-                  organization_phone: true,
-                },
-              },
-            },
-          },
-        },
-      },
+      ...userPositionAssignmentsInclude,
     },
   });
 
 
   if (!user) throw new AppError('User not found', 404);
 
+  const userPositions = mapAssignmentsToPositions(user);
+
   // If not global access, verify org
   if (!hasGlobalAccess) {
-    const belongsToOrg = user.positions.some(
+    const belongsToOrg = userPositions.some(
       (pos) => pos.unit.organization.organization_id === requester_org_id
     );
     if (!belongsToOrg) {
@@ -292,28 +257,7 @@ export const updateUserService = async (
     data,
     include: {
       auth: true,
-      positions: {
-        select: {
-          position_id: true,
-          position_name: true,
-          position_description: true,
-          position_status: true,
-          unit: {
-            select: {
-              unit_id: true,
-              unit_name: true,
-              organization: {
-                select: {
-                  organization_id: true,
-                  organization_name: true,
-                  organization_email: true,
-                  organization_phone: true,
-                },
-              },
-            },
-          },
-        },
-      },
+      ...userPositionAssignmentsInclude,
     },
   });
 
@@ -324,7 +268,7 @@ export const updateUserService = async (
     email: updated.auth?.email,
     user_gender: updated.user_gender,
     user_phone: updated.user_phone,
-    positions: updated.positions,
+    positions: mapAssignmentsToPositions(updated),
   };
 };
 
@@ -334,10 +278,12 @@ export const getUnverifiedUsersService = async (organization_id: string) => {
       auth: {
         is_verified: false,
       },
-      positions: {
+      position_assignments: {
         some: {
-          unit: {
-            organization_id,
+          position: {
+            unit: {
+              organization_id,
+            },
           },
         },
       },
@@ -354,22 +300,26 @@ export const getUnverifiedUsersService = async (organization_id: string) => {
           is_verified: true,
         },
       },
-      positions: {
+      position_assignments: {
         select: {
-          position_id: true,
-          position_name: true,
-          position_description: true,
-          position_status: true,
-          unit: {
+          position: {
             select: {
-              unit_id: true,
-              unit_name: true,
-              organization: {
+              position_id: true,
+              position_name: true,
+              position_description: true,
+              position_status: true,
+              unit: {
                 select: {
-                  organization_id: true,
-                  organization_name: true,
-                  organization_email: true,
-                  organization_phone: true,
+                  unit_id: true,
+                  unit_name: true,
+                  organization: {
+                    select: {
+                      organization_id: true,
+                      organization_name: true,
+                      organization_email: true,
+                      organization_phone: true,
+                    },
+                  },
                 },
               },
             },
@@ -390,10 +340,12 @@ export const getSingleUnverifiedUserService = async (
       auth: {
         is_verified: false,
       },
-      positions: {
+      position_assignments: {
         some: {
-          unit: {
-            organization_id,
+          position: {
+            unit: {
+              organization_id,
+            },
           },
         },
       },
@@ -410,22 +362,26 @@ export const getSingleUnverifiedUserService = async (
           is_verified: true,
         },
       },
-      positions: {
+      position_assignments: {
         select: {
-          position_id: true,
-          position_name: true,
-          position_description: true,
-          position_status: true,
-          unit: {
+          position: {
             select: {
-              unit_id: true,
-              unit_name: true,
-              organization: {
+              position_id: true,
+              position_name: true,
+              position_description: true,
+              position_status: true,
+              unit: {
                 select: {
-                  organization_id: true,
-                  organization_name: true,
-                  organization_email: true,
-                  organization_phone: true,
+                  unit_id: true,
+                  unit_name: true,
+                  organization: {
+                    select: {
+                      organization_id: true,
+                      organization_name: true,
+                      organization_email: true,
+                      organization_phone: true,
+                    },
+                  },
                 },
               },
             },
@@ -533,9 +489,8 @@ export async function deleteUserPermanentlyService(params: {
       // 1) Null out all nullable FKs pointing at this user. These are all
       //    independent of each other so we can fire them in parallel.
       await Promise.all([
-        tx.tbl_position.updateMany({
+        tx.tbl_user_position_assignments.deleteMany({
           where: { user_id: targetUserId },
-          data: { user_id: null },
         }),
         tx.tbl_reservations.updateMany({
           where: { approved_by: targetUserId },

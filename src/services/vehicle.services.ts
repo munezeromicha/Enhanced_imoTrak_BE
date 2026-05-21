@@ -204,21 +204,27 @@ export async function isUserInSameOrganizationAsVehicle(userId: string, vehicleI
   const user = await prisma.tbl_users.findUnique({
     where: { user_id: userId },
     select: {
-      positions: {
+      position_assignments: {
         select: {
-          unit: {
-            select: { organization_id: true }
-          }
-        }
-      }
-    }
+          position: {
+            select: {
+              unit: {
+                select: { organization_id: true },
+              },
+            },
+          },
+        },
+      },
+    },
   });
 
-  if (!user || user.positions.length === 0) {
+  if (!user || user.position_assignments.length === 0) {
     throw new AppError('User or user organizations not found', 404);
   }
 
-  const userOrgIds = user.positions.map(pos => pos.unit.organization_id);
+  const userOrgIds = user.position_assignments.map(
+    (a) => a.position.unit.organization_id
+  );
 
   const vehicle = await prisma.tbl_vehicles.findUnique({
     where: { vehicle_id: vehicleId },

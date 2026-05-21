@@ -1,5 +1,13 @@
 import { OrgStatus, PrismaClient, tbl_organizations } from '@prisma/client';
 import { AppError } from '../utils/Error';
+import {
+  createUserPositionAssignment,
+  enrichPositionResponse,
+  mapAssignmentsToPositions,
+  positionAssignmentsInclude,
+  userHasPositionAssignment,
+  userPositionAssignmentsInclude,
+} from '../utils/userPositions';
 import { AuthenticatedUser, position_accesses } from '../types/access';
 const prisma = new PrismaClient();
 
@@ -158,16 +166,11 @@ export async function softDeletePositionService(positionId: string, userId: stri
   // Get the requesting user's organization
   const user = await prisma.tbl_users.findUnique({
     where: { user_id: userId },
-    include: {
-      positions: {
-        include: {
-          unit: true,
-        },
-      },
-    },
+    include: userPositionAssignmentsInclude,
   });
 
-  const userOrgId = user?.positions?.[0]?.unit?.organization_id;
+  const userPositions = user ? mapAssignmentsToPositions(user) : [];
+  const userOrgId = userPositions[0]?.unit?.organization_id;
 
   if (position.unit.organization_id !== userOrgId) {
     throw new AppError('You are not allowed to delete positions from another organization', 403);
@@ -207,19 +210,10 @@ export async function getPositionsInUnitService({
 
   const positions = await prisma.tbl_position.findMany({
     where: { unit_id: unit_id },
-    include: {
-      user: {
-        select: {
-          user_id: true,
-          first_name: true,
-          last_name: true,
-          auth: { select: { email: true } },
-        },
-      },
-    },
+    include: positionAssignmentsInclude,
   });
 
-  return positions;
+  return positions.map(enrichPositionResponse);
 }
 
 export async function getUnitsService(organization_id?: string) {
@@ -402,11 +396,7 @@ export const getSinglePositionService = async ({ position_id, user }: GetSingleP
           organization_id: true
         }
       },
-      user: {
-        include: {
-          auth: true
-        }
-      }
+      ...positionAssignmentsInclude,
     }
   });
 
@@ -421,7 +411,7 @@ export const getSinglePositionService = async ({ position_id, user }: GetSingleP
     throw new AppError('You do not have permission to view this position', 403);
   }
 
-  return position;
+  return enrichPositionResponse(position);
 };
 
 export const updatePositionService = async ({
@@ -477,15 +467,11 @@ export async function getPositionsService(organization_id?: string) {
           organization: true,
         },
       },
-      user: {
-        include: {
-          auth: true
-        }
-      }
+      ...positionAssignmentsInclude,
     },
   });
 
-  return positions;
+  return positions.map(enrichPositionResponse);
 }
 
 export const assignUserToPositionService = async ({
@@ -497,18 +483,13 @@ export const assignUserToPositionService = async ({
     where: { position_id },
     include: {
       unit: true,
-      user: true, 
+      ...positionAssignmentsInclude,
     },
   });
 
   if (!position) {
     throw new AppError('Position not found', 404);
   }
-
-  if (position.user_id) {
-    throw new AppError('Position is already assigned to a user', 409);
-  }
- 
 
   if (!user.position_access?.organizations?.create && position.unit.organization_id !== user.organization_id) {
     throw new AppError('You can only assign users to positions within your organization', 403);
@@ -523,11 +504,26 @@ export const assignUserToPositionService = async ({
     throw new AppError('User with this email not found', 404);
   }
 
-  const updatedPosition = await prisma.tbl_position.update({
+  const alreadyAssigned = await userHasPositionAssignment(
+    prisma,
+    auth.user.user_id,
+    position_id
+  );
+  if (alreadyAssigned) {
+    throw new AppError('User is already assigned to this position', 409);
+  }
+
+  await createUserPositionAssignment(prisma, auth.user.user_id, position_id);
+
+  const updatedPosition = await prisma.tbl_position.findUnique({
     where: { position_id },
-    data: { user_id: auth.user.user_id },
+    include: positionAssignmentsInclude,
   });
 
-  return updatedPosition;
+  if (!updatedPosition) {
+    throw new AppError('Position not found', 404);
+  }
+
+  return enrichPositionResponse(updatedPosition);
 };
 

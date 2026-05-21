@@ -6,6 +6,11 @@ import { signToken, verifyToken } from '../utils/jwt'
 import { generateRandomPassword } from '../utils/password';
 import { sendForgotPasswordEmail, sendInvitationEmail } from '../utils/sendCredentials';
 import { AuthenticatedUser } from '../types/access';
+import {
+  mapAssignmentsToPositions,
+  userHasPositionAssignment,
+  userPositionAssignmentsInclude,
+} from '../utils/userPositions';
 
 const prisma = new PrismaClient();
 
@@ -21,17 +26,7 @@ export async function loginUser(email: string, password: string) {
     where: { email },
     include: {
       user: {
-        include: {
-          positions: {
-            include: {
-              unit: {
-                include: {
-                  organization: true,
-                },
-              },
-            },
-          },
-        },
+        include: userPositionAssignmentsInclude,
       },
     },
   });
@@ -50,8 +45,10 @@ export async function loginUser(email: string, password: string) {
     throw new AppError('User profile not found', 500);
   }
 
+  const userPositions = mapAssignmentsToPositions(authWithUser.user);
+
   // Map positions info to response format
-  const positionsData = authWithUser.user.positions.map((position) => ({
+  const positionsData = userPositions.map((position) => ({
     position_id: position.position_id,
     position_name: position.position_name,
     unit_id: position.unit.unit_id,
@@ -104,7 +101,12 @@ export async function loginWithPosition(email: string, password: string, positio
     throw new AppError('Position not found', 404);
   }
 
-  if (position.user_id !== auth.user.user_id) {
+  const hasAssignment = await userHasPositionAssignment(
+    prisma,
+    auth.user.user_id,
+    position_id
+  );
+  if (!hasAssignment) {
     throw new AppError('Unauthorized: position does not belong to user', 403);
   }
 
@@ -254,21 +256,17 @@ export async function verifyUserByEmailService(email: string, token: string) {
     include: {
       user: {
         include: {
-          positions: {
-            include: {
-              unit: {
-                include: {
-                  organization: true
-                }
-              }
-            }
-          }
+          ...userPositionAssignmentsInclude,
         }
       },
     }, 
   });
 
-  if (!authRecord || !authRecord.user || !authRecord.user.positions || authRecord.user.positions.length === 0 || !authRecord.email) {
+  const verifyPositions = authRecord?.user
+    ? mapAssignmentsToPositions(authRecord.user)
+    : [];
+
+  if (!authRecord || !authRecord.user || verifyPositions.length === 0 || !authRecord.email) {
     throw new AppError('User not found', 404);
   }
 
@@ -291,8 +289,8 @@ export async function verifyUserByEmailService(email: string, token: string) {
     token: signToken({
       user_id: authRecord.user.user_id,
       email: authRecord.email,
-      position_id: authRecord.user.positions[0]?.position_id,
-      organization_id: authRecord.user.positions[0]?.unit?.organization?.organization_id
+      position_id: verifyPositions[0]?.position_id,
+      organization_id: verifyPositions[0]?.unit?.organization?.organization_id
     })
   }
 }
@@ -302,22 +300,16 @@ export async function setPasswordAndVerifyService(email: string, newPassword: st
     where: { email },
     include: {
       user: {
-        include: {
-          positions: {
-            include: {
-              unit: {
-                include: {
-                  organization: true
-                }
-              }
-            }
-          }
-        }
+        include: userPositionAssignmentsInclude,
       },
     },  
   });
 
-  if (!authRecord || !authRecord.user || !authRecord.user.positions || authRecord.user.positions.length === 0 || !authRecord.email) {
+  const setPasswordPositions = authRecord?.user
+    ? mapAssignmentsToPositions(authRecord.user)
+    : [];
+
+  if (!authRecord || !authRecord.user || setPasswordPositions.length === 0 || !authRecord.email) {
     throw new AppError('User not found', 404);
   }
 
@@ -366,15 +358,7 @@ export async function resendInvitationService(email: string) {
     include: {
       user: {
         include: {
-          positions: {
-            include: {
-              unit: {
-                include: {
-                  organization: true,
-                } 
-              }
-            }
-          }
+          ...userPositionAssignmentsInclude,
         }
       },
     },
@@ -395,7 +379,14 @@ export async function resendInvitationService(email: string) {
     if (!jwtSecret) {
       throw new Error('JWT secret is not defined');
     }
-    await sendInvitationEmail(email, jwt.sign({email}, jwtSecret, {expiresIn}), authRecord.user.positions[0].position_name, authRecord.user.positions[0].unit.unit_name, authRecord.user.positions[0].unit.organization.organization_name );
+    const invitePositions = mapAssignmentsToPositions(authRecord.user);
+    await sendInvitationEmail(
+      email,
+      jwt.sign({ email }, jwtSecret, { expiresIn }),
+      invitePositions[0].position_name,
+      invitePositions[0].unit.unit_name,
+      invitePositions[0].unit.organization.organization_name
+    );
   } catch (error) {
     console.error('Failed to send email:', error);
   }

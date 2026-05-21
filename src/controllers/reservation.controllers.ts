@@ -264,8 +264,21 @@ export const getReservationById = async (req: AuthenticatedRequest, res: Respons
     if (!isAuthorized) {
       return res.status(403).json({ message: 'Forbidden: not authorized to view this reservation' });
     }
+
+    // Drivers with viewAssigned only see vehicles they are assigned to on this reservation
+    let data = reservation;
+    if (hasViewAssignedPermission && !hasViewPermission) {
+      data = {
+        ...reservation,
+        reserved_vehicles: reservation.reserved_vehicles.filter((rv: any) =>
+          rv.drivers?.some(
+            (d: any) => d.is_active !== false && d.driver?.user_id === req.user!.user_id
+          )
+        ),
+      };
+    }
     
-    res.status(200).json({ data: reservation });
+    res.status(200).json({ data });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
     res.status(400).json({ message });

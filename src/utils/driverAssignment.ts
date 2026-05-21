@@ -3,6 +3,24 @@ import { AppError } from './Error';
 
 type PrismaLike = PrismaClient | Prisma.TransactionClient;
 
+/** Reject the same driver_id appearing on more than one vehicle in one API payload. */
+export function assertNoDuplicateDriversInPayload(
+  vehiclesData: Array<{ driver_id?: string | null; vehicle_id?: string }>
+) {
+  const seen = new Set<string>();
+  for (const entry of vehiclesData) {
+    const driverId = entry.driver_id?.trim();
+    if (!driverId) continue;
+    if (seen.has(driverId)) {
+      throw new AppError(
+        'The same driver cannot be assigned to more than one vehicle on this reservation.',
+        400
+      );
+    }
+    seen.add(driverId);
+  }
+}
+
 /**
  * A driver may only have one active vehicle assignment per reservation.
  */

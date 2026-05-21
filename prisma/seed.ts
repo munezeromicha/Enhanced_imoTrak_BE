@@ -135,9 +135,11 @@ async function main() {
     },
   });
 
-  await prisma.tbl_position.update({
-    where: { position_id: adminPosition.position_id },
-    data: { user_id: adminUser.user_id },
+  await prisma.tbl_user_position_assignments.create({
+    data: {
+      user_id: adminUser.user_id,
+      position_id: adminPosition.position_id,
+    },
   });
 
   // ======= 2. Fleet Manager for Fleet Corp =======
@@ -252,9 +254,11 @@ async function main() {
     },
   });
 
-  await prisma.tbl_position.update({
-    where: { position_id: fleetPosition.position_id },
-    data: { user_id: fleetUser.user_id },
+  await prisma.tbl_user_position_assignments.create({
+    data: {
+      user_id: fleetUser.user_id,
+      position_id: fleetPosition.position_id,
+    },
   });
 
   // ======= 3. Reservation User with Reservation Permissions =======
@@ -333,9 +337,11 @@ async function main() {
     },
   });
 
-  await prisma.tbl_position.update({
-    where: { position_id: reservationPosition.position_id },
-    data: { user_id: reservationUser.user_id },
+  await prisma.tbl_user_position_assignments.create({
+    data: {
+      user_id: reservationUser.user_id,
+      position_id: reservationPosition.position_id,
+    },
   });
 
   // ======= 4. Seed a Reservation and Reserved Vehicle =======
@@ -449,9 +455,11 @@ async function main() {
     },
   });
 
-  await prisma.tbl_position.update({
-    where: { position_id: fleetReservationPosition.position_id },
-    data: { user_id: fleetReservationUser.user_id },
+  await prisma.tbl_user_position_assignments.create({
+    data: {
+      user_id: fleetReservationUser.user_id,
+      position_id: fleetReservationPosition.position_id,
+    },
   });
 
   console.log('✅ Seeding completed successfully.');

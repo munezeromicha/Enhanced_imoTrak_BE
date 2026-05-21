@@ -33,7 +33,6 @@ model tbl_users {
   audit_logs                 tbl_audit_logs[]
   blacklisted_tokens         tbl_jwt_blacklist[]
   notifications              tbl_notifications[]
-  positions                  tbl_position[]
   reservations_approved      tbl_reservations[]      @relation("ReservationApprover")
   reservations_canceled      tbl_reservations[]      @relation("ReservationCanceler")
   reservations_completed     tbl_reservations[]      @relation("ReservationCompleter")
@@ -45,6 +44,7 @@ model tbl_users {
   driver                     tbl_drivers?
   reported_issues            tbl_vehicle_issues[]    @relation("UserReportedIssues")
   issue_replies              tbl_vehicle_issue_replies[]
+  position_assignments       tbl_user_position_assignments[]
 }
 
 model tbl_audit_logs {
@@ -191,18 +191,30 @@ model tbl_unit {
 }
 
 model tbl_position {
-  position_id          String     @id @default(uuid())
+  position_id          String                          @id @default(uuid())
   position_name        String
   position_description String
   position_access      Json
-  created_at           DateTime   @default(now())
-  user_id              String?
+  created_at           DateTime                        @default(now())
   unit_id              String
-  position_status      OrgStatus  @default(ACTIVE)
-  unit                 tbl_unit   @relation(fields: [unit_id], references: [unit_id])
-  user                 tbl_users? @relation(fields: [user_id], references: [user_id])
+  position_status      OrgStatus                       @default(ACTIVE)
+  unit                 tbl_unit                        @relation(fields: [unit_id], references: [unit_id])
+  assignments          tbl_user_position_assignments[]
 
   @@unique([position_name, unit_id])
+}
+
+model tbl_user_position_assignments {
+  assignment_id String       @id @default(uuid())
+  user_id       String
+  position_id   String
+  assigned_at   DateTime     @default(now())
+  user          tbl_users    @relation(fields: [user_id], references: [user_id], onDelete: Cascade)
+  position      tbl_position @relation(fields: [position_id], references: [position_id], onDelete: Cascade)
+
+  @@unique([user_id, position_id])
+  @@index([user_id])
+  @@index([position_id])
 }
 
 model tbl_vehicle_issues {
