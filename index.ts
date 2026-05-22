@@ -52,11 +52,18 @@ app.use(cors({
   credentials: true
 }));
 
-app.use(helmet());
+app.use(
+  helmet({
+    // EventSource/SSE from the Next.js app needs cross-origin access to this API.
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
+  })
+);
 app.use(express.json());
 app.use(morgan('short'));
 
+// Support both /v2 and /api/v2 (production reverse proxy often keeps the /api prefix).
 app.use('/v2', auditLogger, routes);
+app.use('/api/v2', auditLogger, routes);
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 app.get('/', (req: Request, res: Response) => {

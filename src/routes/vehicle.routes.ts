@@ -474,6 +474,12 @@ router.delete('/vehicle-models/:id', authenticateToken, attachPositionAccess, de
 // Vehicles CRUD
 router.post('/vehicles', authenticateToken, attachPositionAccess, upload.single('vehicle_photo'), validateBody(vehicleSchema), createVehicleController);
 router.get('/vehicles', authenticateToken, attachPositionAccess, getAllVehiclesController);
+
+// Location routes before /vehicles/:id so paths with extra segments are not shadowed.
+router.get('/vehicles/:id/locations/stream', authenticateQueryToken, attachPositionAccess, streamVehicleLocationController);
+router.get('/vehicles/:id/locations', authenticateToken, attachPositionAccess, getVehicleLocationHistoryController);
+router.post('/vehicles/:id/locations', validateBody(locationUpdateSchema), updateVehicleLocationsController);
+
 router.get('/vehicles/:id', authenticateToken, attachPositionAccess, getVehicleByIdController);
 router.put('/vehicles/:id', authenticateToken, attachPositionAccess, upload.single('vehicle_photo'), validateBody(vehicleUpdateSchema), updateVehicleController);
 router.delete('/vehicles/:id', authenticateToken, attachPositionAccess, deleteVehicleController);
@@ -572,10 +578,6 @@ router.delete('/vehicles/:id', authenticateToken, attachPositionAccess, deleteVe
  *       404:
  *         description: Vehicle not found
  */
-router.get('/vehicles/:id/locations/stream', authenticateQueryToken, attachPositionAccess, streamVehicleLocationController);
-router.get('/vehicles/:id/locations', authenticateToken, attachPositionAccess, getVehicleLocationHistoryController);
-router.post('/vehicles/:id/locations', validateBody(locationUpdateSchema), updateVehicleLocationsController);
-
 // Trip-scoped location history: GET /v2/trips/:reservedVehicleId/locations
 router.get('/trips/:reservedVehicleId/locations', authenticateToken, attachPositionAccess, getTripLocationHistoryController);
 

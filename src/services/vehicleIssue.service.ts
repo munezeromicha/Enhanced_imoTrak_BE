@@ -456,6 +456,18 @@ export const deleteIssue = async (id: string) => {
 export const addIssueReply = async (issueId: string, replyContent: string, user: AuthenticatedUser) => {
   const issue = await prisma.tbl_vehicle_issues.findUnique({
     where: { issue_id: issueId },
+    include: {
+      reported_by_driver: true,
+      reserved_vehicle: {
+        include: {
+          reservation: {
+            include: {
+              user: { include: { auth: true } },
+            },
+          },
+        },
+      },
+    },
   });
 
   if (!issue) {
@@ -470,7 +482,7 @@ export const addIssueReply = async (issueId: string, replyContent: string, user:
   const driver_id = driverProfile ? driverProfile.driver_id : null;
   const user_id = driverProfile ? null : user.user_id;
 
-  return prisma.tbl_vehicle_issue_replies.create({
+  const reply = await prisma.tbl_vehicle_issue_replies.create({
     data: {
       issue_id: issueId,
       reply_content: replyContent,
@@ -486,6 +498,57 @@ export const addIssueReply = async (issueId: string, replyContent: string, user:
       },
     },
   });
+
+  const reporterUserId = await resolveIssueReporterUserId({
+    reported_by_user_id: issue.reported_by_user_id,
+    reported_by_driver_id: issue.reported_by_driver_id,
+    reserved_vehicle: issue.reserved_vehicle,
+  });
+
+  const recipientIds = new Set<string>();
+  if (reporterUserId && reporterUserId !== user.user_id) {
+    recipientIds.add(reporterUserId);
+  }
+  if (issue.issue_responder && issue.issue_responder !== user.user_id) {
+    recipientIds.add(issue.issue_responder);
+  }
+
+  const sender = await prisma.tbl_users.findUnique({
+    where: { user_id: user.user_id },
+    select: { first_name: true, last_name: true },
+  });
+  const senderName = sender
+    ? `${sender.first_name} ${sender.last_name}`.trim()
+    : 'A participant';
+  const preview =
+    replyContent.length > 200 ? `${replyContent.slice(0, 200)}…` : replyContent;
+
+  for (const recipientId of recipientIds) {
+    const recipient = await prisma.tbl_users.findUnique({
+      where: { user_id: recipientId },
+      include: { auth: true },
+    });
+    if (!recipient) continue;
+
+    if (recipient.auth?.email) {
+      await sendVehicleIssueEmailNotification({
+        user_id: recipient.user_id,
+        to_email: recipient.auth.email,
+        issue_title: issue.issue_title,
+        message: preview,
+        sender_name: senderName,
+        issue_id: issueId,
+      });
+    } else {
+      await createNotification({
+        user_id: recipient.user_id,
+        notification_title: `New message: ${issue.issue_title}`,
+        notification_message: `${senderName}: ${preview}`,
+      });
+    }
+  }
+
+  return reply;
 };
 
 async function resolveIssueReporterUserId(issue: {

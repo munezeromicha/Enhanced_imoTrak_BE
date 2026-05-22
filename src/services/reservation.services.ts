@@ -5,6 +5,7 @@ import {
   assertDriverNotOnAnotherVehicleInReservation,
   assertNoDuplicateDriversInPayload,
 } from '../utils/driverAssignment';
+import { AppError } from '../utils/Error';
 const prisma = new PrismaClient();
 
 // Helper function to check for date conflicts between reservations
@@ -940,7 +941,19 @@ export async function completeReservation(reservedVehicleId: string, returnedOdo
   if (reservation.reservation_status !== RequestStatus.APPROVED) {
     throw new Error('Reservation must be APPROVED to complete');
   }
-  
+
+  const startingOdometer = reservedVehicle.starting_odometer;
+  if (
+    startingOdometer != null &&
+    startingOdometer > 0 &&
+    returnedOdometer < startingOdometer
+  ) {
+    throw new AppError(
+      `Returned odometer (${returnedOdometer}) cannot be less than the starting odometer (${startingOdometer})`,
+      400
+    );
+  }
+
   // Update reserved vehicle with return information
   await prisma.tbl_reserved_vehicles.update({
     where: { reserved_vehicle_id: reservedVehicleId },
