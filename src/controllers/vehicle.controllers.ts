@@ -191,6 +191,36 @@ export async function deleteVehicleController(req: Request, res: Response, next:
   }
 }
 
+export async function getVehicleTrackingContextController(req: Request, res: Response, next: NextFunction) {
+  try {
+    const authReq = req as AuthenticatedRequest;
+    let isAssigned = false;
+
+    const driverProfile = await prisma.tbl_drivers.findUnique({
+      where: { user_id: authReq.user?.user_id },
+    });
+    if (driverProfile) {
+      const assignment = await prisma.tbl_reserved_vehicle_drivers.findFirst({
+        where: {
+          driver_id: driverProfile.driver_id,
+          reserved_vehicle: { vehicle_id: req.params.id },
+        },
+      });
+      if (assignment) isAssigned = true;
+    }
+
+    if (!isAssigned) {
+      checkVehiclePermission(authReq, 'viewSingle');
+    }
+
+    const context = await vehicleService.getVehicleTrackingContext(req.params.id);
+    if (!context) throw new AppError('Vehicle not found', 404);
+    res.json({ data: context });
+  } catch (error) {
+    next(error);
+  }
+}
+
 export async function getVehicleLocationHistoryController(req: Request, res: Response, next: NextFunction) {
   try {
     const authReq = req as AuthenticatedRequest;
@@ -308,7 +338,7 @@ export async function streamVehicleLocationController(req: Request, res: Respons
     res.flushHeaders(); // flush the headers to establish the SSE stream
 
     // Optionally send last known location immediately
-    const latest = vehicleService.getLatestLocation(vehicleId);
+    const latest = await vehicleService.getLatestLocation(vehicleId);
     if (latest) {
       const ssePayload = `data: ${JSON.stringify(latest)}\n\n`;
       (res as unknown as ServerResponse).write(ssePayload);

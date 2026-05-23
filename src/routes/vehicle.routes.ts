@@ -12,6 +12,7 @@ import {
   deleteVehicleController,
   updateVehicleLocationsController,
   streamVehicleLocationController,
+  getVehicleTrackingContextController,
   getVehicleLocationHistoryController,
   getTripLocationHistoryController,
 } from '../controllers/vehicle.controllers';
@@ -477,6 +478,7 @@ router.get('/vehicles', authenticateToken, attachPositionAccess, getAllVehiclesC
 
 // Location routes before /vehicles/:id so paths with extra segments are not shadowed.
 router.get('/vehicles/:id/locations/stream', authenticateQueryToken, attachPositionAccess, streamVehicleLocationController);
+router.get('/vehicles/:id/tracking', authenticateToken, attachPositionAccess, getVehicleTrackingContextController);
 router.get('/vehicles/:id/locations', authenticateToken, attachPositionAccess, getVehicleLocationHistoryController);
 router.post('/vehicles/:id/locations', validateBody(locationUpdateSchema), updateVehicleLocationsController);
 

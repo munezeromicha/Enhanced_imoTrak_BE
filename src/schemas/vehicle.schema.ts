@@ -26,15 +26,24 @@ export const vehicleSchema = z.object({
 
 export const locationUpdateSchema = z.object({
   vehicle_id: z.string(),
-  coords: z.object({
-    latitude: z.number().min(-90).max(90),
-    longitude: z.number().min(-180).max(180),
-    altitude: z.number().nullable(), // may be null
-    accuracy: z.number().min(0),
-    altitudeAccuracy: z.number().min(0).nullable(),
-    heading: z.number().min(0).max(360).nullable(),
-    speed: z.number().min(0).nullable()
-  }),
+  coords: z
+    .object({
+      latitude: z.number().min(-90).max(90),
+      longitude: z.number().min(-180).max(180),
+      altitude: z.number().nullable(),
+      accuracy: z.number().min(0),
+      altitudeAccuracy: z.number().min(0).nullable(),
+      heading: z.number().min(0).max(360).nullable(),
+      speed: z.number().min(0).nullable(),
+      fuel_litres: z.number().min(0).optional(),
+      battery_voltage: z.number().min(0).optional(),
+      battery_kwh: z.number().min(0).optional(),
+      odometer_km: z.number().min(0).optional(),
+      imei: z.string().optional(),
+      ignition: z.boolean().optional(),
+      movement: z.boolean().optional(),
+    })
+    .passthrough(),
   timestamp: z.number().int() // Unix time in milliseconds
 });
 

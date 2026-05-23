@@ -135,6 +135,8 @@ export async function saveAndBroadcastLocation(location: Location): Promise<void
   const { vehicle_id } = location;
   if (!vehicle_id) return;
 
+  vehicleLocations.set(vehicle_id, location);
+
   // Save the latest location
   await prisma.tbl_vehicle_locations.create({
     data: {
@@ -175,8 +177,113 @@ export async function addSSEClient(vehicleId: string, res: Response): Promise<vo
   });
 }
 
+function parseStoredCoords(raw: unknown): Coords | null {
+  if (!raw) return null;
+  let parsed: unknown = raw;
+  if (typeof raw === 'string') {
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      return null;
+    }
+  }
+  const c = parsed as Coords;
+  if (typeof c.latitude !== 'number' || typeof c.longitude !== 'number') return null;
+  return c;
+}
+
 export async function getLatestLocation(vehicleId: string): Promise<Location | null> {
-  return vehicleLocations.get(vehicleId) || null;
+  const cached = vehicleLocations.get(vehicleId);
+  if (cached) return cached;
+
+  const row = await prisma.tbl_vehicle_locations.findFirst({
+    where: { vehicle_id: vehicleId },
+    orderBy: { timestamp: 'desc' },
+  });
+  if (!row) return null;
+
+  const coords = parseStoredCoords(row.coords);
+  if (!coords) return null;
+
+  const location: Location = {
+    vehicle_id: vehicleId,
+    reserved_vehicle_id: row.reserved_vehicle_id ?? undefined,
+    coords,
+    timestamp: row.timestamp.toISOString(),
+  };
+  vehicleLocations.set(vehicleId, location);
+  return location;
+}
+
+export async function getVehicleTrackingContext(vehicleId: string) {
+  const vehicle = await prisma.tbl_vehicles.findUnique({
+    where: { vehicle_id: vehicleId },
+    select: {
+      vehicle_id: true,
+      plate_number: true,
+      vehicle_status: true,
+      energy_type: true,
+    },
+  });
+  if (!vehicle) return null;
+
+  const activeTrip = await prisma.tbl_reserved_vehicles.findFirst({
+    where: {
+      vehicle_id: vehicleId,
+      returned_date: null,
+      reservation: {
+        reservation_status: { in: ['APPROVED', 'IN_PROGRESS'] },
+      },
+    },
+    orderBy: { created_at: 'desc' },
+    include: {
+      reservation: {
+        select: {
+          reservation_id: true,
+          reservation_status: true,
+          departure_date: true,
+          expected_returning_date: true,
+        },
+      },
+      drivers: {
+        where: { is_active: true },
+        include: {
+          driver: {
+            include: {
+              user: {
+                select: {
+                  first_name: true,
+                  last_name: true,
+                  user_phone: true,
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  });
+
+  const latest = await getLatestLocation(vehicleId);
+
+  return {
+    vehicle,
+    active_trip: activeTrip
+      ? {
+          reserved_vehicle_id: activeTrip.reserved_vehicle_id,
+          starting_odometer: activeTrip.starting_odometer,
+          fuel_provided: activeTrip.fuel_provided,
+          reservation_status: activeTrip.reservation.reservation_status,
+          drivers: activeTrip.drivers.map((a) => ({
+            driver_id: a.driver.driver_id,
+            name: `${a.driver.user.first_name} ${a.driver.user.last_name}`.trim(),
+            license_number: a.driver.license_number,
+            phone: a.driver.user.user_phone,
+          })),
+        }
+      : null,
+    latest_location: latest,
+  };
 }
 
 export async function getVehicleLocationHistory(
