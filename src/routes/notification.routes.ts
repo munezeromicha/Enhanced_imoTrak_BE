@@ -1,5 +1,11 @@
 import { NextFunction, Request, Response, RequestHandler,Router } from 'express';
-import { getUserNotifications, deleteNotification, sendNotification, markNotificationAsRead } from '../controllers/notification.controllers';
+import {
+  getUserNotifications,
+  deleteNotification,
+  sendNotification,
+  markNotificationAsRead,
+  markAllNotificationsAsRead,
+} from '../controllers/notification.controllers';
 import { authenticateToken } from '../middlewares/auth.middleware';
 import { validateBody } from '../middlewares/bodyValidator';
 import { createNotificationSchema } from '../schemas/notification.schema';
@@ -34,6 +40,7 @@ const router = Router();
  *                     $ref: '#/components/schemas/Notification'
  */
 router.get('/', authenticateToken, withAuthUser(getUserNotifications));
+router.patch('/read-all', authenticateToken, withAuthUser(markAllNotificationsAsRead));
 
 /**
  * @swagger

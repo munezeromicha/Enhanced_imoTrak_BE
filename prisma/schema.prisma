@@ -153,6 +153,7 @@ model tbl_reserved_vehicles {
   created_at          DateTime                @default(now())
   starting_odometer   Int
   returned_odometer   Int?
+  returned_fuel_energy Int?
   fuel_provided       Int?
   returned_date       DateTime?
   returned_by         String?

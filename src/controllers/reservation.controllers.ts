@@ -102,10 +102,15 @@ export const assignMultipleVehicles = async (req: AuthenticatedRequest, res: Res
 export const completeReservation = async (req: AuthenticatedRequest, res: Response) => {
   try {
     checkPermission(req, 'complete');
-    const { returned_odometer } = completeReservationSchema.parse(req.body);
+    const { returned_odometer, returned_fuel_energy } = completeReservationSchema.parse(req.body);
     const reservedVehicleId = req.params.reservedVehicleId;
     const user_id = req.user.user_id;
-    await reservationService.completeReservation(reservedVehicleId, returned_odometer, user_id);
+    await reservationService.completeReservation(
+      reservedVehicleId,
+      returned_odometer,
+      user_id,
+      returned_fuel_energy,
+    );
     res.status(200).json({ message: 'Reservation completed' });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';

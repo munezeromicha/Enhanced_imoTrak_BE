@@ -70,4 +70,5 @@ export const odometerFuelSchema = z.object({
 
 export const completeReservationSchema = z.object({
   returned_odometer: z.number().int().min(0),
+  returned_fuel_energy: z.number().int().min(0).optional(),
 }); 

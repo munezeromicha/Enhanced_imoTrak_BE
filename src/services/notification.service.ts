@@ -64,6 +64,13 @@ export async function getUserNotifications(user_id: string) {
   });
 }
 
+export async function markAllNotificationsAsRead(user_id: string) {
+  await prisma.tbl_notifications.updateMany({
+    where: { user_id, is_read: false },
+    data: { is_read: true },
+  });
+}
+
 export async function markNotificationAsRead(notification_id: string, user_id: string) {
   // Use updateMany to avoid requiring a compound unique constraint
   const result = await prisma.tbl_notifications.updateMany({

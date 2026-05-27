@@ -926,7 +926,12 @@ export async function updateOdometerFuel(reservedVehicleId: string, startingOdom
   return true;
 }
 
-export async function completeReservation(reservedVehicleId: string, returnedOdometer: number, userId: string) {
+export async function completeReservation(
+  reservedVehicleId: string,
+  returnedOdometer: number,
+  userId: string,
+  returnedFuelEnergy?: number | null,
+) {
   // Permission check: only assigned user (enforced in controller)
   const reservedVehicle = await prisma.tbl_reserved_vehicles.findUnique({
     where: { reserved_vehicle_id: reservedVehicleId },
@@ -946,11 +951,21 @@ export async function completeReservation(reservedVehicleId: string, returnedOdo
   if (
     startingOdometer != null &&
     startingOdometer > 0 &&
-    returnedOdometer < startingOdometer
+    returnedOdometer <= startingOdometer
   ) {
     throw new AppError(
-      `Returned odometer (${returnedOdometer}) cannot be less than the starting odometer (${startingOdometer})`,
+      `Returned odometer (${returnedOdometer}) must be greater than the starting odometer (${startingOdometer})`,
       400
+    );
+  }
+
+  const energyType = (reservedVehicle.vehicle?.energy_type ?? '').toLowerCase();
+  const needsEnergyReturn =
+    energyType.includes('electric') || energyType.includes('hybrid') || energyType.includes('ev');
+  if (needsEnergyReturn && (returnedFuelEnergy == null || returnedFuelEnergy < 0)) {
+    throw new AppError(
+      'Returned fuel (litres) or battery energy (kWh) is required for this vehicle type',
+      400,
     );
   }
 
@@ -959,6 +974,7 @@ export async function completeReservation(reservedVehicleId: string, returnedOdo
     where: { reserved_vehicle_id: reservedVehicleId },
     data: {
       returned_odometer: returnedOdometer,
+      returned_fuel_energy: returnedFuelEnergy ?? null,
       returned_date: new Date(),
       returned_by: userId, // Track who returned the vehicle
     },
