@@ -9,6 +9,7 @@ import notificationRoutes from './notification.routes';
 import historyRoutes from "./audit.routes";
 import contactRoutes from "./contact.route";
 import driverRoutes from "./driver.routes";
+import trackingRoutes from "./tracking.routes";
 
 const routes = Router();
 
@@ -22,5 +23,6 @@ routes.use('/issues', issueRoutes);
 routes.use('/notifications', notificationRoutes);
 routes.use('/contacts', contactRoutes);
 routes.use('/drivers', driverRoutes);
+routes.use('/tracking', trackingRoutes);
 
 export default routes;

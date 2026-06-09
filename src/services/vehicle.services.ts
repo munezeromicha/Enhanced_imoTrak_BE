@@ -177,7 +177,7 @@ export async function addSSEClient(vehicleId: string, res: Response): Promise<vo
   });
 }
 
-function parseStoredCoords(raw: unknown): Coords | null {
+export function parseStoredCoords(raw: unknown): Coords | null {
   if (!raw) return null;
   let parsed: unknown = raw;
   if (typeof raw === 'string') {

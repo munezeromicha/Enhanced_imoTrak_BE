@@ -4,6 +4,7 @@ import * as vehicleService from '../services/vehicle.services';
 import { uploadToCloudinary } from '../utils/cloudinary';
 import { AuthenticatedRequest } from '../types/access';
 import { AppError } from '../utils/Error';
+import { assertVehicleLocationAccess } from '../utils/vehicle-access';
 import { ServerResponse } from 'http';
 
 const prisma = new PrismaClient();
@@ -210,7 +211,7 @@ export async function getVehicleTrackingContextController(req: Request, res: Res
     }
 
     if (!isAssigned) {
-      checkVehiclePermission(authReq, 'viewSingle');
+      await assertVehicleLocationAccess(authReq.user, req.params.id);
     }
 
     const context = await vehicleService.getVehicleTrackingContext(req.params.id);
@@ -245,7 +246,7 @@ export async function getVehicleLocationHistoryController(req: Request, res: Res
     }
 
     if (!isAssigned) {
-      checkVehiclePermission(authReq, 'viewSingle');
+      await assertVehicleLocationAccess(authReq.user, req.params.id);
     }
 
     const reservedVehicleId = typeof req.query.trip === 'string' ? req.query.trip : undefined;
@@ -325,12 +326,11 @@ export async function streamVehicleLocationController(req: Request, res: Respons
     if (!authReq.user) {
       return res.status(401).end();
     }
-    if (authReq.user?.position_access?.vehicles.view !== true) 
+    try {
+      await assertVehicleLocationAccess(authReq.user, vehicleId);
+    } catch {
       return res.status(403).end();
-    const sameOrg = await vehicleService.isUserInSameOrganizationAsVehicle(authReq.user.user_id, vehicleId);
-    if (!sameOrg) {
-      return res.status(403).end();
-    } 
+    }
     // Set headers for SSE
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
