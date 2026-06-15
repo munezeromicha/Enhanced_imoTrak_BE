@@ -8,11 +8,24 @@ import {
 } from './vehicle.services';
 import { reverseGeocode } from '../utils/geocoding';
 import type { AuthenticatedUser } from '../types/access';
+import { canViewOrgUnitCount, isOrgLeader, isSuperAdmin as isHubSuperAdmin } from '../utils/orgLeader';
 
 const prisma = new PrismaClient();
 
 function isSuperAdmin(user: AuthenticatedUser): boolean {
-  return !!user.position_access?.organizations?.view;
+  return isHubSuperAdmin(user);
+}
+
+async function resolveUnitScope(user: AuthenticatedUser): Promise<string | null> {
+  if (isSuperAdmin(user)) return null;
+  const leader = await isOrgLeader(user);
+  if (leader) return null;
+
+  const position = await prisma.tbl_position.findUnique({
+    where: { position_id: user.position_id },
+    select: { unit_id: true },
+  });
+  return position?.unit_id ?? null;
 }
 
 function canAccessTracking(user: AuthenticatedUser): boolean {
@@ -37,12 +50,18 @@ async function resolveOrganizationScope(user: AuthenticatedUser): Promise<string
 export async function getFleetOverview(user: AuthenticatedUser) {
   assertTrackingAccess(user);
   const orgScope = await resolveOrganizationScope(user);
+  const unitScope = await resolveUnitScope(user);
 
   const vehicles = await prisma.tbl_vehicles.findMany({
-    where: orgScope ? { organization_id: orgScope } : {},
+    where: {
+      ...(orgScope ? { organization_id: orgScope } : {}),
+      ...(unitScope ? { unit_id: unitScope } : {}),
+    },
     include: {
       organization: { select: { organization_id: true, organization_name: true } },
+      unit: { select: { unit_id: true, unit_name: true } },
       vehicle_model: { select: { vehicle_model_name: true, manufacturer_name: true, vehicle_type: true } },
+      gps_device: { select: { imei: true, device_model: true } },
     },
     orderBy: { plate_number: 'asc' },
   });
@@ -68,7 +87,9 @@ export async function getFleetOverview(user: AuthenticatedUser) {
         energy_type: vehicle.energy_type,
         vehicle_photo: vehicle.vehicle_photo,
         organization: vehicle.organization,
+        unit: vehicle.unit,
         vehicle_model: vehicle.vehicle_model,
+        gps_device: vehicle.gps_device,
         driver_name: activeDriver?.name ?? null,
         driver_phone: activeDriver?.phone ?? null,
         is_online: secondsAgo != null && secondsAgo < 300,
@@ -224,6 +245,17 @@ export async function getVehicleTrackHistory(
 
 export async function getTrackingDashboardStats(user: AuthenticatedUser) {
   const fleet = await getFleetOverview(user);
+  const showTotalUnits = await canViewOrgUnitCount(user);
+
+  let totalOrgUnits: number | null = null;
+  if (showTotalUnits && fleet.organization_id) {
+    totalOrgUnits = await prisma.tbl_unit.count({
+      where: { organization_id: fleet.organization_id, status: 'ACTIVE' },
+    });
+  } else if (showTotalUnits && !fleet.organization_id) {
+    totalOrgUnits = await prisma.tbl_unit.count({ where: { status: 'ACTIVE' } });
+  }
+
   const mileageByVehicle = await Promise.all(
     fleet.vehicles.slice(0, 20).map(async (v) => {
       const history = await getVehicleLocationHistory(v.vehicle_id);
@@ -254,7 +286,12 @@ export async function getTrackingDashboardStats(user: AuthenticatedUser) {
   );
 
   return {
-    summary: fleet.summary,
+    summary: {
+      ...fleet.summary,
+      total_vehicles: fleet.summary.total,
+      total_org_units: totalOrgUnits,
+      can_view_total_units: showTotalUnits,
+    },
     scope: fleet.scope,
     health: {
       healthy: fleet.summary.online,

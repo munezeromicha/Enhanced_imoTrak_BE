@@ -75,6 +75,7 @@ export const createUserController = async (
       email,
       requester_org_id: req.user.organization_id,
       hasOrgCreateAccess: req.user.position_access.organizations.create,
+      requester_position_access: req.user.position_access,
     });
 
     res.status(201).json({
@@ -87,7 +88,7 @@ export const createUserController = async (
       const field = error.meta?.target?.[0];
       return next(new AppError(`User with this ${field} already exists`, 409));
     }
-    if (error.message === 'Position not found or inactive' || error.message === 'Position does not belong to your organization') {
+    if (error.message === 'Position not found or inactive' || error.message === 'Position does not belong to your organization' || error.message === 'You cannot assign a position that grants permissions you do not have') {
       return next(new AppError(error.message, 400));
     }
     next(error);

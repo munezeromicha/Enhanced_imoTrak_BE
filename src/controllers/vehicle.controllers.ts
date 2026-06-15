@@ -88,10 +88,24 @@ export async function createVehicleController(req: Request, res: Response, next:
     }else{
       return res.status(400).json({ message: 'Vehicle photo is required' });
     }
-    // Parse/convert fields as needed for multipart/form-data
+
+    let gpsDevice;
+    if (req.body.gps_device) {
+      try {
+        gpsDevice = typeof req.body.gps_device === 'string'
+          ? JSON.parse(req.body.gps_device)
+          : req.body.gps_device;
+      } catch {
+        return res.status(400).json({ message: 'Invalid GPS device payload' });
+      }
+    }
+
     const parsedBody = {
       ...req.body,
       vehicle_photo: vehiclePhotoUrl,
+      vehicle_year: Number(req.body.vehicle_year),
+      unit_id: req.body.unit_id || undefined,
+      gps_device: gpsDevice,
     };
     const data = { ...parsedBody, vehicle_status: parsedBody.vehicle_status ?? 'AVAILABLE', vehicle_photo: vehiclePhotoUrl };
     const vehicle = await vehicleService.createVehicle(data);
@@ -163,9 +177,45 @@ export async function updateVehicleController(req: Request, res: Response, next:
     if (req.file) {
       vehiclePhotoUrl = await uploadToCloudinary(req.file.buffer, 'vehicles');
     }
-    const updates = { ...req.body };
-    if (vehiclePhotoUrl) updates.vehicle_photo = vehiclePhotoUrl;
-    const vehicle = await vehicleService.updateVehicle(req.params.id, updates);
+
+    // validateBody runs before this, but multipart fields are strings — build an explicit payload.
+    const body = req.body as Record<string, unknown>;
+    const payload: Parameters<typeof vehicleService.updateVehicle>[1] = {};
+
+    if (body.plate_number !== undefined) payload.plate_number = String(body.plate_number);
+    if (body.transmission_mode !== undefined) {
+      payload.transmission_mode = String(body.transmission_mode) as typeof payload.transmission_mode;
+    }
+    if (body.vehicle_model_id) payload.vehicle_model_id = String(body.vehicle_model_id);
+    if (body.vehicle_year !== undefined && body.vehicle_year !== '') {
+      payload.vehicle_year = Number(body.vehicle_year);
+    }
+    if (body.energy_type !== undefined) payload.energy_type = String(body.energy_type);
+    if (body.organization_id) payload.organization_id = String(body.organization_id);
+    if (body.vehicle_status !== undefined) {
+      payload.vehicle_status = String(body.vehicle_status) as typeof payload.vehicle_status;
+    }
+    if (vehiclePhotoUrl) payload.vehicle_photo = vehiclePhotoUrl;
+
+    // unit_id: empty string clears assignment; omit to leave unchanged
+    if (body.unit_id !== undefined) {
+      const rawUnit = String(body.unit_id ?? '').trim();
+      payload.unit_id = rawUnit === '' ? null : rawUnit;
+    }
+
+    let gpsDevice: unknown = body.gps_device;
+    if (typeof gpsDevice === 'string' && gpsDevice.trim()) {
+      try {
+        gpsDevice = JSON.parse(gpsDevice);
+      } catch {
+        throw new AppError('Invalid GPS device payload', 400);
+      }
+    }
+    if (gpsDevice && typeof gpsDevice === 'object') {
+      payload.gps_device = gpsDevice as Parameters<typeof vehicleService.updateVehicle>[1]['gps_device'];
+    }
+
+    const vehicle = await vehicleService.updateVehicle(req.params.id, payload);
     res.json({ message: 'Vehicle updated', data: vehicle });
   } catch (error: any) {
     if (error.code === 'P2002') {

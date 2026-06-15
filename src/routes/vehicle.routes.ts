@@ -20,7 +20,12 @@ import { authenticateQueryToken, authenticateToken } from '../middlewares/auth.m
 import { attachPositionAccess } from '../middlewares/attachPositionAccess';
 import { validateBody } from '../middlewares/bodyValidator';
 import { upload } from '../middlewares/multer';
-import { locationUpdateSchema, vehicleModelSchema, vehicleModelUpdateSchema, vehicleSchema, vehicleUpdateSchema } from '../schemas/vehicle.schema';
+import {
+  locationUpdateSchema,
+  vehicleModelSchema,
+  vehicleModelUpdateSchema,
+  vehicleUpdateSchema,
+} from '../schemas/vehicle.schema';
 
 const router = Router();
 
@@ -473,7 +478,7 @@ router.put('/vehicle-models/:id', authenticateToken, attachPositionAccess, valid
 router.delete('/vehicle-models/:id', authenticateToken, attachPositionAccess, deleteVehicleModelController);
 
 // Vehicles CRUD
-router.post('/vehicles', authenticateToken, attachPositionAccess, upload.single('vehicle_photo'), validateBody(vehicleSchema), createVehicleController);
+router.post('/vehicles', authenticateToken, attachPositionAccess, upload.single('vehicle_photo'), createVehicleController);
 router.get('/vehicles', authenticateToken, attachPositionAccess, getAllVehiclesController);
 
 // Location routes before /vehicles/:id so paths with extra segments are not shadowed.
@@ -483,7 +488,14 @@ router.get('/vehicles/:id/locations', authenticateToken, attachPositionAccess, g
 router.post('/vehicles/:id/locations', validateBody(locationUpdateSchema), updateVehicleLocationsController);
 
 router.get('/vehicles/:id', authenticateToken, attachPositionAccess, getVehicleByIdController);
-router.put('/vehicles/:id', authenticateToken, attachPositionAccess, upload.single('vehicle_photo'), validateBody(vehicleUpdateSchema), updateVehicleController);
+router.put(
+  '/vehicles/:id',
+  authenticateToken,
+  attachPositionAccess,
+  upload.single('vehicle_photo'),
+  validateBody(vehicleUpdateSchema),
+  updateVehicleController,
+);
 router.delete('/vehicles/:id', authenticateToken, attachPositionAccess, deleteVehicleController);
 
 // Vehicle locations

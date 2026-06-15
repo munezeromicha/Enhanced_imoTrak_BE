@@ -28,12 +28,76 @@ export async function deleteVehicleModel(id: string) {
 }
 
 // Vehicle Services
-export async function createVehicle(data: Omit<tbl_vehicles, 'vehicle_id' | 'created_at' | 'last_service_date' | 'reservations'>) {
-  // Ensure organization and vehicle_model exist
-  await prisma.tbl_organizations.findUniqueOrThrow({ where: { organization_id: data.organization_id } });
-  await prisma.tbl_vehicle_models.findUniqueOrThrow({ where: { vehicle_model_id: data.vehicle_model_id } });
-  return prisma.tbl_vehicles.create({ data });
+interface GpsDeviceInput {
+  device_model?: string;
+  imei: string;
+  sim_number?: string;
+  phone_number?: string;
+  apn?: string;
+  server_ip?: string;
+  server_port?: number;
+  firmware_version?: string;
+  install_date?: string;
+  notes?: string;
 }
+
+export async function createVehicle(
+  data: Omit<tbl_vehicles, 'vehicle_id' | 'created_at' | 'last_service_date' | 'reservations'> & {
+    gps_device?: GpsDeviceInput;
+  }
+) {
+  const { gps_device, ...vehicleData } = data;
+  await prisma.tbl_organizations.findUniqueOrThrow({ where: { organization_id: vehicleData.organization_id } });
+  await prisma.tbl_vehicle_models.findUniqueOrThrow({ where: { vehicle_model_id: vehicleData.vehicle_model_id } });
+
+  if (vehicleData.unit_id) {
+    const unit = await prisma.tbl_unit.findUnique({ where: { unit_id: vehicleData.unit_id } });
+    if (!unit || unit.organization_id !== vehicleData.organization_id) {
+      throw new AppError('Unit not found or does not belong to this organization', 400);
+    }
+  }
+
+  return prisma.$transaction(async (tx) => {
+    const vehicle = await tx.tbl_vehicles.create({ data: vehicleData });
+
+    if (gps_device?.imei) {
+      await tx.tbl_gps_devices.create({
+        data: {
+          vehicle_id: vehicle.vehicle_id,
+          device_model: gps_device.device_model ?? 'M588GS',
+          imei: gps_device.imei,
+          sim_number: gps_device.sim_number,
+          phone_number: gps_device.phone_number,
+          apn: gps_device.apn,
+          server_ip: gps_device.server_ip,
+          server_port: gps_device.server_port,
+          firmware_version: gps_device.firmware_version,
+          install_date: gps_device.install_date ? new Date(gps_device.install_date) : undefined,
+          notes: gps_device.notes,
+        },
+      });
+    }
+
+    return tx.tbl_vehicles.findUnique({
+      where: { vehicle_id: vehicle.vehicle_id },
+      include: { organization: true, vehicle_model: true, unit: true, gps_device: true },
+    });
+  });
+}
+
+const vehicleListInclude = {
+  organization: true,
+  vehicle_model: true,
+  unit: { select: { unit_id: true, unit_name: true } },
+  gps_device: true,
+} as const;
+
+const vehicleDetailInclude = {
+  organization: true,
+  vehicle_model: true,
+  unit: true,
+  gps_device: true,
+} as const;
 
 /**
  * Get all vehicles for an organization.
@@ -66,16 +130,13 @@ export async function getAllVehicles(
           organization_id: organizationId,
           vehicle_id: { in: vehicleIds },
         },
-        include: {
-          organization: true,
-          vehicle_model: true,
-        },
+        include: vehicleListInclude,
       });
     } catch {
       // Invalid range or past dates: return all vehicles
       return prisma.tbl_vehicles.findMany({
         where: { organization_id: organizationId },
-        include: { organization: true, vehicle_model: true },
+        include: vehicleListInclude,
       });
     }
   }
@@ -84,10 +145,7 @@ export async function getAllVehicles(
     where: {
       organization_id: organizationId,
     },
-    include: {
-      organization: true,
-      vehicle_model: true,
-    },
+    include: vehicleListInclude,
   });
 }
 
@@ -96,12 +154,85 @@ export async function getVehicleById(id: string) {
   // Location history is available via /v2/vehicles/:id/locations.
   return prisma.tbl_vehicles.findUnique({
     where: { vehicle_id: id },
-    include: { organization: true, vehicle_model: true },
+    include: vehicleDetailInclude,
   });
 }
 
-export async function updateVehicle(id: string, data: Partial<Omit<tbl_vehicles, 'vehicle_id' | 'created_at' | 'last_service_date' | 'reservations'>>) {
-  return prisma.tbl_vehicles.update({ where: { vehicle_id: id }, data });
+export async function updateVehicle(
+  id: string,
+  data: Partial<Omit<tbl_vehicles, 'vehicle_id' | 'created_at' | 'last_service_date' | 'reservations'>> & {
+    gps_device?: GpsDeviceInput;
+  },
+) {
+  const { gps_device, ...rawVehicleData } = data;
+  const vehicleData = { ...rawVehicleData } as Partial<Omit<tbl_vehicles, 'vehicle_id' | 'created_at' | 'last_service_date' | 'reservations'>>;
+
+  if (vehicleData.unit_id === null || vehicleData.unit_id === ('' as unknown as string)) {
+    vehicleData.unit_id = null;
+  }
+
+  const existing = await prisma.tbl_vehicles.findUnique({
+    where: { vehicle_id: id },
+    select: { organization_id: true },
+  });
+  if (!existing) {
+    throw new AppError('Vehicle not found', 404);
+  }
+
+  if (vehicleData.unit_id) {
+    const unit = await prisma.tbl_unit.findUnique({ where: { unit_id: vehicleData.unit_id } });
+    if (!unit || unit.organization_id !== existing.organization_id) {
+      throw new AppError('Unit not found or does not belong to this organization', 400);
+    }
+  }
+
+  const dataToWrite = { ...vehicleData };
+  // Never pass relation objects or GPS payload to tbl_vehicles.update
+  delete (dataToWrite as Record<string, unknown>).gps_device;
+  delete (dataToWrite as Record<string, unknown>).organization;
+  delete (dataToWrite as Record<string, unknown>).vehicle_model;
+  delete (dataToWrite as Record<string, unknown>).unit;
+
+  if (Object.keys(dataToWrite).length > 0) {
+    await prisma.tbl_vehicles.update({ where: { vehicle_id: id }, data: dataToWrite });
+  }
+
+  if (gps_device?.imei) {
+    await prisma.tbl_gps_devices.upsert({
+      where: { vehicle_id: id },
+      create: {
+        vehicle_id: id,
+        device_model: gps_device.device_model ?? 'M588GS',
+        imei: gps_device.imei,
+        sim_number: gps_device.sim_number,
+        phone_number: gps_device.phone_number,
+        apn: gps_device.apn,
+        server_ip: gps_device.server_ip,
+        server_port: gps_device.server_port,
+        firmware_version: gps_device.firmware_version,
+        install_date: gps_device.install_date ? new Date(gps_device.install_date) : undefined,
+        notes: gps_device.notes,
+      },
+      update: {
+        device_model: gps_device.device_model ?? 'M588GS',
+        imei: gps_device.imei,
+        sim_number: gps_device.sim_number,
+        phone_number: gps_device.phone_number,
+        apn: gps_device.apn,
+        server_ip: gps_device.server_ip,
+        server_port: gps_device.server_port,
+        firmware_version: gps_device.firmware_version,
+        install_date: gps_device.install_date ? new Date(gps_device.install_date) : undefined,
+        notes: gps_device.notes,
+        updated_at: new Date(),
+      },
+    });
+  }
+
+  return prisma.tbl_vehicles.findUnique({
+    where: { vehicle_id: id },
+    include: vehicleDetailInclude,
+  });
 }
 
 export async function deleteVehicle(id: string) {

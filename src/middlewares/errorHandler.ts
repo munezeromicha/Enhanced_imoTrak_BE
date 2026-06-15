@@ -28,7 +28,30 @@ export const errorHandler = (
 
   if (!err.statusCode) {
     console.error(err);
-    return res.status(500).json({ message: 'Something went wrong' });
+    const prismaCode = err?.code as string | undefined;
+    if (prismaCode === 'P2003') {
+      return res.status(409).json({
+        message: 'Cannot delete user: related records still reference this account.',
+        data: null,
+      });
+    }
+    if (prismaCode === 'P2025') {
+      return res.status(404).json({ message: 'Record not found', data: null });
+    }
+    if (prismaCode === 'P2028') {
+      return res.status(504).json({
+        message: 'Database operation timed out. Please try again.',
+        data: null,
+      });
+    }
+    const detail =
+      process.env.NODE_ENV !== 'production' && err?.message
+        ? err.message
+        : undefined;
+    return res.status(500).json({
+      message: detail ?? 'Something went wrong',
+      data: null,
+    });
   }
 
   const statusCode = err.statusCode;

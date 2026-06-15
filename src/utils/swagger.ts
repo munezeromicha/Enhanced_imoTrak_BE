@@ -17,7 +17,7 @@ const options: swaggerJSDoc.Options = {
     servers: [
       { url: 'https://imotrak-api.urbinaryhub.rw/' },
       { url: `http://localhost:${PORT}` },
-      { url: 'https://imotrak.ur.ac.rw' },
+      { url: 'https://api.imotrak.michaelmunezero.com' },
     ],
     components: {
       securitySchemes: {

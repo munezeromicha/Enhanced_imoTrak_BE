@@ -25,6 +25,7 @@ import {
 import { updateUnitSchema } from '../schemas/organization.schema';
 import { updatePositionSchema } from '../schemas/position.schema';
 import { position_accesses } from '../types/access';
+import { clampPositionAccess, isPositionAccessSubset } from '../utils/positionAccessUtils';
 
 const prisma = new PrismaClient();
 
@@ -44,7 +45,7 @@ export const createOrganizationController = async (
   next: NextFunction
 ) => {
   try {
-    const { organization_name, organization_email, organization_phone, street_address } = req.body;
+    const { organization_name, organization_email, organization_phone, street_address, uses_reservations, leader_unit_name, leader_position_name } = req.body;
 
     if (!req.user?.position_access?.organizations?.create) {
       throw new AppError('You do not have permission to create organizations', 403);
@@ -61,13 +62,21 @@ export const createOrganizationController = async (
 
     const organization_customId = generateCustomId('ORG');
 
+    const usesReservations =
+      uses_reservations === undefined || uses_reservations === ''
+        ? true
+        : uses_reservations === true || uses_reservations === 'true';
+
     const organization = await createOrganizationService({
         organization_customId,
         organization_name,
         organization_email,
         organization_phone,
         organization_logo: logoUrl,
-        street_address
+        street_address,
+        uses_reservations: usesReservations,
+        leader_unit_name,
+        leader_position_name,
     });
 
     res.status(201).json({
@@ -165,11 +174,16 @@ export const createPositionController = async (
       }
     }
 
+    const clampedAccess = clampPositionAccess(
+      req.user.position_access,
+      position_access as position_accesses
+    );
+
     const position = await createPositionService({
       position_name,
       position_description,
       unit_id,
-      position_access,
+      position_access: clampedAccess,
     });
 
     res.status(201).json({

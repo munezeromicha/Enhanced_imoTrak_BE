@@ -151,6 +151,24 @@ export async function createReservation(data: {
   passengers: number;
   user_id: string;
 }) {
+  const user = await prisma.tbl_users.findUnique({
+    where: { user_id: data.user_id },
+    include: {
+      position_assignments: {
+        include: {
+          position: {
+            include: { unit: { include: { organization: true } } },
+          },
+        },
+      },
+    },
+  });
+
+  const org = user?.position_assignments?.[0]?.position?.unit?.organization;
+  if (org && org.uses_reservations === false) {
+    throw new AppError('This organization does not use the reservation workflow', 403);
+  }
+
   const reservation = await prisma.tbl_reservations.create({
     data: {
       reservation_purpose: data.reservation_purpose,
@@ -165,18 +183,6 @@ export async function createReservation(data: {
     },
   });
   // Notify approvers in the same org
-  const user = await prisma.tbl_users.findUnique({
-    where: { user_id: data.user_id },
-    include: {
-      position_assignments: {
-        include: {
-          position: {
-            include: { unit: { include: { organization: true } } },
-          },
-        },
-      },
-    },
-  });
   const orgId =
     user?.position_assignments[0]?.position.unit.organization.organization_id;
   if (orgId) {

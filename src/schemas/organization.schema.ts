@@ -11,6 +11,12 @@ export const organizationSchema = z.object({
     .string()
     .regex(phoneRegex, 'Phone number must be 10 to 15 digits'),
   street_address: z.string(),
+  uses_reservations: z
+    .union([z.boolean(), z.enum(['true', 'false'])])
+    .optional()
+    .transform((v) => (v === undefined ? true : v === true || v === 'true')),
+  leader_unit_name: z.string().min(1).optional(),
+  leader_position_name: z.string().min(1).optional(),
 });
 
 export const createUnitSchema = z.object({
@@ -33,7 +39,8 @@ export const updateOrganizationSchema = z.object({
     .string()
     .regex(/^\d{10,15}$/, 'Phone number must be 10 to 15 digits')
     .optional(),
-  street_address: z.string().optional()
+  street_address: z.string().optional(),
+  uses_reservations: z.boolean().optional(),
 });
 
 export const updateUnitSchema = z.object({

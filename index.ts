@@ -23,7 +23,7 @@ const app = express();
 const allowedOrigins = (
   process.env.CORS_ORIGINS
     ? process.env.CORS_ORIGINS.split(',')
-    : ['http://localhost:3000', 'https://imotrak.ur.ac.rw']
+    : ['http://localhost:3000', 'https://api.imotrak.michaelmunezero.com']
 ).map((o) => o.trim()).filter(Boolean);
 
 const isDev = process.env.NODE_ENV !== 'production';

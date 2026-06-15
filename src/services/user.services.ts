@@ -10,6 +10,8 @@ import {
   mapAssignmentsToPositions,
   userPositionAssignmentsInclude,
 } from '../utils/userPositions';
+import type { position_accesses } from '../types/access';
+import { isPositionAccessSubset } from '../utils/positionAccessUtils';
 
 dotenv.config();
 
@@ -27,6 +29,7 @@ interface CreateUserPayload {
   email: string;
   requester_org_id: string;
   hasOrgCreateAccess: boolean;
+  requester_position_access?: position_accesses;
 }
 
 export async function createUserService(data: CreateUserPayload) {
@@ -42,6 +45,7 @@ export async function createUserService(data: CreateUserPayload) {
     email,
     requester_org_id,
     hasOrgCreateAccess,
+    requester_position_access,
   } = data;
 
   // Step 1: Validate position
@@ -64,6 +68,14 @@ export async function createUserService(data: CreateUserPayload) {
     if (position.unit.organization.organization_id !== requester_org_id) {
       throw new Error('Position does not belong to your organization');
     }
+  }
+
+  const targetAccess = position.position_access as unknown as position_accesses;
+  if (
+    requester_position_access &&
+    !isPositionAccessSubset(requester_position_access, targetAccess)
+  ) {
+    throw new Error('You cannot assign a position that grants permissions you do not have');
   }
 
   const password = generateRandomPassword(10);
@@ -484,85 +496,155 @@ export async function deleteUserPermanentlyService(params: {
     : [];
   const reservedIds = reservedRowsPre.map((r) => r.reserved_vehicle_id);
 
-  await prisma.$transaction(
-    async (tx) => {
-      // 1) Null out all nullable FKs pointing at this user. These are all
-      //    independent of each other so we can fire them in parallel.
-      await Promise.all([
-        tx.tbl_user_position_assignments.deleteMany({
-          where: { user_id: targetUserId },
-        }),
-        tx.tbl_reservations.updateMany({
-          where: { approved_by: targetUserId },
-          data: { approved_by: null },
-        }),
-        tx.tbl_reservations.updateMany({
-          where: { canceled_by: targetUserId },
-          data: { canceled_by: null },
-        }),
-        tx.tbl_reservations.updateMany({
-          where: { completed_by: targetUserId },
-          data: { completed_by: null },
-        }),
-        tx.tbl_reservations.updateMany({
-          where: { reviewed_by: targetUserId },
-          data: { reviewed_by: null },
-        }),
-        tx.tbl_reserved_vehicles.updateMany({
-          where: { returned_by: targetUserId },
-          data: { returned_by: null },
-        }),
-        tx.tbl_vehicle_issues.updateMany({
-          where: { issue_responder: targetUserId },
-          data: { issue_responder: null },
-        }),
-        tx.tbl_users.updateMany({
-          where: { updated_by_user_id: targetUserId },
-          data: { updated_by_user_id: null },
-        }),
-      ]);
+  const driverPre = await prisma.tbl_drivers.findUnique({
+    where: { user_id: targetUserId },
+    select: { driver_id: true },
+  });
 
-      // 2) Delete dependents of the user's reservations (issues + locations
-      //    on their reserved vehicles), again in parallel because they touch
-      //    different tables.
-      if (reservedIds.length > 0) {
+  const ownedIssueIdsPre =
+    reservedIds.length > 0
+      ? (
+          await prisma.tbl_vehicle_issues.findMany({
+            where: { reserved_vehicle_id: { in: reservedIds } },
+            select: { issue_id: true },
+          })
+        ).map((i) => i.issue_id)
+      : [];
+
+  try {
+    await prisma.$transaction(
+      async (tx) => {
+        // 1) Null out nullable FKs pointing at this user.
         await Promise.all([
-          tx.tbl_vehicle_issues.deleteMany({
-            where: { reserved_vehicle_id: { in: reservedIds } },
+          tx.tbl_user_position_assignments.deleteMany({
+            where: { user_id: targetUserId },
           }),
-          tx.tbl_vehicle_locations.deleteMany({
-            where: { reserved_vehicle_id: { in: reservedIds } },
+          tx.tbl_reservations.updateMany({
+            where: { approved_by: targetUserId },
+            data: { approved_by: null },
+          }),
+          tx.tbl_reservations.updateMany({
+            where: { canceled_by: targetUserId },
+            data: { canceled_by: null },
+          }),
+          tx.tbl_reservations.updateMany({
+            where: { completed_by: targetUserId },
+            data: { completed_by: null },
+          }),
+          tx.tbl_reservations.updateMany({
+            where: { reviewed_by: targetUserId },
+            data: { reviewed_by: null },
+          }),
+          tx.tbl_reserved_vehicles.updateMany({
+            where: { returned_by: targetUserId },
+            data: { returned_by: null },
+          }),
+          tx.tbl_vehicle_issues.updateMany({
+            where: { issue_responder: targetUserId },
+            data: { issue_responder: null },
+          }),
+          tx.tbl_vehicle_issues.updateMany({
+            where: { reported_by_user_id: targetUserId },
+            data: { reported_by_user_id: null },
+          }),
+          tx.tbl_vehicle_issue_replies.updateMany({
+            where: { user_id: targetUserId },
+            data: { user_id: null },
+          }),
+          tx.tbl_users.updateMany({
+            where: { updated_by_user_id: targetUserId },
+            data: { updated_by_user_id: null },
           }),
         ]);
-      }
 
-      // 3) Reserved vehicles, then reservations (FK order matters here).
-      if (reservationIds.length > 0) {
-        await tx.tbl_reserved_vehicles.deleteMany({
-          where: { reservation_id: { in: reservationIds } },
-        });
-        await tx.tbl_reservations.deleteMany({
-          where: { user_id: targetUserId },
-        });
-      }
+        // 2) Remove driver profile and its trip/issue links (blocks user delete).
+        if (driverPre) {
+          await tx.tbl_vehicle_issues.updateMany({
+            where: { reported_by_driver_id: driverPre.driver_id },
+            data: { reported_by_driver_id: null },
+          });
+          await tx.tbl_vehicle_issue_replies.deleteMany({
+            where: { driver_id: driverPre.driver_id },
+          });
+          await tx.tbl_reserved_vehicle_drivers.deleteMany({
+            where: { driver_id: driverPre.driver_id },
+          });
+          await tx.tbl_drivers.delete({ where: { driver_id: driverPre.driver_id } });
+        }
 
-      // 4) Logs / notifications / sessions in parallel.
-      await Promise.all([
-        tx.tbl_audit_logs.deleteMany({ where: { user_id: targetUserId } }),
-        tx.tbl_notifications.deleteMany({ where: { user_id: targetUserId } }),
-        tx.tbl_jwt_blacklist.deleteMany({ where: { user_id: targetUserId } }),
-      ]);
+        // 3) Delete dependents of the user's reservations (FK order matters).
+        if (reservedIds.length > 0) {
+          await tx.tbl_vehicle_issues.updateMany({
+            where: { replacement_reserved_vehicle_id: { in: reservedIds } },
+            data: { replacement_reserved_vehicle_id: null },
+          });
+          await tx.tbl_reserved_vehicles.updateMany({
+            where: { replaced_by_id: { in: reservedIds } },
+            data: { replaced_by_id: null },
+          });
+          await tx.tbl_reserved_vehicle_drivers.deleteMany({
+            where: { reserved_vehicle_id: { in: reservedIds } },
+          });
 
-      // 5) Finally the user itself, then their auth row (FK from user→auth).
-      await tx.tbl_users.delete({ where: { user_id: targetUserId } });
-      await tx.tbl_auth.delete({ where: { auth_id: existing.auth_id } });
-    },
-    {
-      // Generous timeouts: this runs on a remote DB (Neon) where each
-      // round-trip can be ~300ms, and admin user-deletes are rare.
-      maxWait: 10_000,
-      timeout: 30_000,
-    },
-  );
+          if (ownedIssueIdsPre.length > 0) {
+            await tx.tbl_vehicle_issue_replies.deleteMany({
+              where: { issue_id: { in: ownedIssueIdsPre } },
+            });
+          }
+
+          await tx.tbl_vehicle_issues.deleteMany({
+            where: { reserved_vehicle_id: { in: reservedIds } },
+          });
+          await tx.tbl_vehicle_locations.deleteMany({
+            where: { reserved_vehicle_id: { in: reservedIds } },
+          });
+        }
+
+        // 4) Reserved vehicles, then reservations.
+        if (reservationIds.length > 0) {
+          await tx.tbl_reserved_vehicles.updateMany({
+            where: { reserved_vehicle_id: { in: reservedIds } },
+            data: { replaced_by_id: null },
+          });
+          await tx.tbl_reserved_vehicles.deleteMany({
+            where: { reservation_id: { in: reservationIds } },
+          });
+          await tx.tbl_reservations.deleteMany({
+            where: { user_id: targetUserId },
+          });
+        }
+
+        // 5) Logs / notifications / sessions.
+        await Promise.all([
+          tx.tbl_audit_logs.deleteMany({ where: { user_id: targetUserId } }),
+          tx.tbl_notifications.deleteMany({ where: { user_id: targetUserId } }),
+          tx.tbl_jwt_blacklist.deleteMany({ where: { user_id: targetUserId } }),
+        ]);
+
+        // 6) User row, then auth row.
+        await tx.tbl_users.delete({ where: { user_id: targetUserId } });
+        await tx.tbl_auth.delete({ where: { auth_id: existing.auth_id } });
+      },
+      {
+        maxWait: 15_000,
+        timeout: 120_000,
+      },
+    );
+  } catch (error: unknown) {
+    const prismaError = error as { code?: string; message?: string };
+    if (prismaError?.code === 'P2003') {
+      throw new AppError(
+        'Cannot delete user: related records still reference this account.',
+        409,
+      );
+    }
+    if (prismaError?.code === 'P2028') {
+      throw new AppError('User delete timed out. Please try again.', 504);
+    }
+    if (prismaError?.message?.includes('Transaction already closed')) {
+      throw new AppError('User delete timed out. Please try again.', 504);
+    }
+    throw error;
+  }
 }
 

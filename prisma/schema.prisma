@@ -3,8 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model tbl_auth {
@@ -85,6 +86,9 @@ model tbl_organizations {
   created_at            DateTime       @default(now())
   organization_customId String         @unique
   organization_status   OrgStatus      @default(ACTIVE)
+  uses_reservations     Boolean        @default(true)
+  leader_unit_id        String?
+  leader_position_id    String?
   units                 tbl_unit[]
   vehicles              tbl_vehicles[]
 }
@@ -140,10 +144,13 @@ model tbl_vehicles {
   last_service_date DateTime                @default(now())
   created_at        DateTime                @default(now())
   organization_id   String
+  unit_id           String?
   reservations      tbl_reserved_vehicles[]
   organization      tbl_organizations       @relation(fields: [organization_id], references: [organization_id])
   vehicle_model     tbl_vehicle_models      @relation(fields: [vehicle_model_id], references: [vehicle_model_id])
+  unit              tbl_unit?               @relation(fields: [unit_id], references: [unit_id])
   locations         tbl_vehicle_locations[]
+  gps_device        tbl_gps_devices?
 }
 
 model tbl_reserved_vehicles {
@@ -185,7 +192,9 @@ model tbl_unit {
   created_at      DateTime          @default(now())
   organization_id String
   status          OrgStatus         @default(ACTIVE)
+  is_primary      Boolean           @default(false)
   positions       tbl_position[]
+  vehicles        tbl_vehicles[]
   organization    tbl_organizations @relation(fields: [organization_id], references: [organization_id])
 
   @@unique([unit_name, organization_id])
@@ -199,10 +208,29 @@ model tbl_position {
   created_at           DateTime                        @default(now())
   unit_id              String
   position_status      OrgStatus                       @default(ACTIVE)
+  is_org_leader        Boolean                         @default(false)
   unit                 tbl_unit                        @relation(fields: [unit_id], references: [unit_id])
   assignments          tbl_user_position_assignments[]
 
   @@unique([position_name, unit_id])
+}
+
+model tbl_gps_devices {
+  gps_device_id    String       @id @default(uuid())
+  vehicle_id       String       @unique
+  device_model     String       @default("M588GS")
+  imei             String       @unique
+  sim_number       String?
+  phone_number     String?
+  apn              String?
+  server_ip        String?
+  server_port      Int?
+  firmware_version String?
+  install_date     DateTime?
+  notes            String?
+  created_at       DateTime     @default(now())
+  updated_at       DateTime?
+  vehicle          tbl_vehicles @relation(fields: [vehicle_id], references: [vehicle_id], onDelete: Cascade)
 }
 
 model tbl_user_position_assignments {

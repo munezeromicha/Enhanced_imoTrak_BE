@@ -125,9 +125,15 @@ export async function loginWithPosition(email: string, password: string, positio
   const {organization, ...unitOut} = unit
   return {
     token,
-    organization: position.unit.organization,
+    organization: {
+      ...organization,
+      uses_reservations: organization.uses_reservations ?? true,
+    },
     user: auth.user,
-    position: positionOut,
+    position: {
+      ...positionOut,
+      is_org_leader: position.is_org_leader ?? false,
+    },
     unit: unitOut,
   }
 }

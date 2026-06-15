@@ -1,4 +1,4 @@
-import { OrgStatus, PrismaClient, tbl_organizations } from '@prisma/client';
+import { OrgStatus, Prisma, PrismaClient, tbl_organizations } from '@prisma/client';
 import { AppError } from '../utils/Error';
 import {
   createUserPositionAssignment,
@@ -9,6 +9,7 @@ import {
   userPositionAssignmentsInclude,
 } from '../utils/userPositions';
 import { AuthenticatedUser, position_accesses } from '../types/access';
+import { clampPositionAccess, isPositionAccessSubset } from '../utils/positionAccessUtils';
 const prisma = new PrismaClient();
 
 interface CreateOrgPayload {
@@ -18,6 +19,9 @@ interface CreateOrgPayload {
   organization_customId: string;
   organization_logo: string;
   street_address: string;
+  uses_reservations?: boolean;
+  leader_unit_name?: string;
+  leader_position_name?: string;
 }
 
 interface GetOrganizationsOptions {
@@ -82,14 +86,103 @@ interface AssignUserToPositionParams {
 }
 
 export async function createOrganizationService(data: CreateOrgPayload) {
-  const newOrg = await prisma.tbl_organizations.create({
-    data: {
-      ...data,
-      organization_status: 'ACTIVE',
-    }
+  const usesReservations = data.uses_reservations ?? true;
+  const leaderUnitName = data.leader_unit_name?.trim() || 'Headquarters';
+  const leaderPositionName = data.leader_position_name?.trim() || 'Organization Leader';
+
+  const leaderAccess = buildLeaderPositionAccess(usesReservations);
+
+  const result = await prisma.$transaction(async (tx) => {
+    const newOrg = await tx.tbl_organizations.create({
+      data: {
+        organization_name: data.organization_name,
+        organization_email: data.organization_email,
+        organization_phone: data.organization_phone,
+        organization_customId: data.organization_customId,
+        organization_logo: data.organization_logo,
+        street_address: data.street_address,
+        organization_status: 'ACTIVE',
+        uses_reservations: usesReservations,
+      },
+    });
+
+    const leaderUnit = await tx.tbl_unit.create({
+      data: {
+        unit_name: leaderUnitName,
+        organization_id: newOrg.organization_id,
+        is_primary: true,
+        status: 'ACTIVE',
+      },
+    });
+
+    const leaderPosition = await tx.tbl_position.create({
+      data: {
+        position_name: leaderPositionName,
+        position_description: 'Primary organization leader with elevated access',
+        unit_id: leaderUnit.unit_id,
+        is_org_leader: true,
+        position_access: leaderAccess as unknown as Prisma.InputJsonValue,
+        position_status: 'ACTIVE',
+      },
+    });
+
+    const org = await tx.tbl_organizations.update({
+      where: { organization_id: newOrg.organization_id },
+      data: {
+        leader_unit_id: leaderUnit.unit_id,
+        leader_position_id: leaderPosition.position_id,
+      },
+    });
+
+    return { org, leaderUnit, leaderPosition };
   });
 
-  return newOrg;
+  return result.org;
+}
+
+function buildLeaderPositionAccess(usesReservations: boolean): position_accesses {
+  const noReservations = {
+    create: false,
+    view: false,
+    update: false,
+    delete: false,
+    cancel: false,
+    approve: false,
+    assignVehicle: false,
+    odometerFuel: false,
+    start: false,
+    complete: false,
+    viewOwn: false,
+    viewAssigned: false,
+    updateReason: false,
+  };
+
+  const fullReservations = {
+    create: true,
+    view: true,
+    update: true,
+    delete: true,
+    cancel: true,
+    approve: true,
+    assignVehicle: true,
+    odometerFuel: true,
+    start: true,
+    complete: true,
+    viewOwn: true,
+    viewAssigned: true,
+    updateReason: true,
+  };
+
+  return {
+    organizations: { create: false, view: true, update: true, delete: false },
+    units: { create: true, view: true, update: true, delete: true },
+    positions: { create: true, view: true, update: true, delete: true, assignUser: true },
+    users: { create: true, view: true, update: true, delete: true },
+    vehicleModels: { create: true, view: true, viewSingle: true, update: true, delete: true },
+    vehicles: { create: true, view: true, viewSingle: true, update: true, delete: true },
+    reservations: usesReservations ? fullReservations : noReservations,
+    vehicleIssues: { report: true, view: true, update: true, delete: true },
+  };
 }
 
 export async function getOrganizationsService({ page = 1, limit = 10, status }: GetOrganizationsOptions) {
@@ -442,6 +535,13 @@ export const updatePositionService = async ({
     (updateData as { position_status?: string }).position_status === 'INACTIVE'
   ) {
     throw new AppError('The SuperAdmin position cannot be deactivated', 403);
+  }
+
+  if (updateData.position_access) {
+    updateData.position_access = clampPositionAccess(
+      user.position_access as position_accesses,
+      updateData.position_access as position_accesses
+    ) as unknown as Prisma.InputJsonValue;
   }
 
   const updatedPosition = await prisma.tbl_position.update({
