@@ -106,8 +106,14 @@ const vehicleDetailInclude = {
 export async function getAllVehicles(
   organizationId: string,
   startDate?: string,
-  endDate?: string
+  endDate?: string,
+  unitId?: string
 ) {
+  const orgWhere = {
+    organization_id: organizationId,
+    ...(unitId ? { unit_id: unitId } : {}),
+  };
+
   const useAvailabilityFilter =
     startDate &&
     endDate &&
@@ -127,7 +133,7 @@ export async function getAllVehicles(
       }
       return prisma.tbl_vehicles.findMany({
         where: {
-          organization_id: organizationId,
+          ...orgWhere,
           vehicle_id: { in: vehicleIds },
         },
         include: vehicleListInclude,
@@ -135,16 +141,14 @@ export async function getAllVehicles(
     } catch {
       // Invalid range or past dates: return all vehicles
       return prisma.tbl_vehicles.findMany({
-        where: { organization_id: organizationId },
+        where: orgWhere,
         include: vehicleListInclude,
       });
     }
   }
 
   return prisma.tbl_vehicles.findMany({
-    where: {
-      organization_id: organizationId,
-    },
+    where: orgWhere,
     include: vehicleListInclude,
   });
 }

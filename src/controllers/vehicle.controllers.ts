@@ -4,7 +4,8 @@ import * as vehicleService from '../services/vehicle.services';
 import { uploadToCloudinary } from '../utils/cloudinary';
 import { AuthenticatedRequest } from '../types/access';
 import { AppError } from '../utils/Error';
-import { assertVehicleLocationAccess } from '../utils/vehicle-access';
+import { assertVehicleLocationAccess, assertVehicleUnitScope, assertVehicleUnitScopeById, clampVehicleUnitIdForUser } from '../utils/vehicle-access';
+import { resolveUnitScopeForUser } from '../utils/orgLeader';
 import { ServerResponse } from 'http';
 
 const prisma = new PrismaClient();
@@ -104,7 +105,10 @@ export async function createVehicleController(req: Request, res: Response, next:
       ...req.body,
       vehicle_photo: vehiclePhotoUrl,
       vehicle_year: Number(req.body.vehicle_year),
-      unit_id: req.body.unit_id || undefined,
+      unit_id: await clampVehicleUnitIdForUser(
+        (req as AuthenticatedRequest).user,
+        req.body.unit_id || undefined
+      ),
       gps_device: gpsDevice,
     };
     const data = { ...parsedBody, vehicle_status: parsedBody.vehicle_status ?? 'AVAILABLE', vehicle_photo: vehiclePhotoUrl };
@@ -124,11 +128,18 @@ export async function createVehicleController(req: Request, res: Response, next:
 
 export async function getAllVehiclesController(req: Request, res: Response, next: NextFunction) {
   try {
-    checkVehiclePermission(req as AuthenticatedRequest, 'view');
-    const organizationId = (req as AuthenticatedRequest).user.organization_id;
+    const authReq = req as AuthenticatedRequest;
+    checkVehiclePermission(authReq, 'view');
+    const organizationId = authReq.user.organization_id;
     const startDate = typeof req.query.startDate === 'string' ? req.query.startDate : undefined;
     const endDate = typeof req.query.endDate === 'string' ? req.query.endDate : undefined;
-    const vehicles = await vehicleService.getAllVehicles(organizationId, startDate, endDate);
+    const unitScope = await resolveUnitScopeForUser(authReq.user);
+    const vehicles = await vehicleService.getAllVehicles(
+      organizationId,
+      startDate,
+      endDate,
+      unitScope ?? undefined
+    );
     res.json({ data: vehicles });
   } catch (error) {
     next(error);
@@ -164,6 +175,11 @@ export async function getVehicleByIdController(req: Request, res: Response, next
 
     const vehicle = await vehicleService.getVehicleById(req.params.id);
     if (!vehicle) throw new AppError('Vehicle not found', 404);
+
+    if (!isAssigned) {
+      await assertVehicleUnitScope(authReq.user, vehicle);
+    }
+
     res.json({ data: vehicle });
   } catch (error) {
     next(error);
@@ -172,7 +188,9 @@ export async function getVehicleByIdController(req: Request, res: Response, next
 
 export async function updateVehicleController(req: Request, res: Response, next: NextFunction) {
   try {
-    checkVehiclePermission(req as AuthenticatedRequest, 'update');
+    const authReq = req as AuthenticatedRequest;
+    checkVehiclePermission(authReq, 'update');
+    await assertVehicleUnitScopeById(authReq.user, req.params.id);
     let vehiclePhotoUrl = req.body.vehicle_photo;
     if (req.file) {
       vehiclePhotoUrl = await uploadToCloudinary(req.file.buffer, 'vehicles');
@@ -200,7 +218,10 @@ export async function updateVehicleController(req: Request, res: Response, next:
     // unit_id: empty string clears assignment; omit to leave unchanged
     if (body.unit_id !== undefined) {
       const rawUnit = String(body.unit_id ?? '').trim();
-      payload.unit_id = rawUnit === '' ? null : rawUnit;
+      payload.unit_id = (await clampVehicleUnitIdForUser(
+        authReq.user,
+        rawUnit === '' ? null : rawUnit
+      )) as string | null;
     }
 
     let gpsDevice: unknown = body.gps_device;
@@ -231,7 +252,9 @@ export async function updateVehicleController(req: Request, res: Response, next:
 
 export async function deleteVehicleController(req: Request, res: Response, next: NextFunction) {
   try {
-    checkVehiclePermission(req as AuthenticatedRequest, 'delete');
+    const authReq = req as AuthenticatedRequest;
+    checkVehiclePermission(authReq, 'delete');
+    await assertVehicleUnitScopeById(authReq.user, req.params.id);
     await vehicleService.deleteVehicle(req.params.id);
     res.json({ message: 'Vehicle deleted' });
   } catch (error: any) {

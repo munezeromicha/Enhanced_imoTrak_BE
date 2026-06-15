@@ -25,3 +25,20 @@ export async function canViewOrgUnitCount(
   if (isSuperAdmin(user)) return true;
   return isOrgLeader(user);
 }
+
+/**
+ * Unit id to scope vehicle (and similar) queries. Null = no unit filter (hub super-admin or org leader).
+ */
+export async function resolveUnitScopeForUser(
+  user: { position_id: string; position_access?: position_accesses }
+): Promise<string | null> {
+  if (isSuperAdmin(user)) return null;
+  const leader = await isOrgLeader(user);
+  if (leader) return null;
+
+  const position = await prisma.tbl_position.findUnique({
+    where: { position_id: user.position_id },
+    select: { unit_id: true },
+  });
+  return position?.unit_id ?? null;
+}

@@ -1,8 +1,58 @@
 import { PrismaClient } from '@prisma/client';
 import { AppError } from './Error';
 import type { AuthenticatedUser } from '../types/access';
+import { isSuperAdmin, resolveUnitScopeForUser } from './orgLeader';
 
 const prisma = new PrismaClient();
+
+type VehicleScopeRow = { unit_id: string | null; organization_id: string };
+
+export async function assertVehicleUnitScope(
+  user: AuthenticatedUser,
+  vehicle: VehicleScopeRow
+): Promise<void> {
+  if (isSuperAdmin(user)) return;
+
+  const unitScope = await resolveUnitScopeForUser(user);
+
+  if (vehicle.organization_id !== user.organization_id) {
+    throw new AppError('You do not have access to this vehicle', 403);
+  }
+
+  if (!unitScope) return;
+
+  if (vehicle.unit_id !== unitScope) {
+    throw new AppError('You do not have access to vehicles outside your unit', 403);
+  }
+}
+
+export async function assertVehicleUnitScopeById(
+  user: AuthenticatedUser,
+  vehicleId: string
+): Promise<void> {
+  const vehicle = await prisma.tbl_vehicles.findUnique({
+    where: { vehicle_id: vehicleId },
+    select: { unit_id: true, organization_id: true },
+  });
+  if (!vehicle) throw new AppError('Vehicle not found', 404);
+  await assertVehicleUnitScope(user, vehicle);
+}
+
+/** Non-leaders may only assign vehicles to their own unit. */
+export async function clampVehicleUnitIdForUser(
+  user: AuthenticatedUser,
+  unitId: string | null | undefined
+): Promise<string | null | undefined> {
+  const unitScope = await resolveUnitScopeForUser(user);
+  if (!unitScope) return unitId;
+
+  if (unitId === undefined) return unitScope;
+  if (unitId === null || unitId === '') return unitScope;
+  if (unitId !== unitScope) {
+    throw new AppError('You can only assign vehicles to your unit', 403);
+  }
+  return unitId;
+}
 
 export function isHubSuperAdmin(user: AuthenticatedUser): boolean {
   return !!user.position_access?.organizations?.view;
@@ -70,4 +120,6 @@ export async function assertVehicleLocationAccess(
   if (!sameOrg) {
     throw new AppError('You do not have access to this vehicle', 403);
   }
+
+  await assertVehicleUnitScopeById(user, vehicleId);
 }

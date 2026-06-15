@@ -8,7 +8,7 @@ import {
 } from './vehicle.services';
 import { reverseGeocode } from '../utils/geocoding';
 import type { AuthenticatedUser } from '../types/access';
-import { canViewOrgUnitCount, isOrgLeader, isSuperAdmin as isHubSuperAdmin } from '../utils/orgLeader';
+import { canViewOrgUnitCount, isSuperAdmin as isHubSuperAdmin, resolveUnitScopeForUser } from '../utils/orgLeader';
 
 const prisma = new PrismaClient();
 
@@ -17,15 +17,7 @@ function isSuperAdmin(user: AuthenticatedUser): boolean {
 }
 
 async function resolveUnitScope(user: AuthenticatedUser): Promise<string | null> {
-  if (isSuperAdmin(user)) return null;
-  const leader = await isOrgLeader(user);
-  if (leader) return null;
-
-  const position = await prisma.tbl_position.findUnique({
-    where: { position_id: user.position_id },
-    select: { unit_id: true },
-  });
-  return position?.unit_id ?? null;
+  return resolveUnitScopeForUser(user);
 }
 
 function canAccessTracking(user: AuthenticatedUser): boolean {
