@@ -5,7 +5,7 @@ import { uploadToCloudinary } from '../utils/cloudinary';
 import { AuthenticatedRequest } from '../types/access';
 import { AppError } from '../utils/Error';
 import { assertVehicleLocationAccess, assertVehicleUnitScope, assertVehicleUnitScopeById, clampVehicleUnitIdForUser } from '../utils/vehicle-access';
-import { resolveUnitScopeForUser } from '../utils/orgLeader';
+import { resolveUnitScopeForUser, isOrgLeader } from '../utils/orgLeader';
 import { ServerResponse } from 'http';
 
 const prisma = new PrismaClient();
@@ -253,7 +253,10 @@ export async function updateVehicleController(req: Request, res: Response, next:
 export async function deleteVehicleController(req: Request, res: Response, next: NextFunction) {
   try {
     const authReq = req as AuthenticatedRequest;
-    checkVehiclePermission(authReq, 'delete');
+    const orgLeader = await isOrgLeader(authReq.user);
+    if (!orgLeader) {
+      checkVehiclePermission(authReq, 'delete');
+    }
     await assertVehicleUnitScopeById(authReq.user, req.params.id);
     await vehicleService.deleteVehicle(req.params.id);
     res.json({ message: 'Vehicle deleted' });

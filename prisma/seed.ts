@@ -181,21 +181,21 @@ async function main() {
 
  const vehicles = [
   {
-    plate_number: 'FLEET001',
+    plate_number: 'RAM001A',
     transmission_mode: TransmissionMode.AUTOMATIC,
     vehicle_photo: 'patrol1.png',
     vehicle_year: 2019,
     energy_type: 'Petrol',
   },
   {
-    plate_number: 'FLEET002',
+    plate_number: 'RAM002A',
     transmission_mode: TransmissionMode.MANUAL,
     vehicle_photo: 'patrol2.png',
     vehicle_year: 2020,
     energy_type: 'Diesel',
   },
   {
-    plate_number: 'FLEET003',
+    plate_number: 'RAM003A',
     transmission_mode: TransmissionMode.AUTOMATIC,
     vehicle_photo: 'patrol3.png',
     vehicle_year: 2021,
