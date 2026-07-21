@@ -19,33 +19,35 @@ model tbl_auth {
 }
 
 model tbl_users {
-  user_id                    String                  @id @default(uuid())
+  user_id                    String                                @id @default(uuid())
   first_name                 String
   last_name                  String
-  user_nid                   String                  @unique
-  user_phone                 String                  @unique
-  created_at                 DateTime                @default(now())
+  user_nid                   String                                @unique
+  user_phone                 String                                @unique
+  created_at                 DateTime                              @default(now())
   user_dob                   DateTime
   user_photo                 String?
   user_gender                Gender
   street_address             String?
-  auth_id                    String                  @unique
+  auth_id                    String                                @unique
   updated_by_user_id         String?
   audit_logs                 tbl_audit_logs[]
   blacklisted_tokens         tbl_jwt_blacklist[]
   notifications              tbl_notifications[]
-  reservations_approved      tbl_reservations[]      @relation("ReservationApprover")
-  reservations_canceled      tbl_reservations[]      @relation("ReservationCanceler")
-  reservations_completed     tbl_reservations[]      @relation("ReservationCompleter")
-  reservations_reviewed      tbl_reservations[]      @relation("ReservationReviewer")
-  reservations               tbl_reservations[]      @relation("ReservationUser")
-  reserved_vehicles_returned tbl_reserved_vehicles[] @relation("ReservationReturnedBy")
-  auth                       tbl_auth                @relation(fields: [auth_id], references: [auth_id])
-  updater_issues             tbl_vehicle_issues[]    @relation("VehicleIssueUpdater")
+  reservations_approved      tbl_reservations[]                    @relation("ReservationApprover")
+  reservations_canceled      tbl_reservations[]                    @relation("ReservationCanceler")
+  reservations_completed     tbl_reservations[]                    @relation("ReservationCompleter")
+  reservations_reviewed      tbl_reservations[]                    @relation("ReservationReviewer")
+  reservations               tbl_reservations[]                    @relation("ReservationUser")
+  reserved_vehicles_returned tbl_reserved_vehicles[]               @relation("ReservationReturnedBy")
+  auth                       tbl_auth                              @relation(fields: [auth_id], references: [auth_id])
+  updater_issues             tbl_vehicle_issues[]                  @relation("VehicleIssueUpdater")
   driver                     tbl_drivers?
-  reported_issues            tbl_vehicle_issues[]    @relation("UserReportedIssues")
+  reported_issues            tbl_vehicle_issues[]                  @relation("UserReportedIssues")
   issue_replies              tbl_vehicle_issue_replies[]
   position_assignments       tbl_user_position_assignments[]
+  maintenance_created        tbl_vehicle_maintenance[]             @relation("MaintenanceCreatedBy")
+  maintenance_supervisions   tbl_vehicle_maintenance_supervisors[]
 }
 
 model tbl_audit_logs {
@@ -77,20 +79,21 @@ model tbl_notifications {
 }
 
 model tbl_organizations {
-  organization_id       String         @id @default(uuid())
-  organization_name     String         @unique
+  organization_id       String              @id @default(uuid())
+  organization_name     String              @unique
   street_address        String
-  organization_phone    String         @unique
-  organization_email    String         @unique
+  organization_phone    String              @unique
+  organization_email    String              @unique
   organization_logo     String
-  created_at            DateTime       @default(now())
-  organization_customId String         @unique
-  organization_status   OrgStatus      @default(ACTIVE)
-  uses_reservations     Boolean        @default(true)
+  created_at            DateTime            @default(now())
+  organization_customId String              @unique
+  organization_status   OrgStatus           @default(ACTIVE)
+  uses_reservations     Boolean             @default(true)
   leader_unit_id        String?
   leader_position_id    String?
   units                 tbl_unit[]
   vehicles              tbl_vehicles[]
+  vehicle_types         tbl_vehicle_types[]
 }
 
 model tbl_reservations {
@@ -125,55 +128,75 @@ model tbl_reservations {
 model tbl_vehicle_models {
   vehicle_model_id   String         @id @default(uuid())
   vehicle_model_name String         @unique
-  vehicle_type       VehicleType
+  // Was the VehicleType enum; now a free string validated against
+  // tbl_vehicle_types so organisations can define their own types.
+  vehicle_type       String
   manufacturer_name  String
   created_at         DateTime       @default(now())
   vehicle_capacity   Int            @default(0)
   vehicles           tbl_vehicles[]
 }
 
+/// Manageable list of vehicle types. Rows with organization_id = null are the
+/// built-in defaults available to every organisation; a non-null organization_id
+/// is a type that organisation added for itself.
+model tbl_vehicle_types {
+  vehicle_type_id String   @id @default(uuid())
+  name            String
+  is_default      Boolean  @default(false)
+  organization_id String?
+  created_at      DateTime @default(now())
+
+  organization tbl_organizations? @relation(fields: [organization_id], references: [organization_id])
+
+  // A type name is unique within an org (and unique among globals where org is null).
+  @@unique([name, organization_id])
+  @@index([organization_id])
+}
+
 model tbl_vehicles {
-  vehicle_id        String                  @id @default(uuid())
-  plate_number      String                  @unique
+  vehicle_id        String                    @id @default(uuid())
+  plate_number      String                    @unique
   transmission_mode TransmissionMode
   vehicle_model_id  String
   vehicle_photo     String
   vehicle_year      Int
-  vehicle_status    VehicleStatus           @default(AVAILABLE)
+  vehicle_status    VehicleStatus             @default(AVAILABLE)
   energy_type       String
-  last_service_date DateTime                @default(now())
-  created_at        DateTime                @default(now())
+  last_service_date DateTime                  @default(now())
+  created_at        DateTime                  @default(now())
   organization_id   String
   unit_id           String?
   reservations      tbl_reserved_vehicles[]
-  organization      tbl_organizations       @relation(fields: [organization_id], references: [organization_id])
-  vehicle_model     tbl_vehicle_models      @relation(fields: [vehicle_model_id], references: [vehicle_model_id])
-  unit              tbl_unit?               @relation(fields: [unit_id], references: [unit_id])
+  organization      tbl_organizations         @relation(fields: [organization_id], references: [organization_id])
+  vehicle_model     tbl_vehicle_models        @relation(fields: [vehicle_model_id], references: [vehicle_model_id])
+  unit              tbl_unit?                 @relation(fields: [unit_id], references: [unit_id])
   locations         tbl_vehicle_locations[]
   gps_device        tbl_gps_devices?
+  maintenance       tbl_vehicle_maintenance[]
 }
 
 model tbl_reserved_vehicles {
-  reserved_vehicle_id String                  @id @default(uuid())
-  vehicle_id          String
-  reservation_id      String
-  created_at          DateTime                @default(now())
-  starting_odometer   Int
-  returned_odometer   Int?
+  reserved_vehicle_id  String                         @id @default(uuid())
+  vehicle_id           String
+  reservation_id       String
+  created_at           DateTime                       @default(now())
+  starting_odometer    Int
+  returned_odometer    Int?
   returned_fuel_energy Int?
-  fuel_provided       Int?
-  returned_date       DateTime?
-  returned_by         String?
-  reservation         tbl_reservations        @relation(fields: [reservation_id], references: [reservation_id])
-  returned_by_user    tbl_users?              @relation("ReservationReturnedBy", fields: [returned_by], references: [user_id])
-  vehicle             tbl_vehicles            @relation(fields: [vehicle_id], references: [vehicle_id])
-  isuues              tbl_vehicle_issues[]
-  locations           tbl_vehicle_locations[]
-  replaced_by_id      String?                 @unique
-  replaced_by         tbl_reserved_vehicles?  @relation("VehicleReplacement", fields: [replaced_by_id], references: [reserved_vehicle_id])
-  replacement_for     tbl_reserved_vehicles?  @relation("VehicleReplacement")
-  drivers             tbl_reserved_vehicle_drivers[]
-  issue_replacements  tbl_vehicle_issues[]    @relation("IssueReplacementReservedVehicle")
+  fuel_provided        Int?
+  returned_date        DateTime?
+  returned_by          String?
+  reservation          tbl_reservations               @relation(fields: [reservation_id], references: [reservation_id])
+  returned_by_user     tbl_users?                     @relation("ReservationReturnedBy", fields: [returned_by], references: [user_id])
+  vehicle              tbl_vehicles                   @relation(fields: [vehicle_id], references: [vehicle_id])
+  isuues               tbl_vehicle_issues[]
+  locations            tbl_vehicle_locations[]
+  replaced_by_id       String?                        @unique
+  replaced_by          tbl_reserved_vehicles?         @relation("VehicleReplacement", fields: [replaced_by_id], references: [reserved_vehicle_id])
+  replacement_for      tbl_reserved_vehicles?         @relation("VehicleReplacement")
+  drivers              tbl_reserved_vehicle_drivers[]
+  issue_replacements   tbl_vehicle_issues[]           @relation("IssueReplacementReservedVehicle")
 }
 
 model tbl_vehicle_locations {
@@ -247,27 +270,27 @@ model tbl_user_position_assignments {
 }
 
 model tbl_vehicle_issues {
-  issue_id                        String                 @id @default(uuid())
+  issue_id                        String                      @id @default(uuid())
   issue_title                     String
-  issue_status                    IssueStatus            @default(OPEN)
+  issue_status                    IssueStatus                 @default(OPEN)
   issue_description               String
-  issue_date                      DateTime               @default(now())
-  created_at                      DateTime               @default(now())
-  updated_at                      DateTime?              @default(now())
+  issue_date                      DateTime                    @default(now())
+  created_at                      DateTime                    @default(now())
+  updated_at                      DateTime?                   @default(now())
   issue_responder                 String?
   reserved_vehicle_id             String
   message                         String?
-  updater                         tbl_users?             @relation("VehicleIssueUpdater", fields: [issue_responder], references: [user_id])
-  reserved_vehicle                tbl_reserved_vehicles  @relation(fields: [reserved_vehicle_id], references: [reserved_vehicle_id])
+  updater                         tbl_users?                  @relation("VehicleIssueUpdater", fields: [issue_responder], references: [user_id])
+  reserved_vehicle                tbl_reserved_vehicles       @relation(fields: [reserved_vehicle_id], references: [reserved_vehicle_id])
   reported_by_user_id             String?
   reported_by_driver_id           String?
-  severity_level                  IssueSeverity          @default(LOW)
-  replacement_requested           Boolean                @default(false)
+  severity_level                  IssueSeverity               @default(LOW)
+  replacement_requested           Boolean                     @default(false)
   replacement_status              String?
   replacement_reserved_vehicle_id String?
-  reported_by_user                tbl_users?             @relation("UserReportedIssues", fields: [reported_by_user_id], references: [user_id])
-  reported_by_driver              tbl_drivers?           @relation("DriverReportedIssues", fields: [reported_by_driver_id], references: [driver_id])
-  replacement_reserved_vehicle    tbl_reserved_vehicles? @relation("IssueReplacementReservedVehicle", fields: [replacement_reserved_vehicle_id], references: [reserved_vehicle_id])
+  reported_by_user                tbl_users?                  @relation("UserReportedIssues", fields: [reported_by_user_id], references: [user_id])
+  reported_by_driver              tbl_drivers?                @relation("DriverReportedIssues", fields: [reported_by_driver_id], references: [driver_id])
+  replacement_reserved_vehicle    tbl_reserved_vehicles?      @relation("IssueReplacementReservedVehicle", fields: [replacement_reserved_vehicle_id], references: [reserved_vehicle_id])
   replies                         tbl_vehicle_issue_replies[]
 }
 
@@ -298,17 +321,6 @@ enum OrgStatus {
   INACTIVE
   DELETED
   SUSPENDED
-}
-
-enum VehicleType {
-  AMBULANCE
-  SEDAN
-  SUV
-  TRUCK
-  VAN
-  MOTORCYCLE
-  BUS
-  OTHER
 }
 
 enum VehicleStatus {
@@ -357,45 +369,118 @@ model tbl_contacts {
 }
 
 model tbl_drivers {
-  driver_id        String                       @id @default(uuid())
-  user_id          String                       @unique
-  license_number   String                       @unique
+  driver_id        String       @id @default(uuid())
+  user_id          String       @unique
+  license_number   String       @unique
   license_category String
   experience_years Int
-  driver_status    DriverStatus                 @default(AVAILABLE)
-  created_at       DateTime                     @default(now())
-  updated_at       DateTime                     @updatedAt
+  driver_status    DriverStatus @default(AVAILABLE)
+  created_at       DateTime     @default(now())
+  updated_at       DateTime     @updatedAt
 
-  user             tbl_users                    @relation(fields: [user_id], references: [user_id])
-  assignments      tbl_reserved_vehicle_drivers[]
-  replies          tbl_vehicle_issue_replies[]
-  reported_issues  tbl_vehicle_issues[]         @relation("DriverReportedIssues")
+  user            tbl_users                      @relation(fields: [user_id], references: [user_id])
+  assignments     tbl_reserved_vehicle_drivers[]
+  replies         tbl_vehicle_issue_replies[]
+  reported_issues tbl_vehicle_issues[]           @relation("DriverReportedIssues")
 }
 
 model tbl_reserved_vehicle_drivers {
-  assignment_id       String                @id @default(uuid())
+  assignment_id       String    @id @default(uuid())
   reserved_vehicle_id String
   driver_id           String
-  assigned_at         DateTime              @default(now())
-  is_active           Boolean               @default(true)
+  assigned_at         DateTime  @default(now())
+  is_active           Boolean   @default(true)
   unassigned_at       DateTime?
-  created_at          DateTime              @default(now())
+  created_at          DateTime  @default(now())
 
-  reserved_vehicle    tbl_reserved_vehicles @relation(fields: [reserved_vehicle_id], references: [reserved_vehicle_id])
-  driver              tbl_drivers           @relation(fields: [driver_id], references: [driver_id])
+  reserved_vehicle tbl_reserved_vehicles @relation(fields: [reserved_vehicle_id], references: [reserved_vehicle_id])
+  driver           tbl_drivers           @relation(fields: [driver_id], references: [driver_id])
 }
 
 model tbl_vehicle_issue_replies {
-  reply_id      String             @id @default(uuid())
+  reply_id      String   @id @default(uuid())
   issue_id      String
   user_id       String?
   driver_id     String?
   reply_content String
-  created_at    DateTime           @default(now())
+  created_at    DateTime @default(now())
 
-  issue         tbl_vehicle_issues @relation(fields: [issue_id], references: [issue_id])
-  user          tbl_users?         @relation(fields: [user_id], references: [user_id])
-  driver        tbl_drivers?       @relation(fields: [driver_id], references: [driver_id])
+  issue  tbl_vehicle_issues @relation(fields: [issue_id], references: [issue_id])
+  user   tbl_users?         @relation(fields: [user_id], references: [user_id])
+  driver tbl_drivers?       @relation(fields: [driver_id], references: [driver_id])
+}
+
+/// A single maintenance job on a vehicle (scheduled, in progress, or historical).
+model tbl_vehicle_maintenance {
+  maintenance_id   String            @id @default(uuid())
+  vehicle_id       String
+  title            String
+  description      String?
+  maintenance_type MaintenanceType   @default(CORRECTIVE)
+  status           MaintenanceStatus @default(SCHEDULED)
+
+  scheduled_date DateTime?
+  started_at     DateTime?
+  completed_at   DateTime?
+
+  /// Workshop / garage performing the work.
+  service_provider String?
+  cost             Decimal? @db.Decimal(12, 2)
+  currency         String?  @default("RWF")
+  odometer_km      Int?
+  /// Free-text summary of what was actually done, filled in on completion.
+  work_performed   String?
+  cancel_reason    String?
+
+  created_by_user_id String
+  created_at         DateTime @default(now())
+  updated_at         DateTime @updatedAt
+
+  vehicle     tbl_vehicles                          @relation(fields: [vehicle_id], references: [vehicle_id])
+  created_by  tbl_users                             @relation("MaintenanceCreatedBy", fields: [created_by_user_id], references: [user_id])
+  supervisors tbl_vehicle_maintenance_supervisors[]
+
+  @@index([vehicle_id])
+  @@index([status])
+}
+
+/// Who is (or was) leading a maintenance job. Modelled as a history table
+/// rather than a single column so a handover keeps the previous supervisor
+/// on record — "is or was in control".
+model tbl_vehicle_maintenance_supervisors {
+  assignment_id  String    @id @default(uuid())
+  maintenance_id String
+  user_id        String
+  /// Exactly one row per maintenance job should have is_active = true.
+  is_active      Boolean   @default(true)
+  assigned_at    DateTime  @default(now())
+  unassigned_at  DateTime?
+  /// Why the job changed hands, recorded on the outgoing row.
+  handover_note  String?
+  created_at     DateTime  @default(now())
+
+  maintenance tbl_vehicle_maintenance @relation(fields: [maintenance_id], references: [maintenance_id], onDelete: Cascade)
+  user        tbl_users               @relation(fields: [user_id], references: [user_id])
+
+  @@index([maintenance_id])
+  @@index([user_id])
+}
+
+enum MaintenanceStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum MaintenanceType {
+  PREVENTIVE
+  CORRECTIVE
+  INSPECTION
+  REPAIR
+  TIRE
+  BODYWORK
+  OTHER
 }
 
 enum DriverStatus {

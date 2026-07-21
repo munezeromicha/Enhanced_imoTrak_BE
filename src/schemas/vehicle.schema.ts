@@ -2,11 +2,15 @@ import { z } from 'zod';
 
 export const vehicleModelSchema = z.object({
   vehicle_model_name: z.string().min(1),
-  vehicle_type: z.enum([
-    'AMBULANCE', 'SEDAN', 'SUV', 'TRUCK', 'VAN', 'MOTORCYCLE', 'BUS', 'OTHER'
-  ]),
+  // Free string now; the service checks it against tbl_vehicle_types (defaults
+  // plus the caller's org) so only known types are accepted.
+  vehicle_type: z.string().trim().min(1, 'Vehicle type is required'),
   manufacturer_name: z.string().min(1),
   vehicle_capacity: z.coerce.number().int().min(1),
+});
+
+export const createVehicleTypeSchema = z.object({
+  name: z.string().trim().min(2, 'Type name must be at least 2 characters').max(40),
 });
 
 export const vehicleModelUpdateSchema = vehicleModelSchema.partial();

@@ -15,6 +15,9 @@ import {
   getVehicleTrackingContextController,
   getVehicleLocationHistoryController,
   getTripLocationHistoryController,
+  listVehicleTypesController,
+  createVehicleTypeController,
+  deleteVehicleTypeController,
 } from '../controllers/vehicle.controllers';
 import { authenticateQueryToken, authenticateToken } from '../middlewares/auth.middleware';
 import { attachPositionAccess } from '../middlewares/attachPositionAccess';
@@ -471,6 +474,12 @@ const router = Router();
  */
 
 // Vehicle Models CRUD
+// Vehicle types (manageable list). Defined before /vehicle-models/:id-style
+// paths is unnecessary here since these are distinct paths.
+router.get('/vehicle-types', authenticateToken, attachPositionAccess, listVehicleTypesController);
+router.post('/vehicle-types', authenticateToken, attachPositionAccess, createVehicleTypeController);
+router.delete('/vehicle-types/:id', authenticateToken, attachPositionAccess, deleteVehicleTypeController);
+
 router.post('/vehicle-models', authenticateToken, attachPositionAccess, validateBody(vehicleModelSchema), createVehicleModelController);
 router.get('/vehicle-models', authenticateToken, attachPositionAccess, getAllVehicleModelsController);
 router.get('/vehicle-models/:id', authenticateToken, attachPositionAccess, getVehicleModelByIdController);

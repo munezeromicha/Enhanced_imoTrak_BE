@@ -10,6 +10,7 @@ import historyRoutes from "./audit.routes";
 import contactRoutes from "./contact.route";
 import driverRoutes from "./driver.routes";
 import trackingRoutes from "./tracking.routes";
+import maintenanceRoutes from "./maintenance.routes";
 
 const routes = Router();
 
@@ -24,5 +25,6 @@ routes.use('/notifications', notificationRoutes);
 routes.use('/contacts', contactRoutes);
 routes.use('/drivers', driverRoutes);
 routes.use('/tracking', trackingRoutes);
+routes.use('/maintenance', maintenanceRoutes);
 
 export default routes;

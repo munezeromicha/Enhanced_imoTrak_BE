@@ -7,6 +7,17 @@ import { AppError } from '../utils/Error';
 import { assertVehicleLocationAccess, assertVehicleUnitScope, assertVehicleUnitScopeById, clampVehicleUnitIdForUser } from '../utils/vehicle-access';
 import { resolveUnitScopeForUser, isOrgLeader } from '../utils/orgLeader';
 import { ServerResponse } from 'http';
+import { vehicleModelSchema, vehicleModelUpdateSchema, createVehicleTypeSchema } from '../schemas/vehicle.schema';
+import * as vehicleTypeService from '../services/vehicleType.service';
+
+/** Reject a model whose vehicle_type is not one this org may use. */
+async function assertTypeAllowed(vehicle_type: string | undefined, organizationId: string | undefined) {
+  if (vehicle_type === undefined) return;
+  const allowed = await vehicleTypeService.getAllowedTypeNames(organizationId);
+  if (!allowed.has(vehicle_type)) {
+    throw new AppError(`Unknown vehicle type "${vehicle_type}". Add it first.`, 400);
+  }
+}
 
 const prisma = new PrismaClient();
 function checkVehiclePermission(req: AuthenticatedRequest, action: keyof AuthenticatedRequest['user']['position_access']['vehicles']) {
@@ -17,8 +28,11 @@ function checkVehiclePermission(req: AuthenticatedRequest, action: keyof Authent
 
 export async function createVehicleModelController(req: Request, res: Response, next: NextFunction) {
   try {
-    checkVehiclePermission(req as AuthenticatedRequest, 'create');
-    const model = await vehicleService.createVehicleModel(req.body);
+    const authReq = req as AuthenticatedRequest;
+    checkVehiclePermission(authReq, 'create');
+    const data = vehicleModelSchema.parse(req.body);
+    await assertTypeAllowed(data.vehicle_type, authReq.user?.organization_id);
+    const model = await vehicleService.createVehicleModel(data);
     res.status(201).json({ message: 'Vehicle model created', data: model });
   } catch (error: any) {
     if (error.code === 'P2002') {
@@ -52,8 +66,11 @@ export async function getVehicleModelByIdController(req: Request, res: Response,
 
 export async function updateVehicleModelController(req: Request, res: Response, next: NextFunction) {
   try {
-    checkVehiclePermission(req as AuthenticatedRequest, 'update');
-    const model = await vehicleService.updateVehicleModel(req.params.id, req.body);
+    const authReq = req as AuthenticatedRequest;
+    checkVehiclePermission(authReq, 'update');
+    const data = vehicleModelUpdateSchema.parse(req.body);
+    await assertTypeAllowed(data.vehicle_type, authReq.user?.organization_id);
+    const model = await vehicleService.updateVehicleModel(req.params.id, data);
     res.json({ message: 'Vehicle model updated', data: model });
   } catch (error: any) {
     if (error.code === 'P2002') {
@@ -422,6 +439,46 @@ export async function streamVehicleLocationController(req: Request, res: Respons
 
     // Register this client for future location updates
     vehicleService.addSSEClient(vehicleId, res);
+  } catch (error) {
+    next(error);
+  }
+}
+
+// ---- Vehicle types (manageable list; defaults + org-added) ----
+
+export async function listVehicleTypesController(req: Request, res: Response, next: NextFunction) {
+  try {
+    const authReq = req as AuthenticatedRequest;
+    checkVehiclePermission(authReq, 'view');
+    const types = await vehicleTypeService.listVehicleTypesForOrg(authReq.user?.organization_id);
+    res.json({ message: 'Vehicle types retrieved', data: types });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function createVehicleTypeController(req: Request, res: Response, next: NextFunction) {
+  try {
+    const authReq = req as AuthenticatedRequest;
+    checkVehiclePermission(authReq, 'create');
+    const orgId = authReq.user?.organization_id;
+    if (!orgId) throw new AppError('Organization not found on your account.', 400);
+    const { name } = createVehicleTypeSchema.parse(req.body);
+    const type = await vehicleTypeService.createVehicleType(name, orgId);
+    res.status(201).json({ message: 'Vehicle type created', data: type });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function deleteVehicleTypeController(req: Request, res: Response, next: NextFunction) {
+  try {
+    const authReq = req as AuthenticatedRequest;
+    checkVehiclePermission(authReq, 'delete');
+    const orgId = authReq.user?.organization_id;
+    if (!orgId) throw new AppError('Organization not found on your account.', 400);
+    await vehicleTypeService.deleteVehicleType(req.params.id, orgId);
+    res.status(204).send();
   } catch (error) {
     next(error);
   }

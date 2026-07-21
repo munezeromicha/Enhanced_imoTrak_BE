@@ -122,7 +122,14 @@ export async function sendInvitationEmail(
   unit: string,
   organization: string
 ) {
-  const FRONT_APP = process.env.CLIENT_URL; // e.g., https://app.imotrak.com
+  // Resolve the frontend base URL the same way sendCredentials does. The env
+  // uses FRONT_APP; reading CLIENT_URL alone produced "undefined/verify?token=…".
+  const FRONT_APP = (process.env.FRONT_APP || process.env.CLIENT_URL || '').replace(/\/+$/, '');
+  if (!FRONT_APP) {
+    throw new Error(
+      'Cannot build invitation link: set FRONT_APP (or CLIENT_URL) in the environment.'
+    );
+  }
   const inviteLink = `${FRONT_APP}/verify?token=${token}`;
 
   const mailOptions = {

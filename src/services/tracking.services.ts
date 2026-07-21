@@ -34,15 +34,43 @@ export function assertTrackingAccess(user: AuthenticatedUser): void {
   }
 }
 
+/**
+ * Only a genuine hub super-admin sees vehicles across every organization.
+ *
+ * NOTE: the shared `isSuperAdmin` (organizations.view) is too weak here — an
+ * org leader / fleet manager also has organizations.view for their own org, so
+ * using it let them see every organization's vehicles on the tracking map. A
+ * hub admin is identified by the stronger `organizations.create && users.delete`
+ * grant (same test the app uses to gate permanent user deletion).
+ */
+function isGlobalFleetAdmin(user: AuthenticatedUser): boolean {
+  return !!(
+    user.position_access?.organizations?.create &&
+    user.position_access?.users?.delete
+  );
+}
+
 async function resolveOrganizationScope(user: AuthenticatedUser): Promise<string | null> {
-  if (isSuperAdmin(user)) return null;
-  return user.organization_id;
+  if (isGlobalFleetAdmin(user)) return null;
+  return user.organization_id ?? null;
 }
 
 export async function getFleetOverview(user: AuthenticatedUser) {
   assertTrackingAccess(user);
+  const isGlobal = isGlobalFleetAdmin(user);
   const orgScope = await resolveOrganizationScope(user);
   const unitScope = await resolveUnitScope(user);
+
+  // Fail closed: a non-admin without an organization must see nothing, never
+  // everything. Without this an empty orgScope would drop the org filter.
+  if (!isGlobal && !orgScope) {
+    return {
+      scope: 'organization' as const,
+      organization_id: null,
+      summary: { total: 0, online: 0, offline: 0, moving: 0, stopped: 0, idle: 0 },
+      vehicles: [],
+    };
+  }
 
   const vehicles = await prisma.tbl_vehicles.findMany({
     where: {
