@@ -18,6 +18,7 @@ import {
   listVehicleTypesController,
   createVehicleTypeController,
   deleteVehicleTypeController,
+  getNextOdometerController,
 } from '../controllers/vehicle.controllers';
 import { authenticateQueryToken, authenticateToken } from '../middlewares/auth.middleware';
 import { attachPositionAccess } from '../middlewares/attachPositionAccess';
@@ -493,6 +494,7 @@ router.get('/vehicles', authenticateToken, attachPositionAccess, getAllVehiclesC
 // Location routes before /vehicles/:id so paths with extra segments are not shadowed.
 router.get('/vehicles/:id/locations/stream', authenticateQueryToken, attachPositionAccess, streamVehicleLocationController);
 router.get('/vehicles/:id/tracking', authenticateToken, attachPositionAccess, getVehicleTrackingContextController);
+router.get('/vehicles/:id/next-odometer', authenticateToken, attachPositionAccess, getNextOdometerController);
 router.get('/vehicles/:id/locations', authenticateToken, attachPositionAccess, getVehicleLocationHistoryController);
 router.post('/vehicles/:id/locations', validateBody(locationUpdateSchema), updateVehicleLocationsController);
 

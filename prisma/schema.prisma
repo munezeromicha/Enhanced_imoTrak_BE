@@ -163,6 +163,10 @@ model tbl_vehicles {
   vehicle_year      Int
   vehicle_status    VehicleStatus             @default(AVAILABLE)
   energy_type       String
+  // Odometer reading at registration. Seeds the first trip's starting odometer;
+  // afterwards each trip's starting odometer chains from the previous trip's
+  // returned odometer (see getNextStartingOdometer).
+  current_odometer  Int                       @default(0)
   last_service_date DateTime                  @default(now())
   created_at        DateTime                  @default(now())
   organization_id   String

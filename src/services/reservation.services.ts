@@ -1,5 +1,5 @@
 // src/services/reservation.services.ts
-import { PrismaClient, RequestStatus } from '@prisma/client';
+import { PrismaClient, Prisma, RequestStatus } from '@prisma/client';
 import { createNotification } from './notification.service';
 import {
   assertDriverNotOnAnotherVehicleInReservation,
@@ -7,6 +7,32 @@ import {
 } from '../utils/driverAssignment';
 import { AppError } from '../utils/Error';
 const prisma = new PrismaClient();
+
+type PrismaLike = PrismaClient | Prisma.TransactionClient;
+
+/**
+ * Starting odometer for a vehicle's next trip: the greatest returned odometer
+ * from its completed trips, or the vehicle's registered current_odometer if it
+ * has no completed trips yet. This is what chains one trip's ending reading to
+ * the next trip's starting reading on the same vehicle.
+ */
+export async function getNextStartingOdometer(
+  vehicleId: string,
+  client: PrismaLike = prisma
+): Promise<number> {
+  const lastReturned = await client.tbl_reserved_vehicles.aggregate({
+    where: { vehicle_id: vehicleId, returned_odometer: { not: null } },
+    _max: { returned_odometer: true },
+  });
+  if (lastReturned._max.returned_odometer != null) {
+    return lastReturned._max.returned_odometer;
+  }
+  const vehicle = await client.tbl_vehicles.findUnique({
+    where: { vehicle_id: vehicleId },
+    select: { current_odometer: true },
+  });
+  return vehicle?.current_odometer ?? 0;
+}
 
 // Helper function to check for date conflicts between reservations
 async function checkVehicleDateConflicts(vehicleId: string, departureDate: Date, expectedReturnDate: Date, excludeReservationId?: string) {
@@ -434,11 +460,13 @@ export async function assignVehicle(reservationId: string, vehicleId: string, re
   
   // Assign vehicle (no need to mark as OCCUPIED since we're using date-based availability)
   await prisma.$transaction(async (tx) => {
+    // Chain the starting odometer from the vehicle's last returned reading.
+    const startingOdometer = await getNextStartingOdometer(vehicleId, tx);
     await tx.tbl_reserved_vehicles.create({
       data: {
         vehicle_id: vehicleId,
         reservation_id: reservationId,
-        starting_odometer: 0, // Will be set when reservation is IN_PROGRESS
+        starting_odometer: startingOdometer,
         returned_odometer: null,
         fuel_provided: null,
       },
@@ -519,11 +547,13 @@ export async function assignMultipleVehicles(reservationId: string, vehicleIds: 
     const createdReservedVehicles = [];
     
     for (const vehicleId of vehicleIds) {
+      // Chain the starting odometer from this vehicle's last returned reading.
+      const startingOdometer = await getNextStartingOdometer(vehicleId, tx);
       const reservedVehicle = await tx.tbl_reserved_vehicles.create({
         data: {
           vehicle_id: vehicleId,
           reservation_id: reservationId,
-          starting_odometer: 0, // Will be set when reservation is IN_PROGRESS
+          starting_odometer: startingOdometer,
           returned_odometer: null,
           fuel_provided: null,
         },
@@ -985,6 +1015,14 @@ export async function completeReservation(
       returned_by: userId, // Track who returned the vehicle
     },
   });
+
+  // Keep the vehicle's odometer current so the next trip chains from here.
+  if (reservedVehicle.vehicle_id) {
+    await prisma.tbl_vehicles.update({
+      where: { vehicle_id: reservedVehicle.vehicle_id },
+      data: { current_odometer: returnedOdometer },
+    });
+  }
 
   // Deactivate active driver assignment and set driver back to AVAILABLE
   const activeAssignment = await prisma.tbl_reserved_vehicle_drivers.findFirst({

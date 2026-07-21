@@ -48,6 +48,8 @@ export const vehicleSchema = z.object({
   vehicle_year: z.coerce.number().int().min(1900),
   vehicle_status: z.enum(['AVAILABLE', 'OCCUPIED', 'MAINTENANCE', 'OUT_OF_SERVICE']).optional(),
   energy_type: z.string().min(1),
+  // Odometer reading at registration; seeds the first trip's starting odometer.
+  current_odometer: z.coerce.number().int().min(0).optional(),
   last_service_date: z.string().datetime().optional(),
   organization_id: z.string().uuid(),
   unit_id: z.string().uuid().optional(),

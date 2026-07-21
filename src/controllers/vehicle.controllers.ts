@@ -122,6 +122,11 @@ export async function createVehicleController(req: Request, res: Response, next:
       ...req.body,
       vehicle_photo: vehiclePhotoUrl,
       vehicle_year: Number(req.body.vehicle_year),
+      // Multipart sends numbers as strings; coerce the odometer to an Int.
+      current_odometer:
+        req.body.current_odometer != null && req.body.current_odometer !== ''
+          ? Math.max(0, Math.trunc(Number(req.body.current_odometer)) || 0)
+          : 0,
       unit_id: await clampVehicleUnitIdForUser(
         (req as AuthenticatedRequest).user,
         req.body.unit_id || undefined
@@ -479,6 +484,19 @@ export async function deleteVehicleTypeController(req: Request, res: Response, n
     if (!orgId) throw new AppError('Organization not found on your account.', 400);
     await vehicleTypeService.deleteVehicleType(req.params.id, orgId);
     res.status(204).send();
+  } catch (error) {
+    next(error);
+  }
+}
+
+// ---- Next starting odometer (chained from the vehicle's last returned trip) ----
+
+export async function getNextOdometerController(req: Request, res: Response, next: NextFunction) {
+  try {
+    checkVehiclePermission(req as AuthenticatedRequest, 'view');
+    const { getNextStartingOdometer } = await import('../services/reservation.services');
+    const starting_odometer = await getNextStartingOdometer(req.params.id);
+    res.json({ message: 'Next starting odometer', data: { starting_odometer } });
   } catch (error) {
     next(error);
   }
