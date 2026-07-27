@@ -113,7 +113,7 @@ maintenanceRoutes.get('/:id', authenticateToken, attachPositionAccess, controlle
  *       201:
  *         description: Maintenance job created successfully
  *       409:
- *         description: Vehicle already has an open maintenance job
+ *         description: Vehicle already has an Assign maintenance job
  */
 maintenanceRoutes.post('/', authenticateToken, attachPositionAccess, controller.create);
 
@@ -121,7 +121,7 @@ maintenanceRoutes.post('/', authenticateToken, attachPositionAccess, controller.
  * @swagger
  * /v2/maintenance/{id}:
  *   put:
- *     summary: Update an open maintenance job
+ *     summary: Update an Assign maintenance job
  *     tags: [Vehicle Maintenance]
  *     security:
  *       - bearerAuth: []
@@ -191,7 +191,7 @@ maintenanceRoutes.patch('/:id/complete', authenticateToken, attachPositionAccess
  * @swagger
  * /v2/maintenance/{id}/cancel:
  *   patch:
- *     summary: Cancel an open maintenance job
+ *     summary: Cancel an Assign maintenance job
  *     tags: [Vehicle Maintenance]
  *     security:
  *       - bearerAuth: []

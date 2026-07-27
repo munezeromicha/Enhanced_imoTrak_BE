@@ -65,14 +65,18 @@ async function main() {
   // Global vehicle-type defaults (safe to re-run).
   await seedVehicleTypes(prisma);
 
+  // Long catalogue of car / fleet / bus / motorcycle models (SuperAdmin-managed).
+  const { seedVehicleModels } = await import('./seed-vehicle-models');
+  await seedVehicleModels(prisma);
+
   // ======= Helper Access Objects =======
   const fullAdminAccess = {
     organizations: { create: true, view: true, update: true, delete: true },
     units: { create: true, view: true, update: true, delete: true },
     positions: { create: true, view: true, update: true, delete: true, assignUser: true },
     users: { create: true, view: true, update: true, delete: true },
-    vehicleModels: { create: false, view: false, viewSingle: false, update: false, delete: false },
-    vehicles: { create: false, view: false, viewSingle: false, update: false, delete: false },
+    vehicleModels: { create: true, view: true, viewSingle: true, update: true, delete: true },
+    vehicles: { create: true, view: true, viewSingle: true, update: true, delete: true },
     reservations: {
       create: false,
       view: false,
@@ -100,7 +104,7 @@ async function main() {
     units: { create: false, view: false, update: false, delete: false },
     positions: { create: false, view: false, update: false, delete: false, assignUser: false },
     users: { create: false, view: false, update: false, delete: false },
-    vehicleModels: { create: true, view: true, viewSingle: true, update: true, delete: true },
+    vehicleModels: { create: false, view: true, viewSingle: true, update: false, delete: false },
     vehicles: { create: true, view: true, viewSingle: true, update: true, delete: true },
     reservations: {
       create: true,
@@ -159,7 +163,9 @@ async function main() {
         unit_id: adminUnit.unit_id,
       },
     },
-    update: {},
+    update: {
+      position_access: fullAdminAccess,
+    },
     create: {
       position_name: 'SuperAdmin',
       position_description: 'Has full access to all resources.',
@@ -290,7 +296,9 @@ async function main() {
         unit_id: fleetUnit.unit_id,
       },
     },
-    update: {},
+    update: {
+      position_access: fleetManagerAccess,
+    },
     create: {
       position_name: 'Fleet Manager',
       position_description: 'Manages fleet resources.',
@@ -555,6 +563,28 @@ async function main() {
       position_id: fleetReservationPosition.position_id,
     },
   });
+
+  // Strip Organizations module from every non-SuperAdmin position (fixes org leaders
+  // that were previously given organizations.view/update).
+  const allPositions = await prisma.tbl_position.findMany({
+    select: { position_id: true, position_name: true, position_access: true },
+  });
+  for (const pos of allPositions) {
+    if (pos.position_name === 'SuperAdmin') continue;
+    const access = (pos.position_access ?? {}) as Record<string, Record<string, boolean>>;
+    const orgs = access.organizations;
+    if (!orgs) continue;
+    if (!orgs.create && !orgs.view && !orgs.update && !orgs.delete) continue;
+    await prisma.tbl_position.update({
+      where: { position_id: pos.position_id },
+      data: {
+        position_access: {
+          ...access,
+          organizations: { create: false, view: false, update: false, delete: false },
+        },
+      },
+    });
+  }
 
   console.log('✅ Seeding completed successfully.');
 }

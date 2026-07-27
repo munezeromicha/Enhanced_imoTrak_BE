@@ -98,7 +98,8 @@ export const getOrganizationsController = async (
   next: NextFunction
 ) => {
   try {
-    if (!req.user?.position_access?.organizations?.view) {
+    // Hub SuperAdmin only (organizations.create) — org leaders must not list all orgs
+    if (!req.user?.position_access?.organizations?.create) {
       throw new AppError('You do not have permission to view organizations', 403);
     }
 
@@ -282,7 +283,7 @@ export const getSingleOrganizationController = async (
   try {
     const { organization_id } = req.params;
 
-    if (!req.user?.position_access?.organizations?.view) {
+    if (!req.user?.position_access?.organizations?.create) {
       throw new AppError('You do not have permission to view organizations', 403);
     }
 

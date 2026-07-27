@@ -174,11 +174,12 @@ function buildLeaderPositionAccess(usesReservations: boolean): position_accesses
   };
 
   return {
-    organizations: { create: false, view: true, update: true, delete: false },
+    // Organizations module is hub SuperAdmin only — org leaders manage units/users/fleet, not orgs.
+    organizations: { create: false, view: false, update: false, delete: false },
     units: { create: true, view: true, update: true, delete: true },
     positions: { create: true, view: true, update: true, delete: true, assignUser: true },
     users: { create: true, view: true, update: true, delete: true },
-    vehicleModels: { create: true, view: true, viewSingle: true, update: true, delete: true },
+    vehicleModels: { create: false, view: true, viewSingle: true, update: false, delete: false },
     vehicles: { create: true, view: true, viewSingle: true, update: true, delete: true },
     reservations: usesReservations ? fullReservations : noReservations,
     vehicleIssues: { report: true, view: true, update: true, delete: true },

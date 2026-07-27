@@ -29,7 +29,10 @@ function checkVehiclePermission(req: AuthenticatedRequest, action: keyof Authent
 export async function createVehicleModelController(req: Request, res: Response, next: NextFunction) {
   try {
     const authReq = req as AuthenticatedRequest;
-    checkVehiclePermission(authReq, 'create');
+    const isSuperAdmin = !!authReq.user?.position_access?.organizations?.create;
+    if (!isSuperAdmin) {
+      throw new AppError('Only SuperAdmin can create vehicle models', 403);
+    }
     const data = vehicleModelSchema.parse(req.body);
     await assertTypeAllowed(data.vehicle_type, authReq.user?.organization_id);
     const model = await vehicleService.createVehicleModel(data);

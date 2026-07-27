@@ -4,7 +4,9 @@ import type { position_accesses } from '../types/access';
 const prisma = new PrismaClient();
 
 export function isSuperAdmin(user: { position_access?: position_accesses }): boolean {
-  return !!user.position_access?.organizations?.view;
+  // Hub SuperAdmin only — org leaders may have organizations.view for their own org,
+  // so create (org provisioning) is the reliable hub-admin signal.
+  return !!user.position_access?.organizations?.create;
 }
 
 export async function isOrgLeader(

@@ -12,6 +12,7 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "nodemon index.ts",
     "seed": "ts-node prisma/seed.ts",
+    "seed:vehicle-models": "ts-node prisma/seed-vehicle-models.ts",
     "db:wipe": "ts-node prisma/reset-db.ts",
     "db:reset": "ts-node prisma/reset-db.ts --yes && ts-node prisma/seed.ts",
     "prisma:status": "prisma migrate status",

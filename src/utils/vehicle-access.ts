@@ -55,7 +55,7 @@ export async function clampVehicleUnitIdForUser(
 }
 
 export function isHubSuperAdmin(user: AuthenticatedUser): boolean {
-  return !!user.position_access?.organizations?.view;
+  return !!user.position_access?.organizations?.create;
 }
 
 export async function isUserInSameOrganizationAsVehicle(

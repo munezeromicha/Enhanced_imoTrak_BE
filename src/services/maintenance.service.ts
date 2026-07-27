@@ -139,7 +139,7 @@ export const createMaintenance = async (input: CreateMaintenanceInput, user: Aut
   });
   if (existing) {
     throw new AppError(
-      'This vehicle already has an open maintenance job. Complete or cancel it first.',
+      'This vehicle already has an Assign maintenance job. Complete or cancel it first.',
       409
     );
   }
