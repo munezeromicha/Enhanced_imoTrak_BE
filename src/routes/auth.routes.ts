@@ -1,6 +1,6 @@
 // auth.routes.ts
 import { Router } from 'express';
-import { forgotPasswordController, loginController, loginWithPositionController, logoutController, resendInvitationController, setPasswordAndVerifyController, updatePasswordController, verifyUserByEmailController } from '../controllers/auth.controllers';
+import { forgotPasswordController, loginController, loginWithPositionController, logoutController, resendInvitationController, setPasswordAndVerifyController, ssoLoginController, ssoLoginWithPositionController, updatePasswordController, verifyUserByEmailController } from '../controllers/auth.controllers';
 import { authenticateToken, authenticateVerifyToken } from '../middlewares/auth.middleware';
 import { validateBody } from '../middlewares/bodyValidator';
 import { setPasswordAndVerifySchema, updatePasswordSchema } from '../schemas/auth.schema';
@@ -67,6 +67,50 @@ const authRoutes = Router();
  *         description: Invalid credentials
  */
 authRoutes.post('/login', loginController);
+
+/**
+ * @swagger
+ * /v2/auth/sso:
+ *   post:
+ *     summary: Exchange a validated UR SSO token for ImoTrak positions
+ *     tags:
+ *       - Auth
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               id_token:
+ *                 type: string
+ *               access_token:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: SSO identity mapped to local positions
+ *       401:
+ *         description: Invalid SSO token
+ *       403:
+ *         description: Account not provisioned or has no position
+ */
+authRoutes.post('/sso', ssoLoginController);
+
+/**
+ * @swagger
+ * /v2/auth/sso/{position_id}:
+ *   post:
+ *     summary: Complete UR SSO login with an ImoTrak position
+ *     tags:
+ *       - Auth
+ *     parameters:
+ *       - name: position_id
+ *         in: path
+ *         required: true
+ *         schema:
+ *           type: string
+ */
+authRoutes.post('/sso/:position_id', ssoLoginWithPositionController);
 
 /**
  * @swagger

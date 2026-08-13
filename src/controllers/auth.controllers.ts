@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { forgotPasswordService, loginUser, loginWithPosition, logoutUser, resendInvitationService, setPasswordAndVerifyService, updatePasswordService, verifyUserByEmailService } from '../services/auth.services';
-import { loginSchema } from '../schemas/auth.schema';
+import { loginWithSso, loginWithSsoPosition } from '../services/sso.services';
+import { loginSchema, ssoTokenSchema } from '../schemas/auth.schema';
 import { AppError } from '../utils/Error';
 import { position_accesses } from '../types/access';
 
@@ -29,6 +30,55 @@ export async function loginController(req: Request, res: Response, next: NextFun
     res.status(200).json({      
       message: 'Login successful',
       data: result
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function ssoLoginController(req: Request, res: Response, next: NextFunction) {
+  try {
+    const parsed = ssoTokenSchema.safeParse(req.body ?? {});
+    if (!parsed.success) {
+      throw new AppError('Invalid SSO token payload', 400);
+    }
+
+    const result = await loginWithSso({
+      idToken: parsed.data.id_token,
+      accessToken: parsed.data.access_token,
+      authorization: req.headers.authorization,
+    });
+
+    res.status(200).json({
+      message: 'Login successful',
+      data: result.positions,
+      identity: result.identity,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function ssoLoginWithPositionController(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { position_id } = req.params;
+    if (!position_id) throw new AppError('Missing position_id in path', 400);
+
+    const parsed = ssoTokenSchema.safeParse(req.body ?? {});
+    if (!parsed.success) {
+      throw new AppError('Invalid SSO token payload', 400);
+    }
+
+    const result = await loginWithSsoPosition({
+      idToken: parsed.data.id_token,
+      accessToken: parsed.data.access_token,
+      authorization: req.headers.authorization,
+      positionId: position_id,
+    });
+
+    res.status(200).json({
+      message: 'Sign in successful',
+      data: result,
     });
   } catch (error) {
     next(error);

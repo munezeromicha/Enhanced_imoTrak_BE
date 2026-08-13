@@ -64,6 +64,74 @@ export async function loginUser(email: string, password: string) {
   return positionsData
 }
 
+export async function issuePositionSession(
+  user_id: string,
+  email: string,
+  position_id: string
+) {
+  const position = await prisma.tbl_position.findUnique({
+    where: { position_id },
+    include: {
+      unit: {
+        include: {
+          organization: true,
+        },
+      },
+    },
+  });
+
+  if (!position) {
+    throw new AppError('Position not found', 404);
+  }
+
+  const hasAssignment = await userHasPositionAssignment(
+    prisma,
+    user_id,
+    position_id
+  );
+  if (!hasAssignment) {
+    throw new AppError('Unauthorized: position does not belong to user', 403);
+  }
+
+  if (position.position_status !== 'ACTIVE') {
+    throw new AppError('Position is not active', 403);
+  }
+
+  const user = await prisma.tbl_users.findUnique({
+    where: { user_id },
+  });
+
+  if (!user) {
+    throw new AppError('User profile not found', 500);
+  }
+
+  const token = signToken({
+    user_id,
+    email,
+    position_id,
+    organization_id: position.unit.organization.organization_id
+  });
+
+  const {unit, ...positionOut} = position
+  const {organization, ...unitOut} = unit
+  return {
+    token,
+    organization: {
+      ...organization,
+      uses_reservations: organization.uses_reservations ?? true,
+    },
+    user: {
+      ...user,
+      email,
+    },
+    position: {
+      ...positionOut,
+      is_org_leader: position.is_org_leader ?? false,
+    },
+    unit: unitOut,
+  }
+}
+
 export async function loginWithPosition(email: string, password: string, position_id: string) {
   const auth = await prisma.tbl_auth.findUnique({
     where: { email },
@@ -86,56 +154,7 @@ export async function loginWithPosition(email: string, password: string, positio
     throw new AppError('Invalid credentials', 401);
   }
 
-  const position = await prisma.tbl_position.findUnique({
-    where: { position_id },
-    include: {
-      unit: {
-        include: {
-          organization: true,
-        },
-      },
-    },
-  });
-
-  if (!position) {
-    throw new AppError('Position not found', 404);
-  }
-
-  const hasAssignment = await userHasPositionAssignment(
-    prisma,
-    auth.user.user_id,
-    position_id
-  );
-  if (!hasAssignment) {
-    throw new AppError('Unauthorized: position does not belong to user', 403);
-  }
-
-  if (position.position_status !== 'ACTIVE') {
-    throw new AppError('Position is not active', 403);
-  }
-
-  const token = signToken({
-    user_id: auth.user.user_id,
-    email: auth.email!,
-    position_id,
-    organization_id: position.unit.organization.organization_id
-  });
-
-  const {unit, ...positionOut} = position
-  const {organization, ...unitOut} = unit
-  return {
-    token,
-    organization: {
-      ...organization,
-      uses_reservations: organization.uses_reservations ?? true,
-    },
-    user: auth.user,
-    position: {
-      ...positionOut,
-      is_org_leader: position.is_org_leader ?? false,
-    },
-    unit: unitOut,
-  }
+  return issuePositionSession(auth.user.user_id, auth.email!, position_id);
 }
 
 export async function logoutUser(token: string, meta?: { ip: string, userAgent: string }): Promise<void> {

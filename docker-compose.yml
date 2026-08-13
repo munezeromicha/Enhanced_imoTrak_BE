@@ -1,6 +1,9 @@
 services:
   imotrack-backend:
-    image: ghcr.io/programmerdatch/imotrack-backend:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: imotrack-backend:local
     ports:
       - "7017:4000"
     env_file:

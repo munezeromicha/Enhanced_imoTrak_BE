@@ -30,6 +30,12 @@ Each service is fully isolated with:
 
 ---
 
+## University of Rwanda SSO
+
+This API accepts Inuma OIDC tokens on `POST /v2/auth/sso` and `POST /v2/auth/sso/:position_id`. Tokens are validated against `{SSO_ISSUER}/jwks`. Local ImoTrak roles stay in this database — Inuma `role` / `ur_roles` are identity context only.
+
+Required env vars: `SSO_ISSUER`, `SSO_CLIENT_ID`. Optional: `SSO_AUTO_PROVISION` (default `true`) to find-or-create a local user by email or `sub`. Ask the SSO admin to register this app’s redirect URI on the frontend, not on this API.
+
 ## ⚙️ Tech Stack
 
 | Layer             | Tech                         |
