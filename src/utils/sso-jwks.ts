@@ -1,8 +1,12 @@
-import jwt, { JwtHeader, JwtPayload, SigningKeyCallback } from 'jsonwebtoken';
-import jwksClient, { JwksClient } from 'jwks-rsa';
+import { createPublicKey, JsonWebKey } from 'crypto';
+import jwt, { JwtHeader, JwtPayload } from 'jsonwebtoken';
 
-let cachedClient: JwksClient | null = null;
+type Jwks = { keys?: JsonWebKey[] };
+
+let cachedKeys: JsonWebKey[] = [];
+let cachedAt = 0;
 let cachedIssuer: string | null = null;
+const CACHE_MS = 10 * 60 * 1000;
 
 export function getSsoIssuer(): string {
   const issuer = (process.env.SSO_ISSUER || '').trim().replace(/\/+$/, '');
@@ -12,33 +16,39 @@ export function getSsoIssuer(): string {
   return issuer;
 }
 
-function getJwksClient(): JwksClient {
-  const issuer = getSsoIssuer();
-  if (!cachedClient || cachedIssuer !== issuer) {
-    cachedIssuer = issuer;
-    cachedClient = jwksClient({
-      jwksUri: `${issuer}/jwks`,
-      cache: true,
-      cacheMaxAge: 10 * 60 * 1000,
-      rateLimit: true,
-      jwksRequestsPerMinute: 10,
-    });
+async function loadJwks(issuer: string): Promise<JsonWebKey[]> {
+  const fresh = Date.now() - cachedAt < CACHE_MS && cachedIssuer === issuer && cachedKeys.length > 0;
+  if (fresh) {
+    return cachedKeys;
   }
-  return cachedClient;
+
+  const response = await fetch(`${issuer}/jwks`);
+  if (!response.ok) {
+    throw new Error(`Failed to load SSO JWKS (${response.status})`);
+  }
+
+  const body = (await response.json()) as Jwks;
+  const keys = Array.isArray(body.keys) ? body.keys : [];
+  if (keys.length === 0) {
+    throw new Error('SSO JWKS did not return any keys');
+  }
+
+  cachedKeys = keys;
+  cachedAt = Date.now();
+  cachedIssuer = issuer;
+  return keys;
 }
 
-function getSigningKey(header: JwtHeader, callback: SigningKeyCallback) {
-  if (!header.kid) {
-    callback(new Error('SSO token is missing kid'));
-    return;
+function pemForKid(keys: JsonWebKey[], kid?: string): string {
+  const jwk = (kid ? keys.find((key) => key.kid === kid) : undefined) || keys[0];
+  if (!jwk) {
+    throw new Error('SSO token signing key was not found in JWKS');
   }
-  getJwksClient().getSigningKey(header.kid, (err, key) => {
-    if (err) {
-      callback(err);
-      return;
-    }
-    callback(null, key?.getPublicKey());
-  });
+
+  return createPublicKey({ key: jwk, format: 'jwk' }).export({
+    type: 'spki',
+    format: 'pem',
+  }) as string;
 }
 
 export type SsoActingFor = {
@@ -112,17 +122,9 @@ export function claimsToIdentity(payload: JwtPayload): SsoIdentity {
 export async function verifySsoToken(token: string): Promise<SsoIdentity> {
   const issuer = getSsoIssuer();
   const audience = (process.env.SSO_CLIENT_ID || '').trim() || undefined;
-
-  const verifyOnce = (options: jwt.VerifyOptions) =>
-    new Promise<JwtPayload>((resolve, reject) => {
-      jwt.verify(token, getSigningKey, options, (err, decoded) => {
-        if (err || !decoded || typeof decoded === 'string') {
-          reject(err || new Error('Invalid SSO token'));
-          return;
-        }
-        resolve(decoded);
-      });
-    });
+  const header = jwt.decode(token, { complete: true })?.header as JwtHeader | undefined;
+  const keys = await loadJwks(issuer);
+  const publicKey = pemForKid(keys, header?.kid);
 
   const baseOptions: jwt.VerifyOptions = {
     issuer,
@@ -131,14 +133,16 @@ export async function verifySsoToken(token: string): Promise<SsoIdentity> {
 
   let payload: JwtPayload;
   try {
-    payload = await verifyOnce(
+    payload = jwt.verify(
+      token,
+      publicKey,
       audience ? { ...baseOptions, audience } : baseOptions
-    );
+    ) as JwtPayload;
   } catch (firstError) {
     if (!audience) {
       throw firstError;
     }
-    payload = await verifyOnce(baseOptions);
+    payload = jwt.verify(token, publicKey, baseOptions) as JwtPayload;
   }
 
   return claimsToIdentity(payload);
