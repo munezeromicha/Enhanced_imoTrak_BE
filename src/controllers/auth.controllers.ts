@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { forgotPasswordService, loginUser, loginWithPosition, logoutUser, resendInvitationService, setPasswordAndVerifyService, updatePasswordService, verifyUserByEmailService } from '../services/auth.services';
 import { loginWithSso, loginWithSsoPosition } from '../services/sso.services';
-import { loginSchema, ssoTokenSchema } from '../schemas/auth.schema';
+import { bodyHasSsoTokens, loginSchema, ssoTokenSchema } from '../schemas/auth.schema';
 import { AppError } from '../utils/Error';
 import { position_accesses } from '../types/access';
 
@@ -64,6 +64,10 @@ export async function ssoLoginWithPositionController(req: Request, res: Response
     const { position_id } = req.params;
     if (!position_id) throw new AppError('Missing position_id in path', 400);
 
+    if (position_id === 'login' || position_id === 'sso') {
+      return ssoLoginController(req, res, next);
+    }
+
     const parsed = ssoTokenSchema.safeParse(req.body ?? {});
     if (!parsed.success) {
       throw new AppError('Invalid SSO token payload', 400);
@@ -89,6 +93,17 @@ export async function loginWithPositionController(req: Request, res: Response, n
   try {
     const { position_id } = req.params;
     if (!position_id) throw new AppError('Missing position_id in path', 400);
+
+    // Same two-step algorithm as password login. If this request carries Inuma
+    // tokens, do not validate email/password.
+    // POST /v2/auth/sso  → list positions (path collided with /:position_id)
+    // POST /v2/auth/:position_id + tokens → issue ImoTrak JWT
+    if (bodyHasSsoTokens(req.body)) {
+      if (position_id === 'sso') {
+        return ssoLoginController(req, res, next);
+      }
+      return ssoLoginWithPositionController(req, res, next);
+    }
 
     const parsed = loginSchema.safeParse(req.body);
     if (!parsed.success) {

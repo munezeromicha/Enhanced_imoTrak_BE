@@ -58,7 +58,7 @@ app.use(
     crossOriginResourcePolicy: { policy: 'cross-origin' },
   })
 );
-app.use(express.json());
+app.use(express.json({ limit: '2mb' }));
 app.use(morgan('short'));
 
 // Support both /v2 and /api/v2 (production reverse proxy often keeps the /api prefix).

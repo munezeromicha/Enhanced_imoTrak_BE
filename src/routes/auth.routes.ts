@@ -95,6 +95,7 @@ authRoutes.post('/login', loginController);
  *         description: Account not provisioned or has no position
  */
 authRoutes.post('/sso', ssoLoginController);
+authRoutes.post('/sso/login', ssoLoginController);
 
 /**
  * @swagger
