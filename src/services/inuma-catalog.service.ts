@@ -48,6 +48,7 @@ async function fetchInumaCollection<T>(
       'x-api-key': getInumaApiKey(),
       Accept: 'application/json',
     },
+    signal: AbortSignal.timeout(8000),
   });
 
   if (!response.ok) {

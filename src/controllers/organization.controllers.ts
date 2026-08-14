@@ -26,6 +26,7 @@ import { updateUnitSchema } from '../schemas/organization.schema';
 import { updatePositionSchema } from '../schemas/position.schema';
 import { position_accesses } from '../types/access';
 import { clampPositionAccess, isPositionAccessSubset } from '../utils/positionAccessUtils';
+import { ensureInumaPositionsListed } from '../services/inuma-positions-sync.service';
 
 const prisma = new PrismaClient();
 
@@ -516,6 +517,14 @@ export const getPositionsController = async (
   try {
     if (!req.user?.position_access?.positions?.view) {
       throw new AppError('You do not have permission to view units of this organization', 403);
+    }
+
+    try {
+      await ensureInumaPositionsListed(
+        req.user.position_access.organizations.create ? undefined : req.user.organization_id
+      );
+    } catch (error) {
+      console.warn('Inuma positions could not be listed automatically:', error);
     }
     
     const result = await getPositionsService (req.user?.position_access?.organizations.create? undefined : req.user.organization_id);

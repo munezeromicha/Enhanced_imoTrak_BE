@@ -10,6 +10,7 @@ import {
 } from '../utils/userPositions';
 import { AuthenticatedUser, position_accesses } from '../types/access';
 import { clampPositionAccess, isPositionAccessSubset } from '../utils/positionAccessUtils';
+import { INUMA_APPROVER_IMOTRAK_POSITION, normalizeCatalogName } from '../constants/inuma';
 const prisma = new PrismaClient();
 
 interface CreateOrgPayload {
@@ -255,6 +256,10 @@ export async function softDeletePositionService(positionId: string, userId: stri
 
   if (isProtectedSuperAdminPosition(position.position_name)) {
     throw new AppError('The SuperAdmin position cannot be deactivated or deleted', 403);
+  }
+
+  if (normalizeCatalogName(position.position_name) === normalizeCatalogName(INUMA_APPROVER_IMOTRAK_POSITION)) {
+    throw new AppError('The Assets & Services Administrator position cannot be deleted', 403);
   }
 
   // Get the requesting user's organization

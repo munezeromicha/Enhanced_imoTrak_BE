@@ -152,68 +152,79 @@ export async function syncInumaPositionsCatalog(params: {
   let reactivatedCount = 0;
 
   const defaultAccess = buildLimitedInumaSignInAccess();
-
-  await prisma.$transaction(async (tx) => {
-    for (const position of existingPositions) {
-      const normalized = normalizeCatalogName(position.position_name);
-      if (
-        PROTECTED_POSITION_NAMES.has(normalized) ||
-        isProtectedSuperAdminPosition(position.position_name)
-      ) {
-        skippedProtectedCount += 1;
-        continue;
-      }
-
-      await tx.tbl_user_position_assignments.deleteMany({
-        where: { position_id: position.position_id },
-      });
-
-      await tx.tbl_position.update({
-        where: { position_id: position.position_id },
-        data: { position_status: 'INACTIVE' },
-      });
-
-      deactivatedCount += 1;
+  const toDeactivate = existingPositions.filter((position) => {
+    const normalized = normalizeCatalogName(position.position_name);
+    if (
+      PROTECTED_POSITION_NAMES.has(normalized) ||
+      isProtectedSuperAdminPosition(position.position_name)
+    ) {
+      skippedProtectedCount += 1;
+      return false;
     }
-
-    for (const inumaPosition of inumaPositions) {
-      const existing = await tx.tbl_position.findUnique({
-        where: {
-          position_name_unit_id: {
-            position_name: inumaPosition.name,
-            unit_id: catalogUnit.unit_id,
-          },
-        },
-      });
-
-      if (existing) {
-        await tx.tbl_position.update({
-          where: { position_id: existing.position_id },
-          data: {
-            position_description:
-              inumaPosition.description ||
-              `Synced from Inuma position catalog (${inumaPosition._id})`,
-            position_status: 'ACTIVE',
-          },
-        });
-        reactivatedCount += 1;
-        continue;
-      }
-
-      await tx.tbl_position.create({
-        data: {
-          position_name: inumaPosition.name,
-          position_description:
-            inumaPosition.description ||
-            `Synced from Inuma position catalog (${inumaPosition._id})`,
-          position_access: defaultAccess as unknown as Prisma.InputJsonValue,
-          unit_id: catalogUnit.unit_id,
-          position_status: 'ACTIVE',
-        },
-      });
-      createdCount += 1;
-    }
+    return true;
   });
+  const deactivateIds = toDeactivate.map((position) => position.position_id);
+
+  if (deactivateIds.length > 0) {
+    await prisma.tbl_user_position_assignments.deleteMany({
+      where: { position_id: { in: deactivateIds } },
+    });
+    await prisma.tbl_position.updateMany({
+      where: { position_id: { in: deactivateIds } },
+      data: { position_status: 'INACTIVE' },
+    });
+    deactivatedCount = deactivateIds.length;
+  }
+
+  const existingInCatalogUnit = await prisma.tbl_position.findMany({
+    where: { unit_id: catalogUnit.unit_id },
+    select: { position_id: true, position_name: true, position_status: true },
+  });
+  const existingByName = new Map(
+    existingInCatalogUnit.map((position) => [
+      normalizeCatalogName(position.position_name),
+      position,
+    ])
+  );
+
+  const toCreate: Prisma.tbl_positionCreateManyInput[] = [];
+  const toReactivate: string[] = [];
+
+  for (const inumaPosition of inumaPositions) {
+    const existing = existingByName.get(normalizeCatalogName(inumaPosition.name));
+    if (existing) {
+      if (existing.position_status !== 'ACTIVE') {
+        toReactivate.push(existing.position_id);
+      }
+      continue;
+    }
+
+    toCreate.push({
+      position_name: inumaPosition.name,
+      position_description:
+        inumaPosition.description ||
+        `Synced from Inuma position catalog (${inumaPosition._id})`,
+      position_access: defaultAccess as unknown as Prisma.InputJsonValue,
+      unit_id: catalogUnit.unit_id,
+      position_status: 'ACTIVE',
+    });
+  }
+
+  if (toReactivate.length > 0) {
+    await prisma.tbl_position.updateMany({
+      where: { position_id: { in: toReactivate } },
+      data: { position_status: 'ACTIVE' },
+    });
+    reactivatedCount = toReactivate.length;
+  }
+
+  if (toCreate.length > 0) {
+    const created = await prisma.tbl_position.createMany({
+      data: toCreate,
+      skipDuplicates: true,
+    });
+    createdCount = created.count;
+  }
 
   return {
     organization_id: organizationId,
@@ -230,4 +241,62 @@ export async function syncInumaPositionsCatalog(params: {
 export async function getInumaPositionsPreview() {
   const catalog = await getInumaCatalog(true);
   return catalog.positions.filter((position) => position.is_active !== false);
+}
+
+/** Ensure Inuma catalog positions exist in ImoTrak so they appear on the Positions page. */
+export async function ensureInumaPositionsListed(organizationId?: string): Promise<void> {
+  if (!process.env.INUMA_API_KEY?.trim()) return;
+
+  const orgId = await resolveOrganizationId(organizationId);
+  const catalogUnit = await findCatalogUnit(orgId);
+  const catalog = await getInumaCatalog();
+  const inumaPositions = catalog.positions.filter(
+    (position) => position.is_active !== false && position.name?.trim()
+  );
+  if (inumaPositions.length === 0) return;
+
+  const existing = await prisma.tbl_position.findMany({
+    where: { unit_id: catalogUnit.unit_id },
+    select: { position_name: true, position_id: true, position_status: true },
+  });
+  const existingByName = new Map(
+    existing.map((position) => [normalizeCatalogName(position.position_name), position])
+  );
+
+  const defaultAccess = buildLimitedInumaSignInAccess();
+  const toCreate: Prisma.tbl_positionCreateManyInput[] = [];
+  const toReactivate: string[] = [];
+
+  for (const inumaPosition of inumaPositions) {
+    const match = existingByName.get(normalizeCatalogName(inumaPosition.name));
+    if (!match) {
+      toCreate.push({
+        position_name: inumaPosition.name,
+        position_description:
+          inumaPosition.description ||
+          `Synced from Inuma position catalog (${inumaPosition._id})`,
+        position_access: defaultAccess as unknown as Prisma.InputJsonValue,
+        unit_id: catalogUnit.unit_id,
+        position_status: 'ACTIVE',
+      });
+      continue;
+    }
+    if (match.position_status !== 'ACTIVE') {
+      toReactivate.push(match.position_id);
+    }
+  }
+
+  if (toReactivate.length > 0) {
+    await prisma.tbl_position.updateMany({
+      where: { position_id: { in: toReactivate } },
+      data: { position_status: 'ACTIVE' },
+    });
+  }
+
+  if (toCreate.length > 0) {
+    await prisma.tbl_position.createMany({
+      data: toCreate,
+      skipDuplicates: true,
+    });
+  }
 }
