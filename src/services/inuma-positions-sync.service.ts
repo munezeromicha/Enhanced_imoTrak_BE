@@ -300,3 +300,43 @@ export async function ensureInumaPositionsListed(organizationId?: string): Promi
     });
   }
 }
+
+/** Ensure Inuma campuses exist as ImoTrak units so they appear on the Units page. */
+export async function ensureInumaCampusesListed(organizationId?: string): Promise<void> {
+  if (!process.env.INUMA_API_KEY?.trim()) return;
+
+  const orgId = await resolveOrganizationId(organizationId);
+  const catalog = await getInumaCatalog();
+  const campuses = catalog.campuses.filter(
+    (campus) => campus.is_active !== false && campus.name?.trim()
+  );
+  if (campuses.length === 0) return;
+
+  const existing = await prisma.tbl_unit.findMany({
+    where: { organization_id: orgId },
+    select: { unit_id: true, unit_name: true, status: true },
+  });
+  const existingByName = new Map(
+    existing.map((unit) => [normalizeCatalogName(unit.unit_name), unit])
+  );
+
+  const toCreate: Prisma.tbl_unitCreateManyInput[] = [];
+
+  for (const campus of campuses) {
+    const match = existingByName.get(normalizeCatalogName(campus.name));
+    if (match) continue;
+
+    toCreate.push({
+      unit_name: campus.name,
+      organization_id: orgId,
+      status: 'ACTIVE',
+    });
+  }
+
+  if (toCreate.length > 0) {
+    await prisma.tbl_unit.createMany({
+      data: toCreate,
+      skipDuplicates: true,
+    });
+  }
+}

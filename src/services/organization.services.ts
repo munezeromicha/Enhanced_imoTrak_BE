@@ -10,7 +10,7 @@ import {
 } from '../utils/userPositions';
 import { AuthenticatedUser, position_accesses } from '../types/access';
 import { clampPositionAccess, isPositionAccessSubset } from '../utils/positionAccessUtils';
-import { INUMA_APPROVER_IMOTRAK_POSITION, normalizeCatalogName } from '../constants/inuma';
+import { INUMA_APPROVER_IMOTRAK_POSITION, INUMA_APPROVER_UNIT_NAMES, normalizeCatalogName } from '../constants/inuma';
 const prisma = new PrismaClient();
 
 interface CreateOrgPayload {
@@ -465,6 +465,16 @@ export const deleteUnitService = async ({ unit_id, user }: DeleteUnitParams) => 
 
   if (!user.position_access.organizations?.create && unit.organization_id !== userOrgId) {
     throw new AppError('You can only delete units within your organization', 403);
+  }
+
+  if (INUMA_APPROVER_UNIT_NAMES.some(
+    (name) => normalizeCatalogName(name) === normalizeCatalogName(unit.unit_name)
+  )) {
+    throw new AppError('The UR-Fleet unit cannot be deleted', 403);
+  }
+
+  if (unit.status === 'INACTIVE') {
+    throw new AppError('Unit is already inactive', 400);
   }
 
   // Fetch positions under this unit

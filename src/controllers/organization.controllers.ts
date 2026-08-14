@@ -26,7 +26,7 @@ import { updateUnitSchema } from '../schemas/organization.schema';
 import { updatePositionSchema } from '../schemas/position.schema';
 import { position_accesses } from '../types/access';
 import { clampPositionAccess, isPositionAccessSubset } from '../utils/positionAccessUtils';
-import { ensureInumaPositionsListed } from '../services/inuma-positions-sync.service';
+import { ensureInumaPositionsListed, ensureInumaCampusesListed } from '../services/inuma-positions-sync.service';
 
 const prisma = new PrismaClient();
 
@@ -268,6 +268,12 @@ export const getUnitsController = async (
       throw new AppError('Organization ID not found in user token', 400);
     }
 
+    try {
+      await ensureInumaCampusesListed(adminAccess ? undefined : organization_id);
+    } catch (error) {
+      console.warn('Inuma campuses could not be listed automatically:', error);
+    }
+
     const units = await getUnitsService(adminAccess ? undefined : organization_id);
 
     res.status(200).json({ message: 'Getting units successful', data: units });
@@ -496,6 +502,12 @@ export const getUnitsInOrganization = async (
 
     if (!req.user?.position_access?.units?.view || !req.user?.position_access?.organizations.create) {
       throw new AppError('You do not have permission to view units of this organization', 403);
+    }
+
+    try {
+      await ensureInumaCampusesListed(organization_id);
+    } catch (error) {
+      console.warn('Inuma campuses could not be listed automatically:', error);
     }
 
     const unit = await getUnitsService(organization_id);
