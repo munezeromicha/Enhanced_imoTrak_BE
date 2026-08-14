@@ -9,13 +9,14 @@ import { AppError } from '../utils/Error';
 import { SsoIdentity } from '../utils/sso-jwks';
 import {
   buildAssetsServicesApproverAccess,
-  buildDefaultInumaSyncedPositionAccess,
+  buildLimitedInumaSignInAccess,
 } from '../utils/inumaAccessTemplates';
 import { userPositionAssignmentsInclude, UserWithPositionAssignments } from '../utils/userPositions';
 import {
   findInumaCampus,
   findInumaPosition,
   getInumaCatalog,
+  type InumaCatalog,
 } from './inuma-catalog.service';
 
 const prisma = new PrismaClient();
@@ -32,7 +33,7 @@ export type AuthWithUser = {
 
 export type InumaSyncResult = {
   isApprover: boolean;
-  isPendingApproval: boolean;
+  isLimitedAccess: boolean;
   matchedUnitId?: string;
   matchedPositionId?: string;
   inumaPosition?: string;
@@ -90,7 +91,7 @@ async function findUnitByCampusName(organizationId: string, campusName: string) 
   );
 }
 
-async function findApproverUnit(organizationId: string) {
+async function findFallbackUnit(organizationId: string) {
   const units = await prisma.tbl_unit.findMany({
     where: {
       organization_id: organizationId,
@@ -105,7 +106,39 @@ async function findApproverUnit(organizationId: string) {
     if (match) return match;
   }
 
-  return units.find((unit) => normalizeCatalogName(unit.unit_name).includes('fleet'));
+  return (
+    units.find((unit) => normalizeCatalogName(unit.unit_name).includes('fleet')) ||
+    units[0]
+  );
+}
+
+async function resolveUnitForInumaUser(
+  organizationId: string,
+  inumaUnit: string | undefined,
+  catalog: InumaCatalog
+) {
+  if (inumaUnit) {
+    const campusRecord = findInumaCampus(catalog, inumaUnit);
+    const campusName = campusRecord?.name || inumaUnit;
+    const byCampus = await findUnitByCampusName(organizationId, campusName);
+    if (byCampus) return byCampus;
+
+    const org = await prisma.tbl_organizations.findUnique({
+      where: { organization_id: organizationId },
+    });
+    if (
+      org &&
+      normalizeCatalogName(inumaUnit) === normalizeCatalogName(org.organization_name)
+    ) {
+      return findFallbackUnit(organizationId);
+    }
+  }
+
+  return findFallbackUnit(organizationId);
+}
+
+async function findApproverUnit(organizationId: string) {
+  return findFallbackUnit(organizationId);
 }
 
 async function ensureApproverPosition(unitId: string) {
@@ -124,7 +157,7 @@ async function ensureApproverPosition(unitId: string) {
     create: {
       position_name: INUMA_APPROVER_IMOTRAK_POSITION,
       position_description:
-        'Assets and Services Management approver with full ImoTrak access except organization management.',
+        'Assets and Services Management administrator with full ImoTrak access except organization management.',
       position_access: access as unknown as Prisma.InputJsonValue,
       unit_id: unitId,
       position_status: 'ACTIVE',
@@ -132,8 +165,8 @@ async function ensureApproverPosition(unitId: string) {
   });
 }
 
-async function ensureSyncedInumaPosition(unitId: string, positionName: string) {
-  const access = buildDefaultInumaSyncedPositionAccess();
+async function ensureLimitedInumaPosition(unitId: string, positionName: string) {
+  const access = buildLimitedInumaSignInAccess();
   return prisma.tbl_position.upsert({
     where: {
       position_name_unit_id: {
@@ -146,7 +179,7 @@ async function ensureSyncedInumaPosition(unitId: string, positionName: string) {
     },
     create: {
       position_name: positionName,
-      position_description: `Synced from Inuma position catalog: ${positionName}`,
+      position_description: `Inuma position (limited access until administrator grants permissions): ${positionName}`,
       position_access: access as unknown as Prisma.InputJsonValue,
       unit_id: unitId,
       position_status: 'ACTIVE',
@@ -174,17 +207,8 @@ function userHasActiveAssignments(auth: AuthWithUser): boolean {
   return (auth.user?.position_assignments?.length ?? 0) > 0;
 }
 
-function isApprovedAuth(auth: AuthWithUser): boolean {
-  if (auth.user_status === 'INACTIVE' || auth.user_status === 'SUSPENDED') {
-    return false;
-  }
-
-  if (auth.imotrak_access_approved_at) {
-    return auth.user_status === 'ACTIVE';
-  }
-
-  // Users provisioned before the Inuma approval workflow already have assignments.
-  return auth.user_status === 'ACTIVE' && userHasActiveAssignments(auth);
+function hasFullPermissionsGranted(auth: AuthWithUser): boolean {
+  return !!auth.imotrak_access_approved_at;
 }
 
 export async function syncInumaAccessForUser(
@@ -201,22 +225,16 @@ export async function syncInumaAccessForUser(
   const positionRecord = findInumaPosition(catalog, inumaPosition);
   const isApprover = isAuthorizedInumaApproverPosition(inumaPosition);
 
-  let matchedUnitId: string | undefined;
-  let matchedPositionId: string | undefined;
-
   if (isApprover) {
     const approverUnit = await findApproverUnit(organizationId);
     if (!approverUnit) {
       throw new AppError(
-        'Could not find UR-Fleet unit for Assets and Services approver mapping',
+        'Could not find UR-Fleet unit for Assets and Services administrator mapping',
         500
       );
     }
 
     const approverPosition = await ensureApproverPosition(approverUnit.unit_id);
-    matchedUnitId = approverUnit.unit_id;
-    matchedPositionId = approverPosition.position_id;
-
     await ensureUserAssignment(auth.user!.user_id, approverPosition.position_id);
 
     await prisma.tbl_auth.update({
@@ -225,100 +243,40 @@ export async function syncInumaAccessForUser(
         inuma_position: inumaPosition,
         inuma_unit: inumaUnit,
         inuma_campus_code: campusRecord?.code,
-        matched_unit_id: matchedUnitId,
-        matched_position_id: matchedPositionId,
+        matched_unit_id: approverUnit.unit_id,
+        matched_position_id: approverPosition.position_id,
         user_status: 'ACTIVE',
         imotrak_access_approved_at: auth.imotrak_access_approved_at || new Date(),
-        imotrak_access_approved_by_user_id: auth.imotrak_access_approved_by_user_id,
       },
     });
 
     return {
       isApprover: true,
-      isPendingApproval: false,
-      matchedUnitId,
-      matchedPositionId,
+      isLimitedAccess: false,
+      matchedUnitId: approverUnit.unit_id,
+      matchedPositionId: approverPosition.position_id,
       inumaPosition,
       inumaUnit,
     };
   }
 
-  if (!inumaUnit || !inumaPosition) {
-    await prisma.tbl_auth.update({
-      where: { auth_id: auth.auth_id },
-      data: {
-        inuma_position: inumaPosition,
-        inuma_unit: inumaUnit,
-        inuma_campus_code: campusRecord?.code,
-        user_status: isApprovedAuth(auth) ? auth.user_status : 'PENDING_APPROVAL',
-      },
-    });
-
-    return {
-      isApprover: false,
-      isPendingApproval: !isApprovedAuth(auth),
-      inumaPosition,
-      inumaUnit,
-    };
-  }
-
-  const matchedUnit = await findUnitByCampusName(organizationId, inumaUnit);
+  const matchedUnit = await resolveUnitForInumaUser(organizationId, inumaUnit, catalog);
   if (!matchedUnit) {
-    await prisma.tbl_auth.update({
-      where: { auth_id: auth.auth_id },
-      data: {
-        inuma_position: inumaPosition,
-        inuma_unit: inumaUnit,
-        inuma_campus_code: campusRecord?.code,
-        user_status: isApprovedAuth(auth) ? auth.user_status : 'PENDING_APPROVAL',
-      },
-    });
-
-    return {
-      isApprover: false,
-      isPendingApproval: !isApprovedAuth(auth),
-      inumaPosition,
-      inumaUnit,
-    };
+    throw new AppError('No ImoTrak unit available for Inuma user mapping', 500);
   }
 
-  const positionName = positionRecord?.name || inumaPosition;
-  const syncedPosition = await ensureSyncedInumaPosition(
+  const positionName = positionRecord?.name || inumaPosition || 'Inuma User';
+  const limitedPosition = await ensureLimitedInumaPosition(
     matchedUnit.unit_id,
     positionName
   );
 
-  matchedUnitId = matchedUnit.unit_id;
-  matchedPositionId = syncedPosition.position_id;
+  const fullPermissionsGranted = hasFullPermissionsGranted(auth);
 
-  const alreadyApproved = isApprovedAuth(auth);
-  const hasAssignments = userHasActiveAssignments(auth);
-
-  if (alreadyApproved && !hasAssignments) {
-    await ensureUserAssignment(auth.user!.user_id, syncedPosition.position_id);
-  }
-
-  if (alreadyApproved) {
-    await prisma.tbl_auth.update({
-      where: { auth_id: auth.auth_id },
-      data: {
-        inuma_position: inumaPosition,
-        inuma_unit: inumaUnit,
-        inuma_campus_code: campusRecord?.code,
-        matched_unit_id: matchedUnitId,
-        matched_position_id: matchedPositionId,
-        user_status: 'ACTIVE',
-      },
-    });
-
-    return {
-      isApprover: false,
-      isPendingApproval: false,
-      matchedUnitId,
-      matchedPositionId,
-      inumaPosition,
-      inumaUnit,
-    };
+  if (!fullPermissionsGranted) {
+    await ensureUserAssignment(auth.user!.user_id, limitedPosition.position_id);
+  } else if (!userHasActiveAssignments(auth)) {
+    await ensureUserAssignment(auth.user!.user_id, limitedPosition.position_id);
   }
 
   await prisma.tbl_auth.update({
@@ -327,17 +285,17 @@ export async function syncInumaAccessForUser(
       inuma_position: inumaPosition,
       inuma_unit: inumaUnit,
       inuma_campus_code: campusRecord?.code,
-      matched_unit_id: matchedUnitId,
-      matched_position_id: matchedPositionId,
-      user_status: 'PENDING_APPROVAL',
+      matched_unit_id: matchedUnit.unit_id,
+      matched_position_id: limitedPosition.position_id,
+      user_status: 'ACTIVE',
     },
   });
 
   return {
     isApprover: false,
-    isPendingApproval: true,
-    matchedUnitId,
-    matchedPositionId,
+    isLimitedAccess: !fullPermissionsGranted,
+    matchedUnitId: matchedUnit.unit_id,
+    matchedPositionId: limitedPosition.position_id,
     inumaPosition,
     inumaUnit,
   };

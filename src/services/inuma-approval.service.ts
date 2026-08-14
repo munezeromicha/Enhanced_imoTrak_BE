@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client';
+import { isAuthorizedInumaApproverPosition } from '../constants/inuma';
 import { AppError } from '../utils/Error';
 import { canManageInumaAccess } from './inuma-access.service';
 import { userPositionAssignmentsInclude } from '../utils/userPositions';
@@ -12,7 +13,11 @@ async function assertApprover(userId: string) {
       auth: true,
       position_assignments: {
         include: {
-          position: true,
+          position: {
+            include: {
+              unit: true,
+            },
+          },
         },
       },
     },
@@ -36,7 +41,7 @@ async function assertApprover(userId: string) {
     })
   ) {
     throw new AppError(
-      'Only authorized Assets and Services Management administrators can manage access requests',
+      'Only authorized Assets and Services Management administrators can manage user permissions',
       403
     );
   }
@@ -50,17 +55,35 @@ export async function listPendingInumaAccessRequests(params: {
 }) {
   await assertApprover(params.approverUserId);
 
-  const pending = await prisma.tbl_auth.findMany({
+  const ssoUsers = await prisma.tbl_auth.findMany({
     where: {
-      user_status: 'PENDING_APPROVAL',
+      sso_sub: { not: null },
+      imotrak_access_approved_at: null,
+      user_status: { in: ['ACTIVE', 'PENDING_APPROVAL'] },
       user: { isNot: null },
       ...(params.unitId ? { matched_unit_id: params.unitId } : {}),
     },
     include: {
-      user: true,
+      user: {
+        include: {
+          position_assignments: {
+            include: {
+              position: {
+                include: {
+                  unit: true,
+                },
+              },
+            },
+          },
+        },
+      },
     },
     orderBy: { updated_at: 'desc' },
   });
+
+  const pending = ssoUsers.filter(
+    (auth) => !isAuthorizedInumaApproverPosition(auth.inuma_position)
+  );
 
   const unitIds = [
     ...new Set(pending.map((auth) => auth.matched_unit_id).filter(Boolean)),
@@ -75,22 +98,33 @@ export async function listPendingInumaAccessRequests(params: {
 
   const unitMap = new Map(units.map((unit) => [unit.unit_id, unit]));
 
-  return pending.map((auth) => ({
-    auth_id: auth.auth_id,
-    user_id: auth.user!.user_id,
-    email: auth.email,
-    first_name: auth.user!.first_name,
-    last_name: auth.user!.last_name,
-    inuma_position: auth.inuma_position,
-    inuma_unit: auth.inuma_unit,
-    inuma_campus_code: auth.inuma_campus_code,
-    matched_unit_id: auth.matched_unit_id,
-    matched_position_id: auth.matched_position_id,
-    matched_unit_name: auth.matched_unit_id
-      ? unitMap.get(auth.matched_unit_id)?.unit_name
-      : undefined,
-    requested_at: auth.updated_at || auth.user!.created_at,
-  }));
+  return pending.map((auth) => {
+    const assignments = auth.user!.position_assignments.map((assignment) => ({
+      position_id: assignment.position.position_id,
+      position_name: assignment.position.position_name,
+      unit_id: assignment.position.unit.unit_id,
+      unit_name: assignment.position.unit.unit_name,
+    }));
+
+    return {
+      auth_id: auth.auth_id,
+      user_id: auth.user!.user_id,
+      email: auth.email,
+      first_name: auth.user!.first_name,
+      last_name: auth.user!.last_name,
+      inuma_position: auth.inuma_position,
+      inuma_unit: auth.inuma_unit,
+      inuma_campus_code: auth.inuma_campus_code,
+      matched_unit_id: auth.matched_unit_id,
+      matched_position_id: auth.matched_position_id,
+      matched_unit_name: auth.matched_unit_id
+        ? unitMap.get(auth.matched_unit_id)?.unit_name
+        : undefined,
+      current_positions: assignments,
+      access_level: 'limited' as const,
+      requested_at: auth.updated_at || auth.user!.created_at,
+    };
+  });
 }
 
 export async function approveInumaAccessRequest(params: {
@@ -102,15 +136,22 @@ export async function approveInumaAccessRequest(params: {
 
   const targetUser = await prisma.tbl_users.findUnique({
     where: { user_id: params.targetUserId },
-    include: { auth: true },
+    include: {
+      auth: true,
+      position_assignments: true,
+    },
   });
 
   if (!targetUser?.auth) {
     throw new AppError('User not found', 404);
   }
 
-  if (targetUser.auth.user_status !== 'PENDING_APPROVAL') {
-    throw new AppError('This user is not awaiting access approval', 400);
+  if (!targetUser.auth.sso_sub) {
+    throw new AppError('This workflow only applies to Inuma SSO users', 400);
+  }
+
+  if (targetUser.auth.imotrak_access_approved_at) {
+    throw new AppError('This user already has full permissions granted', 400);
   }
 
   const positionId =
@@ -120,7 +161,7 @@ export async function approveInumaAccessRequest(params: {
 
   if (!positionId) {
     throw new AppError(
-      'No ImoTrak position could be matched for this user. Select a position when approving.',
+      'Select an ImoTrak position to grant this user full permissions.',
       400
     );
   }
@@ -134,26 +175,13 @@ export async function approveInumaAccessRequest(params: {
     throw new AppError('Selected position is not active', 400);
   }
 
-  if (
-    targetUser.auth.matched_unit_id &&
-    position.unit_id !== targetUser.auth.matched_unit_id
-  ) {
-    throw new AppError(
-      'Selected position must belong to the user matched campus unit',
-      400
-    );
-  }
-
   await prisma.$transaction(async (tx) => {
-    await tx.tbl_user_position_assignments.upsert({
-      where: {
-        user_id_position_id: {
-          user_id: targetUser.user_id,
-          position_id: positionId,
-        },
-      },
-      update: {},
-      create: {
+    await tx.tbl_user_position_assignments.deleteMany({
+      where: { user_id: targetUser.user_id },
+    });
+
+    await tx.tbl_user_position_assignments.create({
+      data: {
         user_id: targetUser.user_id,
         position_id: positionId,
       },
@@ -192,8 +220,8 @@ export async function rejectInumaAccessRequest(params: {
     throw new AppError('User not found', 404);
   }
 
-  if (targetUser.auth.user_status !== 'PENDING_APPROVAL') {
-    throw new AppError('This user is not awaiting access approval', 400);
+  if (targetUser.auth.imotrak_access_approved_at) {
+    throw new AppError('Cannot revoke access for a user with granted permissions here', 400);
   }
 
   await prisma.tbl_auth.update({

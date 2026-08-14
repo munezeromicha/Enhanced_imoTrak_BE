@@ -153,6 +153,11 @@ export const getUsersWithPositionsService = async (organization_id?: string) => 
       auth: {
         select: {
           email: true,
+          sso_sub: true,
+          inuma_position: true,
+          inuma_unit: true,
+          imotrak_access_approved_at: true,
+          user_status: true,
         },
       },
       position_assignments: {
@@ -191,6 +196,14 @@ export const getUsersWithPositionsService = async (organization_id?: string) => 
     email: user.auth?.email,
     user_gender: user.user_gender,
     user_phone: user.user_phone,
+    inuma_position: user.auth?.inuma_position ?? null,
+    inuma_unit: user.auth?.inuma_unit ?? null,
+    is_sso_user: !!user.auth?.sso_sub,
+    access_level: user.auth?.sso_sub
+      ? user.auth.imotrak_access_approved_at
+        ? 'full'
+        : 'limited'
+      : 'full',
     positions: user.position_assignments.map((a) => a.position).map((pos) => ({
       position_id: pos.position_id,
       position_name: pos.position_name,

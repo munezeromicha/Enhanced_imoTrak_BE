@@ -30,15 +30,15 @@ export function buildAssetsServicesApproverAccess(): position_accesses {
   };
 }
 
-/** Default access for positions synced from Inuma before an approver grants full module rights. */
-export function buildDefaultInumaSyncedPositionAccess(): position_accesses {
+/** Minimal access granted immediately after first Inuma sign-in. */
+export function buildLimitedInumaSignInAccess(): position_accesses {
   return {
     organizations: { create: false, view: false, update: false, delete: false },
     units: { create: false, view: false, update: false, delete: false },
     positions: { create: false, view: false, update: false, delete: false, assignUser: false },
     users: { create: false, view: false, update: false, delete: false },
     vehicleModels: { create: false, view: false, viewSingle: false, update: false, delete: false },
-    vehicles: { create: false, view: true, viewSingle: true, update: false, delete: false },
+    vehicles: { create: false, view: false, viewSingle: false, update: false, delete: false },
     reservations: {
       create: false,
       view: false,
@@ -54,6 +54,11 @@ export function buildDefaultInumaSyncedPositionAccess(): position_accesses {
       viewAssigned: false,
       updateReason: false,
     },
-    vehicleIssues: { report: true, view: true, update: false, delete: false },
+    vehicleIssues: { report: false, view: false, update: false, delete: false },
   };
+}
+
+/** @deprecated Use buildLimitedInumaSignInAccess for new SSO users. */
+export function buildDefaultInumaSyncedPositionAccess(): position_accesses {
+  return buildLimitedInumaSignInAccess();
 }
