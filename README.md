@@ -36,6 +36,30 @@ This API accepts Inuma OIDC tokens on `POST /v2/auth/sso` and `POST /v2/auth/sso
 
 Required env vars: `SSO_ISSUER`, `SSO_CLIENT_ID`. Optional: `SSO_AUTO_PROVISION` (default `true`) to find-or-create a local user by email or `sub`. Ask the SSO admin to register this app’s redirect URI on the frontend, not on this API.
 
+### Inuma campus/position mapping and access approval
+
+SSO login also reads the Inuma public catalog (`/api/campuses/public`, `/api/positions/public`) to map a user’s campus (`unit` claim) to ImoTrak units and their Inuma position to ImoTrak positions. First-time SSO users are marked `PENDING_APPROVAL` until an Assets & Services Management approver grants access.
+
+Env vars:
+
+- `INUMA_API_BASE_URL` (default `https://dev-inuma.ur.ac.rw/api`)
+- `INUMA_API_KEY` (required for catalog sync)
+- `INUMA_ORGANIZATION_NAME` (default `University of Rwanda`) or `INUMA_ORGANIZATION_ID`
+
+Approver Inuma positions (auto-granted full access except organizations):
+
+- Director of Assets and Services Management
+- Assets & Services Management Division Manager-HO
+- Assets and Services management 2
+
+Approval API (authenticated):
+
+- `GET /v2/inuma-access/pending`
+- `POST /v2/inuma-access/:userId/approve`
+- `POST /v2/inuma-access/:userId/reject`
+
+Run migration `20260814120000_inuma_access_approval` after deploy.
+
 ## ⚙️ Tech Stack
 
 | Layer             | Tech                         |

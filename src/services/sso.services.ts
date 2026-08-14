@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client';
+import { PENDING_APPROVAL_MESSAGE } from '../constants/inuma';
 import { AppError } from '../utils/Error';
 import {
   extractBearerToken,
@@ -10,6 +11,11 @@ import {
   userPositionAssignmentsInclude,
 } from '../utils/userPositions';
 import { issuePositionSession } from './auth.services';
+import {
+  reloadAuthWithAssignments,
+  syncInumaAccessForUser,
+  type AuthWithUser,
+} from './inuma-access.service';
 
 const prisma = new PrismaClient();
 
@@ -119,9 +125,11 @@ async function provisionSsoUser(identity: SsoIdentity) {
       data: {
         email: identity.email,
         password: null,
-        user_status: 'ACTIVE',
+        user_status: 'PENDING_APPROVAL',
         is_verified: true,
         sso_sub: identity.sub,
+        inuma_position: identity.position,
+        inuma_unit: identity.unit,
       },
     });
 
@@ -184,7 +192,7 @@ async function loadOrCreateSsoAuth(identity: SsoIdentity) {
     });
   }
 
-  if (auth.user_status !== 'ACTIVE') {
+  if (auth.user_status === 'INACTIVE' || auth.user_status === 'SUSPENDED') {
     throw new AppError('User is not active', 403);
   }
 
@@ -207,14 +215,51 @@ function mapPositions(auth: Awaited<ReturnType<typeof loadOrCreateSsoAuth>>) {
   }));
 }
 
+function buildIdentityResponse(
+  identity: SsoIdentity,
+  auth: Awaited<ReturnType<typeof loadOrCreateSsoAuth>>
+) {
+  return {
+    sub: identity.sub,
+    name: identity.name,
+    email: identity.email || auth.email,
+    position: identity.position,
+    unit_type: identity.unit_type,
+    unit: identity.unit,
+    role: identity.role,
+    is_acting: identity.is_acting,
+    acting_for: identity.acting_for,
+  };
+}
+
 export async function loginWithSso(params: {
   idToken?: string;
   accessToken?: string;
   authorization?: string;
 }) {
   const identity = await resolveSsoIdentity(params);
-  const auth = await loadOrCreateSsoAuth(identity);
+  let auth = await loadOrCreateSsoAuth(identity);
+
+  const syncResult = await syncInumaAccessForUser(identity, auth as AuthWithUser);
+  auth = await reloadAuthWithAssignments(auth.auth_id);
+
   const positions = mapPositions(auth);
+  const identityResponse = buildIdentityResponse(identity, auth);
+
+  if (syncResult.isPendingApproval || auth.user_status === 'PENDING_APPROVAL') {
+    return {
+      status: 'pending_approval' as const,
+      message: PENDING_APPROVAL_MESSAGE,
+      positions: [] as ReturnType<typeof mapPositions>,
+      identity: identityResponse,
+      access: {
+        inuma_position: syncResult.inumaPosition,
+        inuma_unit: syncResult.inumaUnit,
+        matched_unit_id: syncResult.matchedUnitId,
+        matched_position_id: syncResult.matchedPositionId,
+      },
+    };
+  }
 
   if (positions.length === 0) {
     throw new AppError(
@@ -224,18 +269,10 @@ export async function loginWithSso(params: {
   }
 
   return {
+    status: 'ready' as const,
+    message: 'Login successful',
     positions,
-    identity: {
-      sub: identity.sub,
-      name: identity.name,
-      email: identity.email || auth.email,
-      position: identity.position,
-      unit_type: identity.unit_type,
-      unit: identity.unit,
-      role: identity.role,
-      is_acting: identity.is_acting,
-      acting_for: identity.acting_for,
-    },
+    identity: identityResponse,
   };
 }
 
@@ -246,7 +283,14 @@ export async function loginWithSsoPosition(params: {
   positionId: string;
 }) {
   const identity = await resolveSsoIdentity(params);
-  const auth = await loadOrCreateSsoAuth(identity);
+  let auth = await loadOrCreateSsoAuth(identity);
+
+  await syncInumaAccessForUser(identity, auth as AuthWithUser);
+  auth = await reloadAuthWithAssignments(auth.auth_id);
+
+  if (auth.user_status === 'PENDING_APPROVAL') {
+    throw new AppError(PENDING_APPROVAL_MESSAGE, 403);
+  }
 
   if (!auth.email) {
     throw new AppError('Account email is missing', 500);

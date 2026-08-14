@@ -49,8 +49,20 @@ export async function ssoLoginController(req: Request, res: Response, next: Next
       authorization: req.headers.authorization,
     });
 
+    if (result.status === 'pending_approval') {
+      res.status(200).json({
+        message: result.message,
+        status: result.status,
+        data: result.positions,
+        identity: result.identity,
+        access: result.access,
+      });
+      return;
+    }
+
     res.status(200).json({
-      message: 'Login successful',
+      message: result.message,
+      status: result.status,
       data: result.positions,
       identity: result.identity,
     });

@@ -11,12 +11,14 @@ import contactRoutes from "./contact.route";
 import driverRoutes from "./driver.routes";
 import trackingRoutes from "./tracking.routes";
 import maintenanceRoutes from "./maintenance.routes";
+import inumaAccessRoutes from "./inuma-access.routes";
 
 const routes = Router();
 
 routes.use('/auth', authRoutes);
 routes.use('/organizations', organizationRoutes);
 routes.use('/users', usersRoutes);
+routes.use('/inuma-access', inumaAccessRoutes);
 routes.use('/', vehicleRoutes);
 routes.use('/', historyRoutes);
 routes.use('/reservations', reservationRoutes);

@@ -9,15 +9,26 @@ datasource db {
 }
 
 model tbl_auth {
-  auth_id     String     @id @default(uuid())
-  email       String?    @unique
-  password    String?
-  updated_at  DateTime?
-  user_status UserStatus @default(ACTIVE)
-  is_verified Boolean    @default(false)
+  auth_id                          String     @id @default(uuid())
+  email                            String?    @unique
+  password                         String?
+  updated_at                       DateTime?
+  user_status                      UserStatus @default(ACTIVE)
+  is_verified                      Boolean    @default(false)
   /// Stable Inuma subject (`sub`). Used to find SSO users if email changes.
-  sso_sub     String?    @unique
-  user        tbl_users?
+  sso_sub                          String?    @unique
+  /// Latest Inuma position name from SSO / public API.
+  inuma_position                   String?
+  /// Latest Inuma campus / unit name from SSO / public API.
+  inuma_unit                       String?
+  inuma_campus_code                String?
+  /// ImoTrak unit matched from Inuma campus catalog.
+  matched_unit_id                  String?
+  /// ImoTrak position matched or proposed from Inuma position catalog.
+  matched_position_id              String?
+  imotrak_access_approved_at       DateTime?
+  imotrak_access_approved_by_user_id String?
+  user                             tbl_users?
 }
 
 model tbl_users {
@@ -315,6 +326,7 @@ enum UserStatus {
   ACTIVE
   INACTIVE
   SUSPENDED
+  PENDING_APPROVAL
 }
 
 enum Gender {
