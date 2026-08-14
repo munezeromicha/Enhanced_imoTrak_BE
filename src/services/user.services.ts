@@ -130,18 +130,45 @@ export async function createUserService(data: CreateUserPayload) {
 }
 
 export const getUsersWithPositionsService = async (organization_id?: string) => {
+  const orgUnits = organization_id
+    ? await prisma.tbl_unit.findMany({
+        where: { organization_id },
+        select: { unit_id: true, unit_name: true },
+      })
+    : await prisma.tbl_unit.findMany({
+        select: { unit_id: true, unit_name: true },
+      });
+
+  const orgUnitIds = orgUnits.map((unit) => unit.unit_id);
+  const unitNameById = new Map(orgUnits.map((unit) => [unit.unit_id, unit.unit_name]));
+
   const users = await prisma.tbl_users.findMany({
     where: organization_id
       ? {
-          position_assignments: {
-            some: {
-              position: {
-                unit: {
-                  organization_id,
+          OR: [
+            {
+              position_assignments: {
+                some: {
+                  position: {
+                    unit: {
+                      organization_id,
+                    },
+                  },
                 },
               },
             },
-          },
+            {
+              auth: {
+                matched_unit_id: { in: orgUnitIds },
+              },
+            },
+            {
+              auth: {
+                sso_sub: { not: null },
+                inuma_unit: { not: null },
+              },
+            },
+          ],
         }
       : undefined,
     select: {
@@ -156,6 +183,7 @@ export const getUsersWithPositionsService = async (organization_id?: string) => 
           sso_sub: true,
           inuma_position: true,
           inuma_unit: true,
+          matched_unit_id: true,
           imotrak_access_approved_at: true,
           user_status: true,
         },
@@ -198,6 +226,10 @@ export const getUsersWithPositionsService = async (organization_id?: string) => 
     user_phone: user.user_phone,
     inuma_position: user.auth?.inuma_position ?? null,
     inuma_unit: user.auth?.inuma_unit ?? null,
+    matched_unit_id: user.auth?.matched_unit_id ?? null,
+    matched_unit_name: user.auth?.matched_unit_id
+      ? unitNameById.get(user.auth.matched_unit_id) ?? null
+      : null,
     is_sso_user: !!user.auth?.sso_sub,
     access_level: user.auth?.sso_sub
       ? user.auth.imotrak_access_approved_at
