@@ -46,14 +46,45 @@ async function assertApprover(userId: string) {
     );
   }
 
-  return user;
+  const approverUnitId =
+    user.auth.matched_unit_id ||
+    activeAssignment?.position.unit.unit_id ||
+    undefined;
+
+  return { user, approverUnitId };
+}
+
+function assertSameCampus(
+  approverUnitId: string | null | undefined,
+  targetUnitId: string | null | undefined
+) {
+  if (!approverUnitId || !targetUnitId || approverUnitId === targetUnitId) {
+    return;
+  }
+
+  throw new AppError(
+    'You can only manage Inuma users from your campus',
+    403
+  );
 }
 
 export async function listPendingInumaAccessRequests(params: {
   approverUserId: string;
   unitId?: string;
 }) {
-  await assertApprover(params.approverUserId);
+  const { approverUnitId } = await assertApprover(params.approverUserId);
+
+  if (params.unitId && approverUnitId && params.unitId !== approverUnitId) {
+    throw new AppError(
+      'You can only view Inuma users from your campus',
+      403
+    );
+  }
+
+  const campusUnitId = approverUnitId || params.unitId;
+  if (!campusUnitId) {
+    return [];
+  }
 
   const ssoUsers = await prisma.tbl_auth.findMany({
     where: {
@@ -61,7 +92,7 @@ export async function listPendingInumaAccessRequests(params: {
       imotrak_access_approved_at: null,
       user_status: { in: ['ACTIVE', 'PENDING_APPROVAL'] },
       user: { isNot: null },
-      ...(params.unitId ? { matched_unit_id: params.unitId } : {}),
+      matched_unit_id: campusUnitId,
     },
     include: {
       user: {
@@ -132,7 +163,7 @@ export async function approveInumaAccessRequest(params: {
   targetUserId: string;
   positionId?: string;
 }) {
-  await assertApprover(params.approverUserId);
+  const { approverUnitId } = await assertApprover(params.approverUserId);
 
   const targetUser = await prisma.tbl_users.findUnique({
     where: { user_id: params.targetUserId },
@@ -154,6 +185,8 @@ export async function approveInumaAccessRequest(params: {
     throw new AppError('This user already has full permissions granted', 400);
   }
 
+  assertSameCampus(approverUnitId, targetUser.auth.matched_unit_id);
+
   const positionId =
     params.positionId ||
     targetUser.auth.matched_position_id ||
@@ -174,6 +207,9 @@ export async function approveInumaAccessRequest(params: {
   if (!position || position.position_status !== 'ACTIVE') {
     throw new AppError('Selected position is not active', 400);
   }
+
+  assertSameCampus(approverUnitId, position.unit_id);
+  assertSameCampus(targetUser.auth.matched_unit_id, position.unit_id);
 
   await prisma.$transaction(async (tx) => {
     await tx.tbl_user_position_assignments.deleteMany({
@@ -209,7 +245,7 @@ export async function rejectInumaAccessRequest(params: {
   approverUserId: string;
   targetUserId: string;
 }) {
-  await assertApprover(params.approverUserId);
+  const { approverUnitId } = await assertApprover(params.approverUserId);
 
   const targetUser = await prisma.tbl_users.findUnique({
     where: { user_id: params.targetUserId },
@@ -219,6 +255,8 @@ export async function rejectInumaAccessRequest(params: {
   if (!targetUser?.auth) {
     throw new AppError('User not found', 404);
   }
+
+  assertSameCampus(approverUnitId, targetUser.auth.matched_unit_id);
 
   if (targetUser.auth.imotrak_access_approved_at) {
     throw new AppError('Cannot revoke access for a user with granted permissions here', 400);

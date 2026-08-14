@@ -6,6 +6,10 @@ import {
   listPendingInumaAccessRequests,
   rejectInumaAccessRequest,
 } from '../services/inuma-approval.service';
+import {
+  getInumaPositionsPreview,
+  syncInumaPositionsCatalog,
+} from '../services/inuma-positions-sync.service';
 
 interface AuthenticatedRequest extends Request {
   user?: {
@@ -83,6 +87,48 @@ export async function rejectInumaAccessController(
 
     res.status(200).json({
       message: 'User access request rejected',
+      data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function previewInumaPositionsController(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+) {
+  try {
+    const positions = await getInumaPositionsPreview();
+    res.status(200).json({
+      message: 'Inuma positions preview retrieved',
+      data: positions,
+      count: positions.length,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function syncInumaPositionsController(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+) {
+  try {
+    const organizationId =
+      typeof req.body?.organization_id === 'string'
+        ? req.body.organization_id
+        : req.user!.organization_id;
+
+    const result = await syncInumaPositionsCatalog({
+      approverUserId: req.user!.user_id,
+      organizationId,
+    });
+
+    res.status(200).json({
+      message: 'Inuma positions synced successfully',
       data: result,
     });
   } catch (error) {

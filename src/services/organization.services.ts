@@ -303,7 +303,7 @@ export async function getPositionsInUnitService({
   }
 
   const positions = await prisma.tbl_position.findMany({
-    where: { unit_id: unit_id },
+    where: { unit_id: unit_id, position_status: 'ACTIVE' },
     include: positionAssignmentsInclude,
   });
 
@@ -555,13 +555,16 @@ export const updatePositionService = async ({
 
 export async function getPositionsService(organization_id?: string) {
   const positions = await prisma.tbl_position.findMany({
-    where: organization_id
-      ? {
-          unit: {
-            organization_id: organization_id,
-          },
-        }
-      : undefined,
+    where: {
+      position_status: 'ACTIVE',
+      ...(organization_id
+        ? {
+            unit: {
+              organization_id: organization_id,
+            },
+          }
+        : {}),
+    },
     include: {
       unit: {
         include: {

@@ -4,10 +4,26 @@ import { attachPositionAccess } from '../middlewares/attachPositionAccess';
 import {
   approveInumaAccessController,
   listPendingInumaAccessController,
+  previewInumaPositionsController,
   rejectInumaAccessController,
+  syncInumaPositionsController,
 } from '../controllers/inuma-access.controllers';
 
 const inumaAccessRoutes = Router();
+
+inumaAccessRoutes.get(
+  '/positions/preview',
+  authenticateToken,
+  attachPositionAccess,
+  previewInumaPositionsController
+);
+
+inumaAccessRoutes.post(
+  '/sync-positions',
+  authenticateToken,
+  attachPositionAccess,
+  syncInumaPositionsController
+);
 
 inumaAccessRoutes.get(
   '/pending',

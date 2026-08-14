@@ -137,10 +137,6 @@ async function resolveUnitForInumaUser(
   return findFallbackUnit(organizationId);
 }
 
-async function findApproverUnit(organizationId: string) {
-  return findFallbackUnit(organizationId);
-}
-
 async function ensureApproverPosition(unitId: string) {
   const access = buildAssetsServicesApproverAccess();
   return prisma.tbl_position.upsert({
@@ -226,7 +222,11 @@ export async function syncInumaAccessForUser(
   const isApprover = isAuthorizedInumaApproverPosition(inumaPosition);
 
   if (isApprover) {
-    const approverUnit = await findApproverUnit(organizationId);
+    const approverUnit = await resolveUnitForInumaUser(
+      organizationId,
+      inumaUnit,
+      catalog
+    );
     if (!approverUnit) {
       throw new AppError(
         'Could not find UR-Fleet unit for Assets and Services administrator mapping',
