@@ -4,10 +4,12 @@ import { AppError } from '../utils/Error';
 import { generateCustomId } from '../utils/idGenerator';
 import { uploadToCloudinary } from '../utils/cloudinary';
 import {
+  addExistingPositionsToUnitService,
   assignUserToPositionService,
   createOrganizationService,
   createPositionService,
   createUnitService,
+  deleteOrganizationPermanentlyService,
   deleteOrganizationService,
   deleteUnitService,
   getOrganizationsService,
@@ -259,6 +261,42 @@ export const getPositionsInUnitController = async (
   }
 };
 
+export const addPositionsToUnitController = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    if (!req.user?.position_access?.positions?.create) {
+      throw new AppError('You do not have permission to add positions', 403);
+    }
+
+    const { unit_id } = req.params;
+    const rawIds = req.body?.position_ids;
+    const position_ids = Array.isArray(rawIds)
+      ? rawIds.filter((id: unknown): id is string => typeof id === 'string')
+      : typeof rawIds === 'string'
+        ? [rawIds]
+        : [];
+
+    const result = await addExistingPositionsToUnitService({
+      unit_id,
+      position_ids,
+      user: req.user,
+    });
+
+    res.status(200).json({
+      message:
+        result.added_count + result.reactivated_count > 0
+          ? 'Positions added to unit successfully'
+          : 'Selected positions are already in this unit',
+      data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const getUnitsController = async (
   req: AuthenticatedRequest,
   res: Response,
@@ -373,6 +411,39 @@ export const deleteOrganizationController = async (
     res.status(200).json({
       message: 'Organization deleted successfully',
       data:null
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const deleteOrganizationPermanentlyController = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { organization_id } = req.params;
+
+    // Provisioning rights plus delete rights — the same bar as hub SuperAdmin.
+    if (
+      !req.user?.position_access?.organizations?.create ||
+      !req.user?.position_access?.organizations?.delete
+    ) {
+      throw new AppError(
+        'Only SuperAdmin can permanently delete an organization',
+        403
+      );
+    }
+
+    const result = await deleteOrganizationPermanentlyService({
+      organization_id,
+      actorUserId: req.user.user_id,
+    });
+
+    res.status(200).json({
+      message: 'Organization and all related data deleted permanently',
+      data: result,
     });
   } catch (error) {
     next(error);

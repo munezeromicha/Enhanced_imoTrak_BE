@@ -324,6 +324,175 @@ export async function getPositionsInUnitService({
  * @param campusUnitId When set, the caller may only see this one unit — an
  *   Inuma user is pinned to the campus they signed in from.
  */
+/**
+ * Copies existing positions into a unit, using them as templates.
+ *
+ * A position row belongs to exactly one unit (`@@unique([position_name, unit_id])`),
+ * so "adding" an existing position means duplicating its name, description and
+ * permissions into the target unit. Names already present in the unit are
+ * skipped rather than treated as errors, which keeps the action repeatable.
+ *
+ * Sources may come from any organization the requester can already see — a role
+ * like "Accountant" is a template, not shared state. The copy becomes a new row
+ * owned by the target unit, so no data crosses an organization boundary. The
+ * boundaries that do matter are enforced below: the target unit must be yours
+ * (or you must be a hub admin), and the copied permissions are clamped to what
+ * you hold yourself.
+ */
+export async function addExistingPositionsToUnitService({
+  unit_id,
+  position_ids,
+  user,
+}: {
+  unit_id: string;
+  position_ids: string[];
+  user: AuthenticatedUser;
+}) {
+  if (!position_ids?.length) {
+    throw new AppError('Select at least one position to add', 400);
+  }
+
+  const unit = await prisma.tbl_unit.findUnique({
+    where: { unit_id },
+    include: { organization: true },
+  });
+
+  if (!unit) {
+    throw new AppError('Unit not found', 404);
+  }
+
+  const isSuperUser = !!user.position_access?.organizations?.create;
+  if (!isSuperUser && unit.organization_id !== user.organization_id) {
+    throw new AppError('You can only add positions to units in your organization', 403);
+  }
+
+  assertUnitInScope(user, unit_id, 'add positions to');
+
+  const sources = await prisma.tbl_position.findMany({
+    where: {
+      position_id: { in: position_ids },
+      position_status: 'ACTIVE',
+    },
+    include: { unit: true },
+  });
+
+  if (sources.length === 0) {
+    throw new AppError('No active positions found for the selected ids', 404);
+  }
+
+  // Hub admins browse every organization's positions and may template from any
+  // of them. Everyone else only ever sees their own organization's list, so
+  // sources are held to that — a hand-crafted id must not reveal a name and
+  // description from a tenant the caller cannot otherwise see.
+  if (!isSuperUser) {
+    const outsider = sources.find(
+      (position) => position.unit.organization_id !== unit.organization_id
+    );
+    if (outsider) {
+      throw new AppError(
+        'A selected position belongs to another organization',
+        400
+      );
+    }
+  }
+
+  // When the same role name exists in several organizations, prefer the target
+  // organization's own copy so its permission template wins.
+  sources.sort((a, b) => {
+    const aLocal = a.unit.organization_id === unit.organization_id ? 0 : 1;
+    const bLocal = b.unit.organization_id === unit.organization_id ? 0 : 1;
+    return aLocal - bLocal;
+  });
+
+  const existing = await prisma.tbl_position.findMany({
+    where: { unit_id },
+    select: { position_id: true, position_name: true, position_status: true },
+  });
+  const existingByName = new Map(
+    existing.map((position) => [normalizeCatalogName(position.position_name), position])
+  );
+
+  const added: string[] = [];
+  const reactivated: string[] = [];
+  const skipped: string[] = [];
+  const reactivateIds: string[] = [];
+  const toCreate: Prisma.tbl_positionCreateManyInput[] = [];
+  // Two source rows can carry the same role name from different units; the
+  // unit can only hold one, so the first wins and the rest are skipped.
+  const claimedNames = new Set<string>();
+
+  for (const source of sources) {
+    const normalized = normalizeCatalogName(source.position_name);
+
+    if (source.unit_id === unit_id || claimedNames.has(normalized)) {
+      skipped.push(source.position_name);
+      continue;
+    }
+
+    const match = existingByName.get(normalized);
+    if (match) {
+      if (match.position_status === 'ACTIVE') {
+        skipped.push(source.position_name);
+      } else {
+        reactivateIds.push(match.position_id);
+        reactivated.push(source.position_name);
+        claimedNames.add(normalized);
+      }
+      continue;
+    }
+
+    // Copying must not hand out permissions the requester lacks.
+    const access = clampPositionAccess(
+      user.position_access,
+      source.position_access as unknown as position_accesses
+    );
+
+    toCreate.push({
+      position_name: source.position_name,
+      position_description: source.position_description,
+      position_access: access as unknown as Prisma.InputJsonValue,
+      unit_id,
+      position_status: 'ACTIVE',
+    });
+    added.push(source.position_name);
+    claimedNames.add(normalized);
+  }
+
+  // Batched so adding the whole catalog at once stays a couple of statements
+  // rather than one round trip per position.
+  if (reactivateIds.length > 0 || toCreate.length > 0) {
+    await prisma.$transaction(async (tx) => {
+      if (reactivateIds.length > 0) {
+        await tx.tbl_position.updateMany({
+          where: { position_id: { in: reactivateIds } },
+          data: { position_status: 'ACTIVE' },
+        });
+      }
+      if (toCreate.length > 0) {
+        await tx.tbl_position.createMany({
+          data: toCreate,
+          skipDuplicates: true,
+        });
+      }
+    });
+  }
+
+  const positions = await prisma.tbl_position.findMany({
+    where: { unit_id, position_status: 'ACTIVE' },
+    include: positionAssignmentsInclude,
+  });
+
+  return {
+    added_count: added.length,
+    reactivated_count: reactivated.length,
+    skipped_count: skipped.length,
+    added,
+    reactivated,
+    skipped,
+    positions: positions.map(enrichPositionResponse),
+  };
+}
+
 export async function getUnitsService(organization_id?: string, campusUnitId?: string) {
   const units = await prisma.tbl_unit.findMany({
     where: {
@@ -417,6 +586,344 @@ export const deleteOrganizationService = async ({
     })
   ]);
 };
+
+/**
+ * Permanently erases an organization and everything belonging to it: units,
+ * positions, vehicles and their trip/issue/maintenance history, plus the
+ * accounts of people who work only for this organization.
+ *
+ * Someone holding a position in another organization as well keeps their
+ * account — only their assignments to this organization are removed — so
+ * deleting one tenant can never orphan another.
+ *
+ * This is irreversible; `deleteOrganizationService` remains the soft-delete.
+ */
+export async function deleteOrganizationPermanentlyService({
+  organization_id,
+  actorUserId,
+}: {
+  organization_id: string;
+  actorUserId: string;
+}) {
+  const organization = await prisma.tbl_organizations.findUnique({
+    where: { organization_id },
+  });
+
+  if (!organization) {
+    throw new AppError('Organization not found', 404);
+  }
+
+  const units = await prisma.tbl_unit.findMany({
+    where: { organization_id },
+    select: { unit_id: true },
+  });
+  const unitIds = units.map((unit) => unit.unit_id);
+
+  const positions = await prisma.tbl_position.findMany({
+    where: { unit_id: { in: unitIds } },
+    select: { position_id: true },
+  });
+  const positionIds = positions.map((position) => position.position_id);
+
+  // Members of this organization, split by whether they also work elsewhere.
+  const members = await prisma.tbl_users.findMany({
+    where: {
+      position_assignments: { some: { position_id: { in: positionIds } } },
+    },
+    select: {
+      user_id: true,
+      auth_id: true,
+      position_assignments: {
+        select: { position: { select: { unit_id: true } } },
+      },
+    },
+  });
+
+  const exclusiveMembers = members.filter((member) =>
+    member.position_assignments.every((assignment) =>
+      unitIds.includes(assignment.position.unit_id)
+    )
+  );
+
+  if (exclusiveMembers.some((member) => member.user_id === actorUserId)) {
+    throw new AppError(
+      'You cannot delete the organization your own account belongs to',
+      400
+    );
+  }
+
+  const userIds = exclusiveMembers.map((member) => member.user_id);
+  const authIds = exclusiveMembers.map((member) => member.auth_id);
+
+  const vehicles = await prisma.tbl_vehicles.findMany({
+    where: { organization_id },
+    select: { vehicle_id: true },
+  });
+  const vehicleIds = vehicles.map((vehicle) => vehicle.vehicle_id);
+
+  // Reservations reachable from this organization: booked by a departing member
+  // or made against one of its vehicles.
+  const reservations = await prisma.tbl_reservations.findMany({
+    where: {
+      OR: [
+        ...(userIds.length ? [{ user_id: { in: userIds } }] : []),
+        ...(vehicleIds.length
+          ? [{ reserved_vehicles: { some: { vehicle_id: { in: vehicleIds } } } }]
+          : []),
+      ],
+    },
+    select: { reservation_id: true },
+  });
+  const reservationIds = reservations.map((r) => r.reservation_id);
+
+  const reservedRows =
+    reservationIds.length || vehicleIds.length
+      ? await prisma.tbl_reserved_vehicles.findMany({
+          where: {
+            OR: [
+              ...(reservationIds.length
+                ? [{ reservation_id: { in: reservationIds } }]
+                : []),
+              ...(vehicleIds.length ? [{ vehicle_id: { in: vehicleIds } }] : []),
+            ],
+          },
+          select: { reserved_vehicle_id: true },
+        })
+      : [];
+  const reservedIds = reservedRows.map((r) => r.reserved_vehicle_id);
+
+  const issueIds = reservedIds.length
+    ? (
+        await prisma.tbl_vehicle_issues.findMany({
+          where: { reserved_vehicle_id: { in: reservedIds } },
+          select: { issue_id: true },
+        })
+      ).map((issue) => issue.issue_id)
+    : [];
+
+  const drivers = userIds.length
+    ? await prisma.tbl_drivers.findMany({
+        where: { user_id: { in: userIds } },
+        select: { driver_id: true },
+      })
+    : [];
+  const driverIds = drivers.map((driver) => driver.driver_id);
+
+  const maintenanceIds = (
+    await prisma.tbl_vehicle_maintenance.findMany({
+      where: {
+        OR: [
+          ...(vehicleIds.length ? [{ vehicle_id: { in: vehicleIds } }] : []),
+          ...(userIds.length ? [{ created_by_user_id: { in: userIds } }] : []),
+        ],
+      },
+      select: { maintenance_id: true },
+    })
+  ).map((record) => record.maintenance_id);
+
+  try {
+    await prisma.$transaction(
+      async (tx) => {
+        // 1) Drop the organization's own pointers so nothing blocks the delete.
+        await tx.tbl_organizations.update({
+          where: { organization_id },
+          data: { leader_unit_id: null, leader_position_id: null },
+        });
+
+        // 2) Maintenance (supervisors first — they reference users).
+        if (maintenanceIds.length) {
+          await tx.tbl_vehicle_maintenance_supervisors.deleteMany({
+            where: { maintenance_id: { in: maintenanceIds } },
+          });
+          await tx.tbl_vehicle_maintenance.deleteMany({
+            where: { maintenance_id: { in: maintenanceIds } },
+          });
+        }
+        if (userIds.length) {
+          await tx.tbl_vehicle_maintenance_supervisors.deleteMany({
+            where: { user_id: { in: userIds } },
+          });
+        }
+
+        // 3) Break the self-references among reserved vehicles and issues.
+        if (reservedIds.length) {
+          await tx.tbl_vehicle_issues.updateMany({
+            where: { replacement_reserved_vehicle_id: { in: reservedIds } },
+            data: { replacement_reserved_vehicle_id: null },
+          });
+          await tx.tbl_reserved_vehicles.updateMany({
+            where: { replaced_by_id: { in: reservedIds } },
+            data: { replaced_by_id: null },
+          });
+          await tx.tbl_reserved_vehicles.updateMany({
+            where: { reserved_vehicle_id: { in: reservedIds } },
+            data: { replaced_by_id: null },
+          });
+        }
+
+        // 4) Issues and their replies.
+        if (issueIds.length) {
+          await tx.tbl_vehicle_issue_replies.deleteMany({
+            where: { issue_id: { in: issueIds } },
+          });
+        }
+        if (driverIds.length) {
+          await tx.tbl_vehicle_issue_replies.deleteMany({
+            where: { driver_id: { in: driverIds } },
+          });
+          await tx.tbl_vehicle_issues.updateMany({
+            where: { reported_by_driver_id: { in: driverIds } },
+            data: { reported_by_driver_id: null },
+          });
+        }
+        if (userIds.length) {
+          await tx.tbl_vehicle_issue_replies.updateMany({
+            where: { user_id: { in: userIds } },
+            data: { user_id: null },
+          });
+          await tx.tbl_vehicle_issues.updateMany({
+            where: { issue_responder: { in: userIds } },
+            data: { issue_responder: null },
+          });
+          await tx.tbl_vehicle_issues.updateMany({
+            where: { reported_by_user_id: { in: userIds } },
+            data: { reported_by_user_id: null },
+          });
+        }
+        if (issueIds.length) {
+          await tx.tbl_vehicle_issues.deleteMany({
+            where: { issue_id: { in: issueIds } },
+          });
+        }
+
+        // 5) Trip records.
+        if (reservedIds.length) {
+          await tx.tbl_reserved_vehicle_drivers.deleteMany({
+            where: { reserved_vehicle_id: { in: reservedIds } },
+          });
+          await tx.tbl_vehicle_locations.deleteMany({
+            where: { reserved_vehicle_id: { in: reservedIds } },
+          });
+        }
+        if (driverIds.length) {
+          await tx.tbl_reserved_vehicle_drivers.deleteMany({
+            where: { driver_id: { in: driverIds } },
+          });
+        }
+        if (vehicleIds.length) {
+          await tx.tbl_vehicle_locations.deleteMany({
+            where: { vehicle_id: { in: vehicleIds } },
+          });
+        }
+        if (reservedIds.length) {
+          await tx.tbl_reserved_vehicles.deleteMany({
+            where: { reserved_vehicle_id: { in: reservedIds } },
+          });
+        }
+
+        // 6) Reservations — clear reviewer/approver links held by leavers first.
+        if (userIds.length) {
+          await tx.tbl_reservations.updateMany({
+            where: { approved_by: { in: userIds } },
+            data: { approved_by: null },
+          });
+          await tx.tbl_reservations.updateMany({
+            where: { canceled_by: { in: userIds } },
+            data: { canceled_by: null },
+          });
+          await tx.tbl_reservations.updateMany({
+            where: { completed_by: { in: userIds } },
+            data: { completed_by: null },
+          });
+          await tx.tbl_reservations.updateMany({
+            where: { reviewed_by: { in: userIds } },
+            data: { reviewed_by: null },
+          });
+        }
+        if (reservationIds.length) {
+          await tx.tbl_reservations.deleteMany({
+            where: { reservation_id: { in: reservationIds } },
+          });
+        }
+
+        // 7) Vehicles (gps devices cascade) and organization vehicle types.
+        if (vehicleIds.length) {
+          await tx.tbl_vehicles.deleteMany({
+            where: { vehicle_id: { in: vehicleIds } },
+          });
+        }
+        await tx.tbl_vehicle_types.deleteMany({ where: { organization_id } });
+
+        // 8) Driver profiles of departing members.
+        if (driverIds.length) {
+          await tx.tbl_drivers.deleteMany({
+            where: { driver_id: { in: driverIds } },
+          });
+        }
+
+        // 9) Position assignments: everything in this organization, which also
+        //    releases members who stay because they work elsewhere too.
+        if (positionIds.length) {
+          await tx.tbl_user_position_assignments.deleteMany({
+            where: { position_id: { in: positionIds } },
+          });
+        }
+
+        // 10) Departing members' logs, notifications and sessions.
+        if (userIds.length) {
+          await tx.tbl_audit_logs.deleteMany({ where: { user_id: { in: userIds } } });
+          await tx.tbl_notifications.deleteMany({
+            where: { user_id: { in: userIds } },
+          });
+          await tx.tbl_jwt_blacklist.deleteMany({
+            where: { user_id: { in: userIds } },
+          });
+          await tx.tbl_users.updateMany({
+            where: { updated_by_user_id: { in: userIds } },
+            data: { updated_by_user_id: null },
+          });
+          await tx.tbl_users.deleteMany({ where: { user_id: { in: userIds } } });
+          await tx.tbl_auth.deleteMany({ where: { auth_id: { in: authIds } } });
+        }
+
+        // 11) Finally the structure itself.
+        if (positionIds.length) {
+          await tx.tbl_position.deleteMany({
+            where: { position_id: { in: positionIds } },
+          });
+        }
+        await tx.tbl_unit.deleteMany({ where: { organization_id } });
+        await tx.tbl_organizations.delete({ where: { organization_id } });
+      },
+      { maxWait: 15_000, timeout: 120_000 }
+    );
+  } catch (error: unknown) {
+    const prismaError = error as { code?: string; message?: string };
+    if (prismaError?.code === 'P2003') {
+      throw new AppError(
+        'Cannot delete organization: related records still reference it.',
+        409
+      );
+    }
+    if (
+      prismaError?.code === 'P2028' ||
+      prismaError?.message?.includes('Transaction already closed')
+    ) {
+      throw new AppError('Organization delete timed out. Please try again.', 504);
+    }
+    throw error;
+  }
+
+  return {
+    organization_id,
+    organization_name: organization.organization_name,
+    deleted_units: unitIds.length,
+    deleted_positions: positionIds.length,
+    deleted_vehicles: vehicleIds.length,
+    deleted_users: userIds.length,
+    released_users: members.length - userIds.length,
+  };
+}
 
 export const getSingleUnitService = async ({ unit_id, user }: GetUnitParams) => {
   const unit = await prisma.tbl_unit.findUnique({

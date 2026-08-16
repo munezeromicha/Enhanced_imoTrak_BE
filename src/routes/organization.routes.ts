@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { assignUserToPositionController, createOrganizationController, createPositionController, createUnitController, deleteOrganizationController, deletePositionController, deleteUnitController, getOrganizationsController, getPositionsController, getPositionsInUnitController, getSingleOrganizationController, getSinglePositionController, getSingleUnitController, getUnitsController, getUnitsInOrganization, updateOrganizationController, updatePositionController, updateUnitController } from '../controllers/organization.controllers';
+import { addPositionsToUnitController, assignUserToPositionController, createOrganizationController, createPositionController, createUnitController, deleteOrganizationController, deleteOrganizationPermanentlyController, deletePositionController, deleteUnitController, getOrganizationsController, getPositionsController, getPositionsInUnitController, getSingleOrganizationController, getSinglePositionController, getSingleUnitController, getUnitsController, getUnitsInOrganization, updateOrganizationController, updatePositionController, updateUnitController } from '../controllers/organization.controllers';
 import { authenticateToken } from '../middlewares/auth.middleware';
 import { attachPositionAccess } from '../middlewares/attachPositionAccess';
 import { validateBody } from '../middlewares/bodyValidator';
@@ -332,6 +332,56 @@ organizationRoutes.get(
 
 /**
  * @swagger
+ * /v2/organizations/units/{unit_id}/positions:
+ *   post:
+ *     summary: Add existing organization positions to a unit
+ *     description: >
+ *       Copies the selected positions (name, description and permissions) into
+ *       the unit. Positions already present are skipped. Permissions are clamped
+ *       to what the requester holds.
+ *     tags:
+ *       - Positions
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: unit_id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [position_ids]
+ *             properties:
+ *               position_ids:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                   format: uuid
+ *     responses:
+ *       200:
+ *         description: Positions added to unit
+ *       400:
+ *         description: No positions selected, or a position from another organization
+ *       403:
+ *         description: Missing positions.create permission or unit outside your scope
+ *       404:
+ *         description: Unit or positions not found
+ */
+organizationRoutes.post(
+  '/units/:unit_id/positions',
+  authenticateToken,
+  attachPositionAccess,
+  addPositionsToUnitController
+);
+
+/**
+ * @swagger
  * /v2/organizations/positions:
  *   post:
  *     summary: Create a new position in a unit
@@ -531,6 +581,47 @@ organizationRoutes.delete(
   authenticateToken,
   attachPositionAccess,
   deleteOrganizationController
+);
+
+/**
+ * @swagger
+ * /v2/organizations/{organization_id}/permanent:
+ *   delete:
+ *     summary: Permanently delete an organization and all of its data
+ *     description: >
+ *       Irreversibly removes the organization, its units, positions, vehicles
+ *       and full trip/issue/maintenance history, plus the accounts of people who
+ *       work only for this organization. People who also hold a position in
+ *       another organization keep their account and only lose the assignments
+ *       here. Requires hub SuperAdmin (organizations.create + organizations.delete).
+ *     tags:
+ *       - Organizations
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: organization_id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     responses:
+ *       200:
+ *         description: Organization and related data deleted permanently
+ *       400:
+ *         description: You cannot delete the organization your own account belongs to
+ *       403:
+ *         description: Only SuperAdmin can permanently delete an organization
+ *       404:
+ *         description: Organization not found
+ *       409:
+ *         description: Related records still reference this organization
+ */
+organizationRoutes.delete(
+  '/:organization_id/permanent',
+  authenticateToken,
+  attachPositionAccess,
+  deleteOrganizationPermanentlyController
 );
 
 /**
