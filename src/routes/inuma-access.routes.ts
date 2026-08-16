@@ -3,6 +3,7 @@ import { authenticateToken } from '../middlewares/auth.middleware';
 import { attachPositionAccess } from '../middlewares/attachPositionAccess';
 import {
   approveInumaAccessController,
+  assignInumaUserPositionController,
   listPendingInumaAccessController,
   previewInumaPositionsController,
   rejectInumaAccessController,
@@ -37,6 +38,14 @@ inumaAccessRoutes.post(
   authenticateToken,
   attachPositionAccess,
   approveInumaAccessController
+);
+
+// Reassign an already-approved campus user to a different existing position.
+inumaAccessRoutes.post(
+  '/:userId/position',
+  authenticateToken,
+  attachPositionAccess,
+  assignInumaUserPositionController
 );
 
 inumaAccessRoutes.post(

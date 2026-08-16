@@ -214,6 +214,17 @@ export async function syncInumaAccessForUser(
   const catalog = await getInumaCatalog();
   const organizationId = await resolveInumaOrganizationId();
 
+  // Campus units must exist before the user is matched to one — otherwise
+  // every campus falls back to UR-Fleet and campus scoping collapses.
+  try {
+    const { ensureInumaCampusesListed } = await import(
+      './inuma-positions-sync.service'
+    );
+    await ensureInumaCampusesListed(organizationId);
+  } catch (error) {
+    console.warn('Inuma campuses could not be listed during sign-in:', error);
+  }
+
   const inumaPosition = identity.position?.trim() || auth.inuma_position || undefined;
   const inumaUnit = identity.unit?.trim() || auth.inuma_unit || undefined;
 

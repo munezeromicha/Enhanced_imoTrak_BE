@@ -4,6 +4,7 @@ import { position_accesses } from '../types/access';
 import {
   approveInumaAccessRequest,
   listPendingInumaAccessRequests,
+  reassignInumaUserPosition,
   rejectInumaAccessRequest,
 } from '../services/inuma-approval.service';
 import {
@@ -64,6 +65,34 @@ export async function approveInumaAccessController(
 
     res.status(200).json({
       message: 'User access approved successfully',
+      data: user,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function assignInumaUserPositionController(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+) {
+  try {
+    const { userId } = req.params;
+    if (!userId) throw new AppError('Missing user id', 400);
+
+    const positionId =
+      typeof req.body?.position_id === 'string' ? req.body.position_id : '';
+    if (!positionId) throw new AppError('position_id is required', 400);
+
+    const user = await reassignInumaUserPosition({
+      approverUserId: req.user!.user_id,
+      targetUserId: userId,
+      positionId,
+    });
+
+    res.status(200).json({
+      message: 'Position assigned successfully',
       data: user,
     });
   } catch (error) {

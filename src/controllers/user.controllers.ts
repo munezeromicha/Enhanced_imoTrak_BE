@@ -3,6 +3,7 @@ import { createUserService, deleteUserPermanentlyService, getSingleUserWithPosit
 import { AppError } from '../utils/Error';
 import { uploadToCloudinary } from '../utils/cloudinary';
 import { position_accesses } from '../types/access';
+import { resolveCampusScope } from '../utils/campusScope';
 
 interface AuthenticatedRequest extends Request {
   user?: {
@@ -10,6 +11,12 @@ interface AuthenticatedRequest extends Request {
     email: string;
     position_access: position_accesses
     organization_id: string;
+    // Attached by attachPositionAccess — see utils/campusScope.
+    unit_id?: string | null;
+    inuma_position?: string | null;
+    inuma_unit?: string | null;
+    matched_unit_id?: string | null;
+    is_sso_user?: boolean;
   };
 }
 
@@ -105,14 +112,19 @@ export const getUsersWithPositionsController = async (
       throw new AppError('You do not have permission to view users', 403);
     }
 
-    const adminAccess = req.user?.position_access.organizations.create;
+    const scope = resolveCampusScope(req.user);
+    const adminAccess = scope.isSuperAdmin;
     const organization_id = req.user.organization_id;
 
     if (!organization_id) {
       throw new AppError('Organization ID not found in user token', 400);
     }
 
-    const result = await getUsersWithPositionsService(adminAccess ? undefined : organization_id);
+    // An Inuma user only ever sees colleagues from their own campus.
+    const result = await getUsersWithPositionsService(
+      adminAccess ? undefined : organization_id,
+      scope.campusUnitId
+    );
 
     res.status(200).json({ 
       message:"User retrieved successfully",
@@ -134,8 +146,14 @@ export const getSingleUserWithPositionsController = async (
     }
 
     const { user_id } = req.params;
+    const scope = resolveCampusScope(req.user);
 
-    const result = await getSingleUserWithPositionsService(user_id);
+    const result = await getSingleUserWithPositionsService(user_id, {
+      requesterUserId: req.user.user_id,
+      isSuperAdmin: scope.isSuperAdmin,
+      organizationId: req.user.organization_id,
+      campusUnitId: scope.campusUnitId,
+    });
 
     res.status(200).json({
       message: 'User retrieved successfully',

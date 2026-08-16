@@ -27,6 +27,7 @@ import { updatePositionSchema } from '../schemas/position.schema';
 import { position_accesses } from '../types/access';
 import { clampPositionAccess, isPositionAccessSubset } from '../utils/positionAccessUtils';
 import { ensureInumaPositionsListed, ensureInumaCampusesListed } from '../services/inuma-positions-sync.service';
+import { resolveCampusScope } from '../utils/campusScope';
 
 const prisma = new PrismaClient();
 
@@ -37,6 +38,12 @@ interface AuthenticatedRequest extends Request {
     position_id: string;
     organization_id: string;
     position_access: position_accesses;
+    // Attached by attachPositionAccess — see utils/campusScope.
+    unit_id?: string | null;
+    inuma_position?: string | null;
+    inuma_unit?: string | null;
+    matched_unit_id?: string | null;
+    is_sso_user?: boolean;
   };
 }
 
@@ -240,6 +247,7 @@ export const getPositionsInUnitController = async (
       unit_id,
       requesterOrgId,
       hasOrgViewAccess,
+      user: req.user,
     });
 
     res.status(200).json({
@@ -261,7 +269,8 @@ export const getUnitsController = async (
       throw new AppError('You do not have permission to view units', 403);
     }
 
-    const adminAccess = req.user?.position_access.organizations.create;
+    const scope = resolveCampusScope(req.user);
+    const adminAccess = scope.isSuperAdmin;
     const organization_id = req.user.organization_id;
 
     if (!organization_id) {
@@ -274,7 +283,11 @@ export const getUnitsController = async (
       console.warn('Inuma campuses could not be listed automatically:', error);
     }
 
-    const units = await getUnitsService(adminAccess ? undefined : organization_id);
+    // An Inuma user sees their own campus and nothing else.
+    const units = await getUnitsService(
+      adminAccess ? undefined : organization_id,
+      scope.campusUnitId
+    );
 
     res.status(200).json({ message: 'Getting units successful', data: units });
   } catch (error) {
@@ -538,7 +551,10 @@ export const getPositionsController = async (
     } catch (error) {
       console.warn('Inuma positions could not be listed automatically:', error);
     }
-    
+
+    // Deliberately not campus-scoped: the Inuma position catalog is the pool a
+    // campus administrator assigns from, so every synced position stays visible.
+
     const result = await getPositionsService (req.user?.position_access?.organizations.create? undefined : req.user.organization_id);
     return res.status(200).json({
       message: 'positions retrieved successfully',

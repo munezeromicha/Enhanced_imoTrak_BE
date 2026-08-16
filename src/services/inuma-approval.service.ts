@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client';
+import { Prisma, PrismaClient } from '@prisma/client';
 import { isAuthorizedInumaApproverPosition } from '../constants/inuma';
 import { AppError } from '../utils/Error';
 import { canManageInumaAccess } from './inuma-access.service';
@@ -6,6 +6,11 @@ import { userPositionAssignmentsInclude } from '../utils/userPositions';
 
 const prisma = new PrismaClient();
 
+/**
+ * Confirms the caller may manage Inuma access and resolves the campus they
+ * manage. An Assets and Services Management administrator is responsible for
+ * one campus, so every list and every grant below is bounded by `campusUnitId`.
+ */
 async function assertApprover(userId: string) {
   const user = await prisma.tbl_users.findUnique({
     where: { user_id: userId },
@@ -46,14 +51,85 @@ async function assertApprover(userId: string) {
     );
   }
 
-  return user;
+  const campusUnitId =
+    user.auth.matched_unit_id || activeAssignment?.position.unit_id || undefined;
+
+  return { user, campusUnitId };
+}
+
+/** A campus administrator may only act on users matched to that same campus. */
+function assertTargetInCampus(
+  target: { matched_unit_id: string | null },
+  campusUnitId: string | undefined,
+  positionUnitIds: string[]
+) {
+  if (!campusUnitId) return;
+
+  const inCampus =
+    target.matched_unit_id === campusUnitId || positionUnitIds.includes(campusUnitId);
+
+  if (!inCampus) {
+    throw new AppError(
+      'This user belongs to another campus. You can only manage users from your own campus.',
+      403
+    );
+  }
+}
+
+/**
+ * Inuma catalog positions are stored once, on the catalog unit. Granting one to
+ * a campus user copies it into that campus so the user stays discoverable by
+ * their campus administrator instead of moving to the catalog unit.
+ */
+async function materializePositionInCampus(
+  position: Prisma.tbl_positionGetPayload<{ include: { unit: true } }>,
+  campusUnitId: string | undefined
+) {
+  if (!campusUnitId || position.unit_id === campusUnitId) {
+    return position.position_id;
+  }
+
+  const campusUnit = await prisma.tbl_unit.findUnique({
+    where: { unit_id: campusUnitId },
+  });
+
+  // Never copy a position across organizations.
+  if (!campusUnit || campusUnit.organization_id !== position.unit.organization_id) {
+    return position.position_id;
+  }
+
+  const campusPosition = await prisma.tbl_position.upsert({
+    where: {
+      position_name_unit_id: {
+        position_name: position.position_name,
+        unit_id: campusUnitId,
+      },
+    },
+    update: {
+      position_access: position.position_access as Prisma.InputJsonValue,
+      position_status: 'ACTIVE',
+    },
+    create: {
+      position_name: position.position_name,
+      position_description: position.position_description,
+      position_access: position.position_access as Prisma.InputJsonValue,
+      unit_id: campusUnitId,
+      position_status: 'ACTIVE',
+    },
+  });
+
+  return campusPosition.position_id;
 }
 
 export async function listPendingInumaAccessRequests(params: {
   approverUserId: string;
   unitId?: string;
 }) {
-  await assertApprover(params.approverUserId);
+  const { campusUnitId } = await assertApprover(params.approverUserId);
+
+  // The approver's own campus always wins over the requested filter — asking
+  // for another campus must not widen what comes back.
+  const unitFilter = campusUnitId || params.unitId;
 
   const ssoUsers = await prisma.tbl_auth.findMany({
     where: {
@@ -61,7 +137,7 @@ export async function listPendingInumaAccessRequests(params: {
       imotrak_access_approved_at: null,
       user_status: { in: ['ACTIVE', 'PENDING_APPROVAL'] },
       user: { isNot: null },
-      ...(params.unitId ? { matched_unit_id: params.unitId } : {}),
+      ...(unitFilter ? { matched_unit_id: unitFilter } : {}),
     },
     include: {
       user: {
@@ -127,18 +203,28 @@ export async function listPendingInumaAccessRequests(params: {
   });
 }
 
-export async function approveInumaAccessRequest(params: {
+/**
+ * Puts a campus user on an ImoTrak position, copying the chosen position into
+ * the administrator's campus when it comes from the shared Inuma catalog.
+ *
+ * @param requireUnapproved Guards the first-time grant so an already-approved
+ *   user is not silently re-granted; the reassign entry point clears it.
+ */
+async function grantCampusPosition(params: {
   approverUserId: string;
   targetUserId: string;
   positionId?: string;
+  requireUnapproved: boolean;
 }) {
-  await assertApprover(params.approverUserId);
+  const { campusUnitId } = await assertApprover(params.approverUserId);
 
   const targetUser = await prisma.tbl_users.findUnique({
     where: { user_id: params.targetUserId },
     include: {
       auth: true,
-      position_assignments: true,
+      position_assignments: {
+        include: { position: true },
+      },
     },
   });
 
@@ -146,11 +232,17 @@ export async function approveInumaAccessRequest(params: {
     throw new AppError('User not found', 404);
   }
 
+  assertTargetInCampus(
+    targetUser.auth,
+    campusUnitId,
+    targetUser.position_assignments.map((assignment) => assignment.position.unit_id)
+  );
+
   if (!targetUser.auth.sso_sub) {
     throw new AppError('This workflow only applies to Inuma SSO users', 400);
   }
 
-  if (targetUser.auth.imotrak_access_approved_at) {
+  if (params.requireUnapproved && targetUser.auth.imotrak_access_approved_at) {
     throw new AppError('This user already has full permissions granted', 400);
   }
 
@@ -175,6 +267,9 @@ export async function approveInumaAccessRequest(params: {
     throw new AppError('Selected position is not active', 400);
   }
 
+  const grantedPositionId = await materializePositionInCampus(position, campusUnitId);
+  const grantedUnitId = campusUnitId || position.unit_id;
+
   await prisma.$transaction(async (tx) => {
     await tx.tbl_user_position_assignments.deleteMany({
       where: { user_id: targetUser.user_id },
@@ -183,7 +278,7 @@ export async function approveInumaAccessRequest(params: {
     await tx.tbl_user_position_assignments.create({
       data: {
         user_id: targetUser.user_id,
-        position_id: positionId,
+        position_id: grantedPositionId,
       },
     });
 
@@ -191,9 +286,10 @@ export async function approveInumaAccessRequest(params: {
       where: { auth_id: targetUser.auth!.auth_id },
       data: {
         user_status: 'ACTIVE',
-        matched_position_id: positionId,
-        matched_unit_id: position.unit_id,
-        imotrak_access_approved_at: new Date(),
+        matched_position_id: grantedPositionId,
+        matched_unit_id: grantedUnitId,
+        imotrak_access_approved_at:
+          targetUser.auth!.imotrak_access_approved_at || new Date(),
         imotrak_access_approved_by_user_id: params.approverUserId,
       },
     });
@@ -205,20 +301,55 @@ export async function approveInumaAccessRequest(params: {
   });
 }
 
+/** First-time grant: turns a limited Inuma sign-in into a full ImoTrak position. */
+export async function approveInumaAccessRequest(params: {
+  approverUserId: string;
+  targetUserId: string;
+  positionId?: string;
+}) {
+  return grantCampusPosition({ ...params, requireUnapproved: true });
+}
+
+/**
+ * Moves an already-approved campus user to a different existing position —
+ * the ongoing "manage my campus" action, as opposed to the one-off grant.
+ */
+export async function reassignInumaUserPosition(params: {
+  approverUserId: string;
+  targetUserId: string;
+  positionId: string;
+}) {
+  if (!params.positionId) {
+    throw new AppError('Select an ImoTrak position to assign.', 400);
+  }
+  return grantCampusPosition({ ...params, requireUnapproved: false });
+}
+
 export async function rejectInumaAccessRequest(params: {
   approverUserId: string;
   targetUserId: string;
 }) {
-  await assertApprover(params.approverUserId);
+  const { campusUnitId } = await assertApprover(params.approverUserId);
 
   const targetUser = await prisma.tbl_users.findUnique({
     where: { user_id: params.targetUserId },
-    include: { auth: true },
+    include: {
+      auth: true,
+      position_assignments: {
+        include: { position: true },
+      },
+    },
   });
 
   if (!targetUser?.auth) {
     throw new AppError('User not found', 404);
   }
+
+  assertTargetInCampus(
+    targetUser.auth,
+    campusUnitId,
+    targetUser.position_assignments.map((assignment) => assignment.position.unit_id)
+  );
 
   if (targetUser.auth.imotrak_access_approved_at) {
     throw new AppError('Cannot revoke access for a user with granted permissions here', 400);

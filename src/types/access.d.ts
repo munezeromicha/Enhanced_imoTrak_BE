@@ -69,6 +69,12 @@ export interface AuthenticatedUser {
   organization_id: string;
   position_id: string;
   position_access?: PositionAccess;
+  /** Attached by attachPositionAccess — see utils/campusScope. */
+  unit_id?: string | null;
+  inuma_position?: string | null;
+  inuma_unit?: string | null;
+  matched_unit_id?: string | null;
+  is_sso_user?: boolean;
 }
 
 export interface AuthenticatedRequest extends Request {

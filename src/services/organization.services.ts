@@ -11,6 +11,7 @@ import {
 import { AuthenticatedUser, position_accesses } from '../types/access';
 import { clampPositionAccess, isPositionAccessSubset } from '../utils/positionAccessUtils';
 import { INUMA_APPROVER_IMOTRAK_POSITION, INUMA_APPROVER_UNIT_NAMES, normalizeCatalogName } from '../constants/inuma';
+import { assertUnitInScope } from '../utils/campusScope';
 const prisma = new PrismaClient();
 
 interface CreateOrgPayload {
@@ -40,6 +41,7 @@ interface GetPositionsInUnitPayload {
   unit_id: string;
   requesterOrgId: string;
   hasOrgViewAccess: boolean;
+  user?: AuthenticatedUser;
 }
 
 interface GetOrgParams {
@@ -293,6 +295,7 @@ export async function getPositionsInUnitService({
   unit_id,
   requesterOrgId,
   hasOrgViewAccess,
+  user,
 }: GetPositionsInUnitPayload) {
   const unit = await prisma.tbl_unit.findUnique({
     where: { unit_id: unit_id },
@@ -307,6 +310,8 @@ export async function getPositionsInUnitService({
     throw new AppError('Access denied: Unit is outside your organization', 403);
   }
 
+  assertUnitInScope(user, unit_id, 'view positions for');
+
   const positions = await prisma.tbl_position.findMany({
     where: { unit_id: unit_id, position_status: 'ACTIVE' },
     include: positionAssignmentsInclude,
@@ -315,9 +320,16 @@ export async function getPositionsInUnitService({
   return positions.map(enrichPositionResponse);
 }
 
-export async function getUnitsService(organization_id?: string) {
+/**
+ * @param campusUnitId When set, the caller may only see this one unit — an
+ *   Inuma user is pinned to the campus they signed in from.
+ */
+export async function getUnitsService(organization_id?: string, campusUnitId?: string) {
   const units = await prisma.tbl_unit.findMany({
-    where: organization_id ? { organization_id } : undefined,
+    where: {
+      ...(organization_id ? { organization_id } : {}),
+      ...(campusUnitId ? { unit_id: campusUnitId } : {}),
+    },
     include: {
       positions: true,
     },
@@ -423,6 +435,8 @@ export const getSingleUnitService = async ({ unit_id, user }: GetUnitParams) => 
     throw new AppError('You do not have permission to access this unit', 403);
   }
 
+  assertUnitInScope(user, unit_id, 'view');
+
   return unit;
 };
 
@@ -440,6 +454,8 @@ export const updateUnitService = async ({ unit_id, user, data }: UpdateUnitParam
   if (!userOrgId || unit.organization_id !== userOrgId && !user.position_access?.organizations.create) {
     throw new AppError('You can only update units within your organization', 403);
   }
+
+  assertUnitInScope(user, unit_id, 'update');
 
   const updatedUnit = await prisma.tbl_unit.update({
     where: { unit_id },
@@ -462,6 +478,8 @@ export const deleteUnitService = async ({ unit_id, user }: DeleteUnitParams) => 
   }
 
   const userOrgId = user.organization_id;
+
+  assertUnitInScope(user, unit_id, 'delete');
 
   if (!user.position_access.organizations?.create && unit.organization_id !== userOrgId) {
     throw new AppError('You can only delete units within your organization', 403);

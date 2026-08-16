@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client';
+import { Prisma, PrismaClient } from '@prisma/client';
 import { sendInvitationEmail } from '../utils/sendCredentials';
 import { generateRandomPassword } from '../utils/password';
 import argon2 from 'argon2';
@@ -129,7 +129,16 @@ export async function createUserService(data: CreateUserPayload) {
   return result.user;
 }
 
-export const getUsersWithPositionsService = async (organization_id?: string) => {
+/**
+ * @param campusUnitId When set, only users belonging to that campus are
+ *   returned — either matched there by Inuma at sign-in or holding a position
+ *   in it. An Assets and Services Management administrator manages their own
+ *   campus, so they must not see users from any other campus.
+ */
+export const getUsersWithPositionsService = async (
+  organization_id?: string,
+  campusUnitId?: string
+) => {
   const orgUnits = organization_id
     ? await prisma.tbl_unit.findMany({
         where: { organization_id },
@@ -142,35 +151,48 @@ export const getUsersWithPositionsService = async (organization_id?: string) => 
   const orgUnitIds = orgUnits.map((unit) => unit.unit_id);
   const unitNameById = new Map(orgUnits.map((unit) => [unit.unit_id, unit.unit_name]));
 
-  const users = await prisma.tbl_users.findMany({
-    where: organization_id
-      ? {
-          OR: [
-            {
-              position_assignments: {
-                some: {
-                  position: {
-                    unit: {
-                      organization_id,
-                    },
+  const campusFilter: Prisma.tbl_usersWhereInput | undefined = campusUnitId
+    ? {
+        OR: [
+          { auth: { matched_unit_id: campusUnitId } },
+          {
+            position_assignments: {
+              some: { position: { unit_id: campusUnitId } },
+            },
+          },
+        ],
+      }
+    : undefined;
+
+  const organizationFilter: Prisma.tbl_usersWhereInput | undefined = organization_id
+    ? {
+        OR: [
+          {
+            position_assignments: {
+              some: {
+                position: {
+                  unit: {
+                    organization_id,
                   },
                 },
               },
             },
-            {
-              auth: {
-                matched_unit_id: { in: orgUnitIds },
-              },
+          },
+          {
+            auth: {
+              matched_unit_id: { in: orgUnitIds },
             },
-            {
-              auth: {
-                sso_sub: { not: null },
-                inuma_unit: { not: null },
-              },
-            },
-          ],
-        }
-      : undefined,
+          },
+        ],
+      }
+    : undefined;
+
+  const filters = [organizationFilter, campusFilter].filter(
+    (filter): filter is Prisma.tbl_usersWhereInput => !!filter
+  );
+
+  const users = await prisma.tbl_users.findMany({
+    where: filters.length > 0 ? { AND: filters } : undefined,
     select: {
       user_id: true,
       first_name: true,
@@ -250,13 +272,27 @@ export const getUsersWithPositionsService = async (organization_id?: string) => 
   }));
 };
 
-export const getSingleUserWithPositionsService = async (user_id: string) => {
+/**
+ * @param scope Reader's reach. Without it the lookup is unrestricted, so
+ *   callers serving an HTTP request must always pass one — `users.view` alone
+ *   must not expose a user from another organization or campus.
+ */
+export const getSingleUserWithPositionsService = async (
+  user_id: string,
+  scope?: {
+    requesterUserId: string;
+    isSuperAdmin: boolean;
+    organizationId?: string;
+    campusUnitId?: string;
+  }
+) => {
   const user = await prisma.tbl_users.findUnique({
     where: { user_id },
     include: {
       auth: {
         select: {
           email: true,
+          matched_unit_id: true,
         },
       },
       ...userPositionAssignmentsInclude,
@@ -265,6 +301,28 @@ export const getSingleUserWithPositionsService = async (user_id: string) => {
 
   if (!user) {
     throw new AppError('User not found', 404);
+  }
+
+  if (scope && !scope.isSuperAdmin && scope.requesterUserId !== user_id) {
+    const positions = mapAssignmentsToPositions(user);
+
+    if (scope.organizationId) {
+      const inOrganization = positions.some(
+        (position) => position.unit.organization.organization_id === scope.organizationId
+      );
+      if (!inOrganization) {
+        throw new AppError('You do not have permission to view this user', 403);
+      }
+    }
+
+    if (scope.campusUnitId) {
+      const inCampus =
+        user.auth?.matched_unit_id === scope.campusUnitId ||
+        positions.some((position) => position.unit.unit_id === scope.campusUnitId);
+      if (!inCampus) {
+        throw new AppError('You do not have permission to view this user', 403);
+      }
+    }
   }
 
   const { auth, position_assignments, ...rest } = user;
