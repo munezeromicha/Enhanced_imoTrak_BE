@@ -226,67 +226,6 @@ export async function getInumaPositionsPreview() {
   return catalog.positions.filter((position) => position.is_active !== false);
 }
 
-/** Ensure Inuma catalog positions exist in ImoTrak so they appear on the Positions page. */
-export async function ensureInumaPositionsListed(organizationId?: string): Promise<void> {
-  if (!process.env.INUMA_API_KEY?.trim()) return;
-
-  // Same tenant guard as the campus sync — Inuma positions are UR's positions.
-  const orgId = await resolveInumaSyncTarget(organizationId);
-  if (!orgId) return;
-
-  const catalogUnit = await findCatalogUnit(orgId);
-  const catalog = await getInumaCatalog();
-  const inumaPositions = catalog.positions.filter(
-    (position) => position.is_active !== false && position.name?.trim()
-  );
-  if (inumaPositions.length === 0) return;
-
-  const existing = await prisma.tbl_position.findMany({
-    where: { unit_id: catalogUnit.unit_id },
-    select: { position_name: true, position_id: true, position_status: true },
-  });
-  const existingByName = new Map(
-    existing.map((position) => [normalizeCatalogName(position.position_name), position])
-  );
-
-  const defaultAccess = buildStandardInumaUserAccess();
-  const toCreate: Prisma.tbl_positionCreateManyInput[] = [];
-  const toReactivate: string[] = [];
-
-  for (const inumaPosition of inumaPositions) {
-    const match = existingByName.get(normalizeCatalogName(inumaPosition.name));
-    if (!match) {
-      toCreate.push({
-        position_name: inumaPosition.name,
-        position_description:
-          inumaPosition.description ||
-          `Synced from Inuma position catalog (${inumaPosition._id})`,
-        position_access: defaultAccess as unknown as Prisma.InputJsonValue,
-        unit_id: catalogUnit.unit_id,
-        position_status: 'ACTIVE',
-      });
-      continue;
-    }
-    if (match.position_status !== 'ACTIVE') {
-      toReactivate.push(match.position_id);
-    }
-  }
-
-  if (toReactivate.length > 0) {
-    await prisma.tbl_position.updateMany({
-      where: { position_id: { in: toReactivate } },
-      data: { position_status: 'ACTIVE' },
-    });
-  }
-
-  if (toCreate.length > 0) {
-    await prisma.tbl_position.createMany({
-      data: toCreate,
-      skipDuplicates: true,
-    });
-  }
-}
-
 /** Ensure Inuma campuses exist as ImoTrak units so they appear on the Units page. */
 export async function ensureInumaCampusesListed(organizationId?: string): Promise<void> {
   if (!process.env.INUMA_API_KEY?.trim()) return;

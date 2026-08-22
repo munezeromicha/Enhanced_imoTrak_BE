@@ -28,7 +28,6 @@ import { updateUnitSchema } from '../schemas/organization.schema';
 import { updatePositionSchema } from '../schemas/position.schema';
 import { position_accesses } from '../types/access';
 import { clampPositionAccess, isPositionAccessSubset } from '../utils/positionAccessUtils';
-import { ensureInumaPositionsListed, ensureInumaCampusesListed } from '../services/inuma-positions-sync.service';
 import { resolveCampusScope } from '../utils/campusScope';
 
 const prisma = new PrismaClient();
@@ -297,6 +296,16 @@ export const addPositionsToUnitController = async (
   }
 };
 
+/**
+ * Units are read straight from the database.
+ *
+ * This used to call the Inuma catalog API on every request to top up missing
+ * campuses, which meant an external round trip each time anyone opened the
+ * page — and, before the tenant guard, was how campuses leaked into other
+ * organizations. Seeding is now an explicit action
+ * (POST /v2/inuma-access/sync-positions) plus a lazy top-up at SSO sign-in for
+ * a campus nobody has seen before.
+ */
 export const getUnitsController = async (
   req: AuthenticatedRequest,
   res: Response,
@@ -313,12 +322,6 @@ export const getUnitsController = async (
 
     if (!organization_id) {
       throw new AppError('Organization ID not found in user token', 400);
-    }
-
-    try {
-      await ensureInumaCampusesListed(adminAccess ? undefined : organization_id);
-    } catch (error) {
-      console.warn('Inuma campuses could not be listed automatically:', error);
     }
 
     // An Inuma user sees their own campus and nothing else.
@@ -588,12 +591,6 @@ export const getUnitsInOrganization = async (
       throw new AppError('You do not have permission to view units of this organization', 403);
     }
 
-    try {
-      await ensureInumaCampusesListed(organization_id);
-    } catch (error) {
-      console.warn('Inuma campuses could not be listed automatically:', error);
-    }
-
     const unit = await getUnitsService(organization_id);
 
     res.status(200).json({
@@ -613,14 +610,6 @@ export const getPositionsController = async (
   try {
     if (!req.user?.position_access?.positions?.view) {
       throw new AppError('You do not have permission to view units of this organization', 403);
-    }
-
-    try {
-      await ensureInumaPositionsListed(
-        req.user.position_access.organizations.create ? undefined : req.user.organization_id
-      );
-    } catch (error) {
-      console.warn('Inuma positions could not be listed automatically:', error);
     }
 
     // Deliberately not campus-scoped: the Inuma position catalog is the pool a

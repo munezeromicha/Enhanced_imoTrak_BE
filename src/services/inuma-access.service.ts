@@ -16,7 +16,6 @@ import {
 import { userPositionAssignmentsInclude, UserWithPositionAssignments } from '../utils/userPositions';
 import {
   findInumaCampus,
-  findInumaPosition,
   getInumaCatalog,
   type InumaCatalog,
 } from './inuma-catalog.service';
@@ -109,16 +108,35 @@ async function findFallbackUnit(organizationId: string) {
   );
 }
 
+/**
+ * Map an Inuma campus onto an ImoTrak unit.
+ *
+ * The database is asked first and the Inuma catalog only when it cannot
+ * answer, which is the whole point: once campuses are seeded, a sign-in makes
+ * no external call at all. The catalog is still worth reaching for when the
+ * token carries a campus *code* rather than a name, or a campus nobody has
+ * seen before — that is what `loadCatalog` is for, and it is only awaited on
+ * that path.
+ */
 async function resolveUnitForInumaUser(
   organizationId: string,
   inumaUnit: string | undefined,
-  catalog: InumaCatalog
+  loadCatalog: () => Promise<InumaCatalog>
 ) {
   if (inumaUnit) {
-    const campusRecord = findInumaCampus(catalog, inumaUnit);
-    const campusName = campusRecord?.name || inumaUnit;
-    const byCampus = await findUnitByCampusName(organizationId, campusName);
-    if (byCampus) return byCampus;
+    const known = await findUnitByCampusName(organizationId, inumaUnit);
+    if (known) return known;
+
+    // Not a name we hold. It may be a campus code, so translate through the
+    // catalog and try once more before giving up on an exact match.
+    const campusRecord = findInumaCampus(await loadCatalog(), inumaUnit);
+    if (campusRecord?.name) {
+      const byCatalogName = await findUnitByCampusName(
+        organizationId,
+        campusRecord.name
+      );
+      if (byCatalogName) return byCatalogName;
+    }
 
     const org = await prisma.tbl_organizations.findUnique({
       where: { organization_id: organizationId },
@@ -179,12 +197,18 @@ async function ensureInumaStaffPosition(
   const access = buildStandardInumaUserAccess(usesReservations);
   const description = `Inuma position: ${positionName}`;
 
-  const existing = await prisma.tbl_position.findUnique({
-    where: {
-      position_name_unit_id: { position_name: positionName, unit_id: unitId },
-    },
-    select: { position_id: true, position_access: true },
+  // Matched case- and spacing-insensitively, not by exact string. Inuma spells
+  // the same post differently between tokens ("Academic staff" vs "Academic
+  // Staff"), and an exact lookup treats each spelling as a new position — which
+  // is how one unit ends up listing the same role several times.
+  const candidates = await prisma.tbl_position.findMany({
+    where: { unit_id: unitId },
+    select: { position_id: true, position_name: true, position_access: true },
   });
+  const wanted = normalizeCatalogName(positionName);
+  const existing = candidates.find(
+    (candidate) => normalizeCatalogName(candidate.position_name) === wanted
+  );
 
   if (existing) {
     const neverConfigured = isLimitedInumaSignInAccess(existing.position_access);
@@ -234,32 +258,49 @@ export async function syncInumaAccessForUser(
   identity: SsoIdentity,
   auth: AuthWithUser
 ): Promise<InumaSyncResult> {
-  const catalog = await getInumaCatalog();
   const organizationId = await resolveInumaOrganizationId();
-
-  // Campus units must exist before the user is matched to one — otherwise
-  // every campus falls back to UR-Fleet and campus scoping collapses.
-  try {
-    const { ensureInumaCampusesListed } = await import(
-      './inuma-positions-sync.service'
-    );
-    await ensureInumaCampusesListed(organizationId);
-  } catch (error) {
-    console.warn('Inuma campuses could not be listed during sign-in:', error);
-  }
 
   const inumaPosition = identity.position?.trim() || auth.inuma_position || undefined;
   const inumaUnit = identity.unit?.trim() || auth.inuma_unit || undefined;
 
-  const campusRecord = findInumaCampus(catalog, inumaUnit);
-  const positionRecord = findInumaPosition(catalog, inumaPosition);
+  // Fetched at most once per sign-in, and only if something below actually
+  // needs it. A returning user whose campus is already a unit never causes a
+  // request to Inuma — the database already holds everything this needs.
+  let catalogPromise: Promise<InumaCatalog> | null = null;
+  const loadCatalog = () => (catalogPromise ??= getInumaCatalog());
+
+  // A campus we have never seen is the one case worth seeding for, otherwise
+  // the user falls back to UR-Fleet and campus scoping collapses for them.
+  const campusAlreadyKnown = inumaUnit
+    ? !!(await findUnitByCampusName(organizationId, inumaUnit))
+    : true;
+
+  if (!campusAlreadyKnown) {
+    try {
+      const { ensureInumaCampusesListed } = await import(
+        './inuma-positions-sync.service'
+      );
+      await ensureInumaCampusesListed(organizationId);
+    } catch (error) {
+      console.warn('Inuma campuses could not be listed during sign-in:', error);
+    }
+  }
+
+  // Only derived when the catalog had to be consulted anyway. Left undefined
+  // otherwise, which Prisma reads as "leave the stored code alone" — the code
+  // does not change, so re-deriving it every sign-in would be pure waste.
+  const campusRecord = campusAlreadyKnown
+    ? undefined
+    : findInumaCampus(await loadCatalog(), inumaUnit);
+
+  // The approver list is a constant, so this needs no catalog at all.
   const isApprover = isAuthorizedInumaApproverPosition(inumaPosition);
 
   if (isApprover) {
     const approverUnit = await resolveUnitForInumaUser(
       organizationId,
       inumaUnit,
-      catalog
+      loadCatalog
     );
     if (!approverUnit) {
       throw new AppError(
@@ -293,7 +334,7 @@ export async function syncInumaAccessForUser(
     };
   }
 
-  const matchedUnit = await resolveUnitForInumaUser(organizationId, inumaUnit, catalog);
+  const matchedUnit = await resolveUnitForInumaUser(organizationId, inumaUnit, loadCatalog);
   if (!matchedUnit) {
     throw new AppError('No ImoTrak unit available for Inuma user mapping', 500);
   }
@@ -303,7 +344,7 @@ export async function syncInumaAccessForUser(
     select: { uses_reservations: true },
   });
 
-  const positionName = positionRecord?.name || inumaPosition || 'Inuma User';
+  const positionName = inumaPosition || 'Inuma User';
   const staffPosition = await ensureInumaStaffPosition(
     matchedUnit.unit_id,
     positionName,
