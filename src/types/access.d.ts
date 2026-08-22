@@ -61,6 +61,36 @@ export interface position_accesses {
     update: boolean;
     delete: boolean;
   };
+  /**
+   * Fuel management. Each flag matches one section of the paper
+   * requisition form, so a position can be given exactly the step its
+   * holder is responsible for and nothing else.
+   *
+   * Optional because positions created before this module exists have no
+   * `fuel` key in their stored JSON — absent reads as "no access".
+   */
+  fuel?: {
+    /** I. Raise a requisition (driver / generator custodian). */
+    request: boolean;
+    /** See every requisition in scope. */
+    view: boolean;
+    /** See only requisitions you raised yourself. */
+    viewOwn: boolean;
+    /** II. Recommending authority — Assets and Services Management. */
+    recommend: boolean;
+    /** III. Confirmation of funding — Director of Finance. */
+    confirmFunding: boolean;
+    /** IV. Verification — Logistics Officer issues the fuel. */
+    issue: boolean;
+    /** Sign for fuel received. */
+    receive: boolean;
+    /** Add money to the fuel account. */
+    replenish: boolean;
+    /** Read the consumption report and account balance. */
+    viewReport: boolean;
+    /** Register and maintain generators. */
+    manageGenerators: boolean;
+  };
 }
 
 export interface AuthenticatedUser {

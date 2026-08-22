@@ -47,6 +47,7 @@ async function fetchInumaContext(userId: string) {
     return await prisma.tbl_auth.findFirst({
       where: { user: { user_id: userId } },
       select: {
+        email: true,
         sso_sub: true,
         inuma_position: true,
         inuma_unit: true,
@@ -76,6 +77,22 @@ export const attachPositionAccess = async (
 
     if (!position) {
       throw new AppError('Position not found', 404);
+    }
+
+    // A token carries the email it was issued for. When an account's sign-in
+    // address changes — an organization leader handover, for instance — every
+    // token minted against the old address must stop working immediately.
+    // `inuma` is null only when the lookup itself failed, and that case keeps
+    // the existing fail-open behaviour rather than logging everyone out.
+    if (
+      inuma?.email &&
+      req.user.email &&
+      inuma.email.toLowerCase() !== req.user.email.toLowerCase()
+    ) {
+      throw new AppError(
+        'Your sign-in address has changed. Please sign in again.',
+        401
+      );
     }
 
     req.user.position_access = position.position_access;

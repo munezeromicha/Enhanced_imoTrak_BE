@@ -517,9 +517,9 @@ export const deleteUnitController = async (
       throw new AppError('You do not have permission to delete units', 403);
     }
 
-    await deleteUnitService({ unit_id, user: req.user });
+    const result = await deleteUnitService({ unit_id, user: req.user });
 
-    res.status(200).json({ message: 'Unit deleted successfully' });
+    res.status(200).json({ message: 'Unit deleted successfully', data: result });
   } catch (error) {
     next(error);
   }

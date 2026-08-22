@@ -254,13 +254,13 @@ export async function loginWithSso(params: {
 
   return {
     status: 'ready' as const,
-    message: syncResult.isLimitedAccess
-      ? 'Signed in with limited access. Contact your Assets and Services administrator for full permissions.'
-      : 'Login successful',
+    message: 'Login successful',
     positions,
     identity: identityResponse,
     access: {
-      level: syncResult.isLimitedAccess ? ('limited' as const) : ('full' as const),
+      // Signing in registers the user outright, so nobody arrives limited.
+      // The field stays in the response for clients that still read it.
+      level: 'full' as const,
       inuma_position: syncResult.inumaPosition,
       inuma_unit: syncResult.inumaUnit,
       matched_unit_id: syncResult.matchedUnitId,

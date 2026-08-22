@@ -532,6 +532,7 @@ export const updateMyProfileService = async (
       user_gender: true,
       user_dob: true,
       user_photo: true,
+      signature_url: true,
       street_address: true,
       auth: {
         select: {
@@ -751,3 +752,235 @@ export async function deleteUserPermanentlyService(params: {
   }
 }
 
+
+interface ChangeUserPositionParams {
+  target_user_id: string;
+  position_id: string;
+  actor: {
+    user_id: string;
+    organization_id: string;
+    position_id: string;
+    position_access?: position_accesses;
+  };
+  actorIsSuperAdmin: boolean;
+}
+
+/**
+ * Move a user to a different unit and position.
+ *
+ * The unit follows from the position — a position belongs to exactly one unit —
+ * so the caller picks a position and the unit comes with it. The user's other
+ * assignments *within the same organization* are replaced, while assignments in
+ * other organizations are left alone; somebody working for two organizations
+ * must not lose the other one because their role here changed.
+ *
+ * Callers are restricted to hub SuperAdmins and organization leaders by
+ * `changeUserPositionController` — `users.update` alone is not enough, because
+ * moving someone between units changes what they can see and do.
+ */
+export async function changeUserPositionService({
+  target_user_id,
+  position_id,
+  actor,
+  actorIsSuperAdmin,
+}: ChangeUserPositionParams) {
+  const position = await prisma.tbl_position.findUnique({
+    where: { position_id },
+    include: { unit: { include: { organization: true } } },
+  });
+
+  if (!position) {
+    throw new AppError('Position not found', 404);
+  }
+  if (position.position_status !== 'ACTIVE') {
+    throw new AppError('That position is inactive. Pick an active position.', 400);
+  }
+  if (position.unit.status !== 'ACTIVE') {
+    throw new AppError('That unit is inactive. Pick a position in an active unit.', 400);
+  }
+
+  const targetOrgId = position.unit.organization_id;
+
+  // An organization leader works inside their own organization only.
+  if (!actorIsSuperAdmin && targetOrgId !== actor.organization_id) {
+    throw new AppError(
+      'You can only move users to positions within your own organization',
+      403
+    );
+  }
+
+  // Granting a position you could not grant yourself would be an escalation.
+  const targetAccess = position.position_access as unknown as position_accesses;
+  if (!isPositionAccessSubset(actor.position_access, targetAccess)) {
+    throw new AppError(
+      'You cannot assign a position that grants permissions you do not have',
+      403
+    );
+  }
+
+  const targetUser = await prisma.tbl_users.findUnique({
+    where: { user_id: target_user_id },
+    include: userPositionAssignmentsInclude,
+  });
+
+  if (!targetUser) {
+    throw new AppError('User not found', 404);
+  }
+
+  if (targetUser.user_id === actor.user_id) {
+    throw new AppError(
+      'You cannot change your own position. Ask another administrator to do it.',
+      400
+    );
+  }
+
+  const currentPositions = mapAssignmentsToPositions(targetUser);
+
+  // A leader may only move people who already belong to their organization.
+  if (!actorIsSuperAdmin) {
+    const sharesOrg = currentPositions.some(
+      (held) => held.unit.organization.organization_id === actor.organization_id
+    );
+    if (currentPositions.length > 0 && !sharesOrg) {
+      throw new AppError(
+        'This user does not belong to your organization',
+        403
+      );
+    }
+  }
+
+  if (currentPositions.some((held) => held.position_id === position_id)) {
+    throw new AppError('User already holds that position', 409);
+  }
+
+  // Leadership follows the person.
+  //
+  // Moving the organization's only leader used to be refused outright. It is
+  // now allowed: the leader post itself moves with them, so the organization
+  // keeps the same leader it always had and only their unit and title change.
+  const organization = position.unit.organization;
+
+  // Organizations created before `leader_position_id` existed still identify
+  // their leader by an active `is_org_leader` position. Without this fallback
+  // the transfer below silently skips those organizations and they really do
+  // end up leaderless.
+  let leaderPositionId = organization.leader_position_id;
+  if (!leaderPositionId) {
+    const fallbackLeader = await prisma.tbl_position.findFirst({
+      where: {
+        is_org_leader: true,
+        position_status: 'ACTIVE',
+        unit: { organization_id: targetOrgId },
+      },
+      select: { position_id: true },
+    });
+    leaderPositionId = fallbackLeader?.position_id ?? null;
+  }
+
+  const isLeavingLeaderPost =
+    !!leaderPositionId &&
+    currentPositions.some((held) => held.position_id === leaderPositionId) &&
+    leaderPositionId !== position_id;
+
+  // Only when nobody else holds the post. Where leadership is shared, those
+  // others carry it and this person simply stops being one of them — moving
+  // the post would strip the colleagues who stayed behind.
+  let transfersLeadership = false;
+  if (isLeavingLeaderPost && leaderPositionId) {
+    const otherLeaders = await prisma.tbl_user_position_assignments.count({
+      where: {
+        position_id: leaderPositionId,
+        user_id: { not: target_user_id },
+      },
+    });
+    transfersLeadership = otherLeaders === 0;
+  }
+
+  // Assignments being replaced — this organization's only.
+  const assignmentsToDrop = targetUser.position_assignments
+    .filter(
+      (assignment) =>
+        assignment.position.unit.organization_id === targetOrgId
+    )
+    .map((assignment) => assignment.assignment_id);
+
+  await prisma.$transaction(async (tx) => {
+    if (assignmentsToDrop.length > 0) {
+      await tx.tbl_user_position_assignments.deleteMany({
+        where: { assignment_id: { in: assignmentsToDrop } },
+      });
+    }
+
+    await createUserPositionAssignment(tx, target_user_id, position_id);
+
+    if (transfersLeadership && leaderPositionId) {
+      // The post they are leaving stops being the leader post, and the one they
+      // are moving into becomes it. Note this hands leadership to anyone else
+      // already holding the destination position, and grants that position's
+      // access rather than the old post's — the caller picks the destination
+      // knowing that.
+      await tx.tbl_position.update({
+        where: { position_id: leaderPositionId },
+        data: { is_org_leader: false },
+      });
+      await tx.tbl_position.update({
+        where: { position_id },
+        data: { is_org_leader: true },
+      });
+      await tx.tbl_organizations.update({
+        where: { organization_id: targetOrgId },
+        data: {
+          leader_position_id: position_id,
+          leader_unit_id: position.unit_id,
+        },
+      });
+    }
+
+    // Point the Inuma cache at the new placement and mark it approved, so the
+    // next SSO sign-in keeps this choice instead of re-mapping the user back
+    // to their campus-derived unit.
+    await tx.tbl_auth.updateMany({
+      where: { auth_id: targetUser.auth_id },
+      data: {
+        matched_unit_id: position.unit_id,
+        matched_position_id: position_id,
+        imotrak_access_approved_at: new Date(),
+        imotrak_access_approved_by_user_id: actor.user_id,
+      },
+    });
+  }, { timeout: 30_000, maxWait: 15_000 });
+
+  const updated = await prisma.tbl_users.findUnique({
+    where: { user_id: target_user_id },
+    include: userPositionAssignmentsInclude,
+  });
+
+  return {
+    user_id: target_user_id,
+    positions: updated ? mapAssignmentsToPositions(updated) : [],
+    replaced_count: assignmentsToDrop.length,
+    leadership_moved: transfersLeadership,
+    position: {
+      position_id: position.position_id,
+      position_name: position.position_name,
+      unit_id: position.unit_id,
+      unit_name: position.unit.unit_name,
+      organization_id: targetOrgId,
+      organization_name: organization.organization_name,
+    },
+  };
+}
+
+/**
+ * Store the signed-in user's signature image.
+ *
+ * Held on the user, not on any one document. Documents snapshot it as they
+ * are signed, so replacing it here never rewrites anything already signed.
+ */
+export async function updateMySignatureService(user_id: string, signature_url: string) {
+  return prisma.tbl_users.update({
+    where: { user_id },
+    data: { signature_url },
+    select: { user_id: true, signature_url: true },
+  });
+}

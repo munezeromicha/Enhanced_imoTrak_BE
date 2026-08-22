@@ -2,11 +2,13 @@ import { Prisma, PrismaClient } from '@prisma/client';
 import {
   INUMA_APPROVER_IMOTRAK_POSITION,
   INUMA_APPROVER_UNIT_NAMES,
+  normalizeCampusName,
   normalizeCatalogName,
 } from '../constants/inuma';
 import { AppError } from '../utils/Error';
+import { resolveInumaSyncTarget } from '../utils/inumaOrganization';
 import { isProtectedSuperAdminPosition } from './organization.services';
-import { buildLimitedInumaSignInAccess } from '../utils/inumaAccessTemplates';
+import { buildStandardInumaUserAccess } from '../utils/inumaAccessTemplates';
 import { canManageInumaAccess } from './inuma-access.service';
 import { getInumaCatalog } from './inuma-catalog.service';
 
@@ -53,34 +55,6 @@ async function assertCanSyncPositions(approverUserId: string) {
   return user;
 }
 
-async function resolveOrganizationId(organizationId?: string): Promise<string> {
-  if (organizationId) {
-    const org = await prisma.tbl_organizations.findUnique({
-      where: { organization_id: organizationId },
-    });
-    if (org) return org.organization_id;
-  }
-
-  const configured = (process.env.INUMA_ORGANIZATION_ID || '').trim();
-  if (configured) {
-    const org = await prisma.tbl_organizations.findUnique({
-      where: { organization_id: configured },
-    });
-    if (org) return org.organization_id;
-  }
-
-  const configuredName = (process.env.INUMA_ORGANIZATION_NAME || 'University of Rwanda').trim();
-  const byName = await prisma.tbl_organizations.findFirst({
-    where: {
-      organization_name: { equals: configuredName, mode: 'insensitive' },
-      organization_status: 'ACTIVE',
-    },
-  });
-  if (byName) return byName.organization_id;
-
-  throw new AppError('Target organization for Inuma sync was not found', 404);
-}
-
 async function findCatalogUnit(organizationId: string) {
   const units = await prisma.tbl_unit.findMany({
     where: { organization_id: organizationId, status: 'ACTIVE' },
@@ -122,7 +96,16 @@ export async function syncInumaPositionsCatalog(params: {
 }): Promise<SyncInumaPositionsResult> {
   await assertCanSyncPositions(params.approverUserId);
 
-  const organizationId = await resolveOrganizationId(params.organizationId);
+  // Explicit admin action, so a mis-targeted sync is reported rather than
+  // silently skipped the way the opportunistic ensure* helpers do.
+  const organizationId = await resolveInumaSyncTarget(params.organizationId);
+  if (!organizationId) {
+    throw new AppError(
+      'The Inuma catalog can only be synced into the University of Rwanda organization. Check INUMA_ORGANIZATION_ID / INUMA_ORGANIZATION_NAME.',
+      400
+    );
+  }
+
   const catalogUnit = await findCatalogUnit(organizationId);
   const catalog = await getInumaCatalog(true);
 
@@ -151,7 +134,7 @@ export async function syncInumaPositionsCatalog(params: {
   let createdCount = 0;
   let reactivatedCount = 0;
 
-  const defaultAccess = buildLimitedInumaSignInAccess();
+  const defaultAccess = buildStandardInumaUserAccess();
   const toDeactivate = existingPositions.filter((position) => {
     const normalized = normalizeCatalogName(position.position_name);
     if (
@@ -247,7 +230,10 @@ export async function getInumaPositionsPreview() {
 export async function ensureInumaPositionsListed(organizationId?: string): Promise<void> {
   if (!process.env.INUMA_API_KEY?.trim()) return;
 
-  const orgId = await resolveOrganizationId(organizationId);
+  // Same tenant guard as the campus sync — Inuma positions are UR's positions.
+  const orgId = await resolveInumaSyncTarget(organizationId);
+  if (!orgId) return;
+
   const catalogUnit = await findCatalogUnit(orgId);
   const catalog = await getInumaCatalog();
   const inumaPositions = catalog.positions.filter(
@@ -263,7 +249,7 @@ export async function ensureInumaPositionsListed(organizationId?: string): Promi
     existing.map((position) => [normalizeCatalogName(position.position_name), position])
   );
 
-  const defaultAccess = buildLimitedInumaSignInAccess();
+  const defaultAccess = buildStandardInumaUserAccess();
   const toCreate: Prisma.tbl_positionCreateManyInput[] = [];
   const toReactivate: string[] = [];
 
@@ -305,7 +291,12 @@ export async function ensureInumaPositionsListed(organizationId?: string): Promi
 export async function ensureInumaCampusesListed(organizationId?: string): Promise<void> {
   if (!process.env.INUMA_API_KEY?.trim()) return;
 
-  const orgId = await resolveOrganizationId(organizationId);
+  // Tenant guard: the UR campus catalog belongs to the Inuma organization and
+  // nowhere else. Asking to sync into any other tenant is a no-op rather than
+  // an error, because this runs opportunistically while serving GET requests.
+  const orgId = await resolveInumaSyncTarget(organizationId);
+  if (!orgId) return;
+
   const catalog = await getInumaCatalog();
   const campuses = catalog.campuses.filter(
     (campus) => campus.is_active !== false && campus.name?.trim()
@@ -317,14 +308,20 @@ export async function ensureInumaCampusesListed(organizationId?: string): Promis
     select: { unit_id: true, unit_name: true, status: true },
   });
   const existingByName = new Map(
-    existing.map((unit) => [normalizeCatalogName(unit.unit_name), unit])
+    existing.map((unit) => [normalizeCampusName(unit.unit_name), unit])
   );
 
   const toCreate: Prisma.tbl_unitCreateManyInput[] = [];
+  const queuedNames = new Set<string>();
 
   for (const campus of campuses) {
-    const match = existingByName.get(normalizeCatalogName(campus.name));
+    const campusKey = normalizeCampusName(campus.name);
+    const match = existingByName.get(campusKey);
     if (match) continue;
+
+    // The catalog itself can list the same campus under two spellings.
+    if (queuedNames.has(campusKey)) continue;
+    queuedNames.add(campusKey);
 
     toCreate.push({
       unit_name: campus.name,

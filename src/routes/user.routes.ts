@@ -3,7 +3,7 @@ import { authenticateToken } from '../middlewares/auth.middleware';
 import { attachPositionAccess } from '../middlewares/attachPositionAccess';
 import { validateBody } from '../middlewares/bodyValidator';
 import { createUserSchema, updateUserSchema } from '../schemas/user.schema';
-import { createUserController, deleteUserController, getAllUnverifiedUsersController, getSingleUnverifiedUserController, getSingleUserWithPositionsController, getUsersWithPositionsController, updateMyProfileController, updateUserController } from '../controllers/user.controllers';
+import { changeUserPositionController, createUserController, deleteUserController, getAllUnverifiedUsersController, getSingleUnverifiedUserController, getSingleUserWithPositionsController, getUsersWithPositionsController, updateMyProfileController, updateMySignatureController, updateUserController } from '../controllers/user.controllers';
 import { upload } from '../middlewares/multer';
 
 const usersRoutes = Router();
@@ -281,6 +281,42 @@ usersRoutes.patch(
   upload.single('user_photo'),
   validateBody(updateUserSchema),
   updateMyProfileController
+);
+
+/**
+ * @swagger
+ * /v2/users/me/signature:
+ *   patch:
+ *     summary: Upload or replace your signature image
+ *     description: >
+ *       Stored against the user, not any one document. Documents snapshot the
+ *       signature as they are signed, so replacing it never alters anything
+ *       already signed.
+ *     tags:
+ *       - Users
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               signature:
+ *                 type: string
+ *                 format: binary
+ *     responses:
+ *       200:
+ *         description: Signature saved successfully
+ *       400:
+ *         description: No image attached
+ */
+usersRoutes.patch(
+  '/me/signature',
+  authenticateToken,
+  upload.single('signature'),
+  updateMySignatureController
 );
 
 /**
@@ -591,6 +627,59 @@ usersRoutes.get(
   authenticateToken,
   attachPositionAccess,
   getSingleUnverifiedUserController
+);
+
+/**
+ * @swagger
+ * /v2/users/{user_id}/position:
+ *   patch:
+ *     summary: Move a user to a different unit and position
+ *     description: >
+ *       Replaces the user's assignments within the target position's
+ *       organization with the given position. The unit follows from the
+ *       position. Restricted to organization leaders and hub SuperAdmins —
+ *       the `users.update` permission alone is not sufficient.
+ *     tags:
+ *       - Users
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: user_id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - position_id
+ *             properties:
+ *               position_id:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: >
+ *           Position updated. When the user was the organization's only leader,
+ *           the leader post moves with them — `leadership_moved` is true and the
+ *           organization's `leader_position_id` now points at the new position.
+ *       400:
+ *         description: Inactive position, or attempting to change your own position
+ *       403:
+ *         description: Not an organization leader or SuperAdmin, or out of organization scope
+ *       404:
+ *         description: User or position not found
+ *       409:
+ *         description: Already holds that position
+ */
+usersRoutes.patch(
+  '/:user_id/position',
+  authenticateToken,
+  attachPositionAccess,
+  changeUserPositionController
 );
 
 export default usersRoutes;

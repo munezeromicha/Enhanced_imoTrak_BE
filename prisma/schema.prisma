@@ -9,26 +9,26 @@ datasource db {
 }
 
 model tbl_auth {
-  auth_id                          String     @id @default(uuid())
-  email                            String?    @unique
-  password                         String?
-  updated_at                       DateTime?
-  user_status                      UserStatus @default(ACTIVE)
-  is_verified                      Boolean    @default(false)
+  auth_id                            String     @id @default(uuid())
+  email                              String?    @unique
+  password                           String?
+  updated_at                         DateTime?
+  user_status                        UserStatus @default(ACTIVE)
+  is_verified                        Boolean    @default(false)
   /// Stable Inuma subject (`sub`). Used to find SSO users if email changes.
-  sso_sub                          String?    @unique
+  sso_sub                            String?    @unique
   /// Latest Inuma position name from SSO / public API.
-  inuma_position                   String?
+  inuma_position                     String?
   /// Latest Inuma campus / unit name from SSO / public API.
-  inuma_unit                       String?
-  inuma_campus_code                String?
+  inuma_unit                         String?
+  inuma_campus_code                  String?
   /// ImoTrak unit matched from Inuma campus catalog.
-  matched_unit_id                  String?
+  matched_unit_id                    String?
   /// ImoTrak position matched or proposed from Inuma position catalog.
-  matched_position_id              String?
-  imotrak_access_approved_at       DateTime?
+  matched_position_id                String?
+  imotrak_access_approved_at         DateTime?
   imotrak_access_approved_by_user_id String?
-  user                             tbl_users?
+  user                               tbl_users?
 }
 
 model tbl_users {
@@ -40,6 +40,8 @@ model tbl_users {
   created_at                 DateTime                              @default(now())
   user_dob                   DateTime
   user_photo                 String?
+  /// Scanned or drawn signature, stamped onto documents this person signs.
+  signature_url              String?
   user_gender                Gender
   street_address             String?
   auth_id                    String                                @unique
@@ -92,21 +94,24 @@ model tbl_notifications {
 }
 
 model tbl_organizations {
-  organization_id       String              @id @default(uuid())
-  organization_name     String              @unique
+  organization_id       String                  @id @default(uuid())
+  organization_name     String                  @unique
   street_address        String
-  organization_phone    String              @unique
-  organization_email    String              @unique
+  organization_phone    String                  @unique
+  organization_email    String                  @unique
   organization_logo     String
-  created_at            DateTime            @default(now())
-  organization_customId String              @unique
-  organization_status   OrgStatus           @default(ACTIVE)
-  uses_reservations     Boolean             @default(true)
+  created_at            DateTime                @default(now())
+  organization_customId String                  @unique
+  organization_status   OrgStatus               @default(ACTIVE)
+  uses_reservations     Boolean                 @default(true)
   leader_unit_id        String?
   leader_position_id    String?
   units                 tbl_unit[]
   vehicles              tbl_vehicles[]
   vehicle_types         tbl_vehicle_types[]
+  generators            tbl_generators[]
+  fuel_requisitions     tbl_fuel_requisitions[]
+  fuel_transactions     tbl_fuel_transactions[]
 }
 
 model tbl_reservations {
@@ -191,6 +196,7 @@ model tbl_vehicles {
   locations         tbl_vehicle_locations[]
   gps_device        tbl_gps_devices?
   maintenance       tbl_vehicle_maintenance[]
+  fuel_requisitions tbl_fuel_requisitions[]
 }
 
 model tbl_reserved_vehicles {
@@ -227,15 +233,17 @@ model tbl_vehicle_locations {
 }
 
 model tbl_unit {
-  unit_id         String            @id @default(uuid())
-  unit_name       String
-  created_at      DateTime          @default(now())
-  organization_id String
-  status          OrgStatus         @default(ACTIVE)
-  is_primary      Boolean           @default(false)
-  positions       tbl_position[]
-  vehicles        tbl_vehicles[]
-  organization    tbl_organizations @relation(fields: [organization_id], references: [organization_id])
+  unit_id           String                  @id @default(uuid())
+  unit_name         String
+  created_at        DateTime                @default(now())
+  organization_id   String
+  status            OrgStatus               @default(ACTIVE)
+  is_primary        Boolean                 @default(false)
+  positions         tbl_position[]
+  vehicles          tbl_vehicles[]
+  organization      tbl_organizations       @relation(fields: [organization_id], references: [organization_id])
+  generators        tbl_generators[]
+  fuel_requisitions tbl_fuel_requisitions[]
 
   @@unique([unit_name, organization_id])
 }
@@ -513,4 +521,171 @@ enum IssueSeverity {
   HIGH
   CRITICAL
   DANGER
+}
+
+// ---------------------------------------------------------------------------
+// Fuel management
+//
+// Mirrors the University of Rwanda paper trail: a fuel requisition is raised by
+// a driver (or a generator custodian), recommended by Assets and Services
+// Management, funded by the Director of Finance, then issued and signed for at
+// the logistics desk. Every issue posts to a running fuel account so the
+// monthly consumption report reconciles against replenishments.
+// ---------------------------------------------------------------------------
+
+enum FuelRequestType {
+  VEHICLE
+  GENERATOR
+}
+
+enum FuelRequisitionStatus {
+  SUBMITTED
+  RECOMMENDED
+  FUNDING_CONFIRMED
+  ISSUED
+  RECEIVED
+  REJECTED
+  CANCELLED
+}
+
+enum FuelTransactionType {
+  OPENING_BALANCE
+  REPLENISHMENT
+  ISSUE
+  ADJUSTMENT
+}
+
+/// A standby generator that draws from the same fuel account as the fleet.
+/// It has no odometer, so consumption is tracked against a gauge percentage.
+model tbl_generators {
+  generator_id       String    @id @default(uuid())
+  generator_name     String
+  generator_code     String?
+  location           String?
+  organization_id    String
+  unit_id            String?
+  /// Last recorded gauge reading, 0-100.
+  fuel_level_percent Int?
+  status             OrgStatus @default(ACTIVE)
+  created_at         DateTime  @default(now())
+  updated_at         DateTime  @updatedAt
+
+  organization tbl_organizations       @relation(fields: [organization_id], references: [organization_id])
+  unit         tbl_unit?               @relation(fields: [unit_id], references: [unit_id])
+  requisitions tbl_fuel_requisitions[]
+
+  @@unique([generator_name, organization_id])
+  @@index([organization_id])
+}
+
+/// One filled-in fuel requisition form, carried through its four sections.
+///
+/// The people who sign each section are stored as an id *plus* a name and
+/// position snapshot rather than as foreign keys. The snapshot is the record of
+/// who signed at the time, and must not follow someone who later changes
+/// position or leaves — the same reason the paper form asks for the name and
+/// position next to every signature.
+model tbl_fuel_requisitions {
+  fuel_requisition_id String                @id @default(uuid())
+  /// Human-readable number used on printouts, e.g. FR-2026-000042.
+  reference           String                @unique
+  organization_id     String
+  unit_id             String?
+  request_type        FuelRequestType
+  status              FuelRequisitionStatus @default(SUBMITTED)
+
+  vehicle_id   String?
+  generator_id String?
+  /// Plate number or generator name as it stood when the form was raised, so
+  /// the consumption report stays readable if the asset is renamed or removed.
+  asset_label  String
+
+  // I. Applicant details
+  applicant_user_id         String
+  applicant_name            String
+  applicant_position        String?
+  applicant_signature_url   String?
+  quantity_requested_litres Decimal  @db.Decimal(10, 2)
+  /// Logbook reading in km. Vehicles only.
+  odometer_km               Int?
+  /// Gauge reading as a percentage. Generators only.
+  fuel_indicator_percent    Int?
+  purpose                   String
+  requested_at              DateTime @default(now())
+
+  // II. Recommending authority (Assets and Services Management)
+  recommended_by_user_id       String?
+  recommended_by_name          String?
+  recommended_by_position      String?
+  recommended_by_signature_url String?
+  recommended_at               DateTime?
+  recommendation_note          String?
+
+  // III. Confirmation of funding (Director of Finance)
+  funding_confirmed_by_user_id       String?
+  funding_confirmed_by_name          String?
+  funding_confirmed_by_position      String?
+  funding_confirmed_by_signature_url String?
+  funding_confirmed_at               DateTime?
+
+  // IV. Verification (Logistics)
+  issued_by_user_id        String?
+  issued_by_name           String?
+  issued_by_signature_url  String?
+  issued_at                DateTime?
+  quantity_supplied_litres Decimal?  @db.Decimal(10, 2)
+  amount_rwf               Decimal?  @db.Decimal(12, 2)
+
+  received_by_user_id       String?
+  received_by_name          String?
+  received_by_signature_url String?
+  received_at               DateTime?
+  /// Set when the completed fuel is posted to the vehicle or generator's
+  /// own history. Marks the requisition as accounted for on the asset, so
+  /// nobody has to key the litres in a second time.
+  recorded_on_asset_at      DateTime?
+
+  rejected_by_user_id String?
+  rejected_by_name    String?
+  rejected_at         DateTime?
+  rejection_reason    String?
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  organization tbl_organizations       @relation(fields: [organization_id], references: [organization_id])
+  unit         tbl_unit?               @relation(fields: [unit_id], references: [unit_id])
+  vehicle      tbl_vehicles?           @relation(fields: [vehicle_id], references: [vehicle_id])
+  generator    tbl_generators?         @relation(fields: [generator_id], references: [generator_id])
+  transactions tbl_fuel_transactions[]
+
+  @@index([organization_id, status])
+  @@index([applicant_user_id])
+  @@index([vehicle_id])
+  @@index([generator_id])
+}
+
+/// The fuel account ledger behind the monthly consumption report.
+///
+/// `amount_rwf` is signed: opening balance and replenishments are positive,
+/// issues negative, so the running balance is a cumulative sum in date order
+/// and never needs a stored snapshot to be trusted.
+model tbl_fuel_transactions {
+  fuel_transaction_id String              @id @default(uuid())
+  organization_id     String
+  type                FuelTransactionType
+  amount_rwf          Decimal             @db.Decimal(14, 2)
+  litres              Decimal?            @db.Decimal(10, 2)
+  description         String
+  occurred_on         DateTime
+  fuel_requisition_id String?
+  recorded_by_user_id String
+  recorded_by_name    String
+  created_at          DateTime            @default(now())
+
+  organization tbl_organizations      @relation(fields: [organization_id], references: [organization_id])
+  requisition  tbl_fuel_requisitions? @relation(fields: [fuel_requisition_id], references: [fuel_requisition_id])
+
+  @@index([organization_id, occurred_on])
+  @@index([fuel_requisition_id])
 }

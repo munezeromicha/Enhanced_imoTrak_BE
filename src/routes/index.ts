@@ -12,6 +12,7 @@ import driverRoutes from "./driver.routes";
 import trackingRoutes from "./tracking.routes";
 import maintenanceRoutes from "./maintenance.routes";
 import inumaAccessRoutes from "./inuma-access.routes";
+import fuelRoutes from "./fuel.routes";
 
 const routes = Router();
 
@@ -28,5 +29,6 @@ routes.use('/contacts', contactRoutes);
 routes.use('/drivers', driverRoutes);
 routes.use('/tracking', trackingRoutes);
 routes.use('/maintenance', maintenanceRoutes);
+routes.use('/fuel', fuelRoutes);
 
 export default routes;

@@ -6,10 +6,12 @@ import {
   normalizeCatalogName,
 } from '../constants/inuma';
 import { AppError } from '../utils/Error';
+import { resolveInumaOrganizationId as resolveSharedInumaOrganizationId } from '../utils/inumaOrganization';
 import { SsoIdentity } from '../utils/sso-jwks';
 import {
   buildAssetsServicesApproverAccess,
-  buildLimitedInumaSignInAccess,
+  buildStandardInumaUserAccess,
+  isLimitedInumaSignInAccess,
 } from '../utils/inumaAccessTemplates';
 import { userPositionAssignmentsInclude, UserWithPositionAssignments } from '../utils/userPositions';
 import {
@@ -33,33 +35,24 @@ export type AuthWithUser = {
 
 export type InumaSyncResult = {
   isApprover: boolean;
-  isLimitedAccess: boolean;
   matchedUnitId?: string;
   matchedPositionId?: string;
   inumaPosition?: string;
   inumaUnit?: string;
 };
 
+/**
+ * The organization an Inuma user is mapped into at sign-in.
+ *
+ * Primary resolution is shared with the catalog sync so both agree on which
+ * tenant is UR. The "oldest active organization" fallback only keeps sign-in
+ * working on a database where UR has not been named yet — it is not a sync
+ * target, and `ensureInumaCampusesListed` will refuse to write campuses into
+ * it.
+ */
 async function resolveInumaOrganizationId(): Promise<string> {
-  const configured = (process.env.INUMA_ORGANIZATION_ID || '').trim();
-  if (configured) {
-    const org = await prisma.tbl_organizations.findUnique({
-      where: { organization_id: configured },
-    });
-    if (org) return org.organization_id;
-  }
-
-  const configuredName = (process.env.INUMA_ORGANIZATION_NAME || 'University of Rwanda').trim();
-  const byName = await prisma.tbl_organizations.findFirst({
-    where: {
-      organization_name: {
-        equals: configuredName,
-        mode: 'insensitive',
-      },
-      organization_status: 'ACTIVE',
-    },
-  });
-  if (byName) return byName.organization_id;
+  const inumaOrgId = await resolveSharedInumaOrganizationId();
+  if (inumaOrgId) return inumaOrgId;
 
   const anyActive = await prisma.tbl_organizations.findFirst({
     where: { organization_status: 'ACTIVE' },
@@ -68,6 +61,10 @@ async function resolveInumaOrganizationId(): Promise<string> {
   if (!anyActive) {
     throw new AppError('No active organization found for Inuma mapping', 500);
   }
+  console.warn(
+    '[inuma] No organization matches INUMA_ORGANIZATION_ID/NAME; ' +
+      'falling back to the oldest active organization for user mapping only.'
+  );
   return anyActive.organization_id;
 }
 
@@ -161,21 +158,54 @@ async function ensureApproverPosition(unitId: string) {
   });
 }
 
-async function ensureLimitedInumaPosition(unitId: string, positionName: string) {
-  const access = buildLimitedInumaSignInAccess();
-  return prisma.tbl_position.upsert({
+/**
+ * The ImoTrak position an ordinary Inuma user lands in.
+ *
+ * Signing in through Inuma *is* the registration, so the position is created
+ * under the person's campus unit with working staff access and they are
+ * assigned to it there and then. Nothing waits on an administrator.
+ *
+ * A position that already exists keeps whatever access an administrator has
+ * configured on it. The one exception is a position still carrying the old
+ * sign-in-limited template untouched: nobody chose those permissions, they
+ * were a placeholder for the approval step that no longer exists, so they are
+ * upgraded in place rather than leaving that team stuck.
+ */
+async function ensureInumaStaffPosition(
+  unitId: string,
+  positionName: string,
+  usesReservations: boolean
+) {
+  const access = buildStandardInumaUserAccess(usesReservations);
+  const description = `Inuma position: ${positionName}`;
+
+  const existing = await prisma.tbl_position.findUnique({
     where: {
-      position_name_unit_id: {
-        position_name: positionName,
-        unit_id: unitId,
+      position_name_unit_id: { position_name: positionName, unit_id: unitId },
+    },
+    select: { position_id: true, position_access: true },
+  });
+
+  if (existing) {
+    const neverConfigured = isLimitedInumaSignInAccess(existing.position_access);
+    return prisma.tbl_position.update({
+      where: { position_id: existing.position_id },
+      data: {
+        position_status: 'ACTIVE',
+        ...(neverConfigured
+          ? {
+              position_access: access as unknown as Prisma.InputJsonValue,
+              position_description: description,
+            }
+          : {}),
       },
-    },
-    update: {
-      position_status: 'ACTIVE',
-    },
-    create: {
+    });
+  }
+
+  return prisma.tbl_position.create({
+    data: {
       position_name: positionName,
-      position_description: `Inuma position (limited access until administrator grants permissions): ${positionName}`,
+      position_description: description,
       position_access: access as unknown as Prisma.InputJsonValue,
       unit_id: unitId,
       position_status: 'ACTIVE',
@@ -199,13 +229,6 @@ async function ensureUserAssignment(userId: string, positionId: string) {
   });
 }
 
-function userHasActiveAssignments(auth: AuthWithUser): boolean {
-  return (auth.user?.position_assignments?.length ?? 0) > 0;
-}
-
-function hasFullPermissionsGranted(auth: AuthWithUser): boolean {
-  return !!auth.imotrak_access_approved_at;
-}
 
 export async function syncInumaAccessForUser(
   identity: SsoIdentity,
@@ -263,7 +286,6 @@ export async function syncInumaAccessForUser(
 
     return {
       isApprover: true,
-      isLimitedAccess: false,
       matchedUnitId: approverUnit.unit_id,
       matchedPositionId: approverPosition.position_id,
       inumaPosition,
@@ -276,19 +298,19 @@ export async function syncInumaAccessForUser(
     throw new AppError('No ImoTrak unit available for Inuma user mapping', 500);
   }
 
+  const organization = await prisma.tbl_organizations.findUnique({
+    where: { organization_id: organizationId },
+    select: { uses_reservations: true },
+  });
+
   const positionName = positionRecord?.name || inumaPosition || 'Inuma User';
-  const limitedPosition = await ensureLimitedInumaPosition(
+  const staffPosition = await ensureInumaStaffPosition(
     matchedUnit.unit_id,
-    positionName
+    positionName,
+    organization?.uses_reservations ?? true
   );
 
-  const fullPermissionsGranted = hasFullPermissionsGranted(auth);
-
-  if (!fullPermissionsGranted) {
-    await ensureUserAssignment(auth.user!.user_id, limitedPosition.position_id);
-  } else if (!userHasActiveAssignments(auth)) {
-    await ensureUserAssignment(auth.user!.user_id, limitedPosition.position_id);
-  }
+  await ensureUserAssignment(auth.user!.user_id, staffPosition.position_id);
 
   await prisma.tbl_auth.update({
     where: { auth_id: auth.auth_id },
@@ -297,16 +319,19 @@ export async function syncInumaAccessForUser(
       inuma_unit: inumaUnit,
       inuma_campus_code: campusRecord?.code,
       matched_unit_id: matchedUnit.unit_id,
-      matched_position_id: limitedPosition.position_id,
+      matched_position_id: staffPosition.position_id,
       user_status: 'ACTIVE',
+      // Signing in through Inuma is the registration, so the account is never
+      // parked in a pending state waiting to be approved. Kept idempotent so
+      // the original registration date survives later sign-ins.
+      imotrak_access_approved_at: auth.imotrak_access_approved_at || new Date(),
     },
   });
 
   return {
     isApprover: false,
-    isLimitedAccess: !fullPermissionsGranted,
     matchedUnitId: matchedUnit.unit_id,
-    matchedPositionId: limitedPosition.position_id,
+    matchedPositionId: staffPosition.position_id,
     inumaPosition,
     inumaUnit,
   };

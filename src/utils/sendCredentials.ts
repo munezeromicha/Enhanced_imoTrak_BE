@@ -246,3 +246,74 @@ export async function sendInvitationEmail(
 
   await transporter.sendMail(mailOptions);
 }
+
+/**
+ * Tell both addresses that an organization's leader login has moved.
+ *
+ * The old address needs to know it no longer signs in, and the new one needs
+ * to know it now does — with the password that was already in use, so no reset
+ * is required.
+ */
+export async function sendLeaderLoginMovedEmail(params: {
+  newEmail: string;
+  previousEmail: string | null;
+  organizationName: string;
+}) {
+  const FRONT_APP = (process.env.FRONT_APP || process.env.CLIENT_URL || '').replace(/\/+$/, '');
+  const loginUrl = FRONT_APP ? `${FRONT_APP}/login` : '#';
+  const year = new Date().getFullYear();
+  const { newEmail, previousEmail, organizationName } = params;
+
+  const body = (audience: 'new' | 'old') => `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin:0;padding:0;background-color:#f4f6f8;font-family:Arial,Helvetica,sans-serif;color:#1f2d3a;">
+  <div style="max-width:560px;margin:32px auto;background:#ffffff;border-radius:8px;padding:32px;">
+    <h2 style="margin:0 0 16px;color:#036bb3;">Sign-in address updated</h2>
+    <p style="line-height:1.6;">
+      The sign-in address for <strong>${organizationName}</strong> on ImoTrak is now
+      <strong>${newEmail}</strong>.
+    </p>
+    ${
+      audience === 'old'
+        ? `<p style="line-height:1.6;">
+             This address${previousEmail ? ` (${previousEmail})` : ''} can no longer be used to sign in.
+             If you did not expect this change, contact your ImoTrak administrator right away.
+           </p>`
+        : `<p style="line-height:1.6;">
+             Sign in with this address and your existing password — it has not changed.
+             If you do not know the password, use “Forgot password” on the sign-in page.
+           </p>`
+    }
+    <a href="${loginUrl}"
+       style="display:inline-block;margin-top:20px;padding:12px 24px;background-color:#036bb3;color:#ffffff;text-decoration:none;border-radius:6px;font-weight:bold;">
+      Go to sign in
+    </a>
+    <p style="margin-top:24px;font-size:12px;color:#6b8090;">
+      &copy; ${year} Imotrak. All rights reserved.
+    </p>
+  </div>
+</body>
+</html>
+`;
+
+  await transporter.sendMail({
+    from: process.env.EMAIL_USER,
+    to: newEmail,
+    subject: `Your ImoTrak sign-in address for ${organizationName}`,
+    html: body('new'),
+  });
+
+  if (previousEmail && previousEmail.toLowerCase() !== newEmail.toLowerCase()) {
+    await transporter.sendMail({
+      from: process.env.EMAIL_USER,
+      to: previousEmail,
+      subject: `ImoTrak sign-in address changed for ${organizationName}`,
+      html: body('old'),
+    });
+  }
+}

@@ -27,6 +27,20 @@ export function buildAssetsServicesApproverAccess(): position_accesses {
     vehicles: { create: true, view: true, viewSingle: true, update: true, delete: true },
     reservations: fullReservations,
     vehicleIssues: { report: true, view: true, update: true, delete: true },
+    // Section II of the fuel form is theirs. Funding is Finance's and
+    // issuing is the logistics desk's, so neither is granted here.
+    fuel: {
+      request: true,
+      view: true,
+      viewOwn: true,
+      recommend: true,
+      confirmFunding: false,
+      issue: false,
+      receive: true,
+      replenish: false,
+      viewReport: true,
+      manageGenerators: true,
+    },
   };
 }
 
@@ -58,7 +72,84 @@ export function buildLimitedInumaSignInAccess(): position_accesses {
   };
 }
 
-/** @deprecated Use buildLimitedInumaSignInAccess for new SSO users. */
-export function buildDefaultInumaSyncedPositionAccess(): position_accesses {
-  return buildLimitedInumaSignInAccess();
+/**
+ * Access granted to an ordinary Inuma user the moment they sign in.
+ *
+ * Signing in through Inuma is the registration: the person is a member of
+ * their campus unit straight away, with what a staff member actually needs —
+ * request a vehicle, follow and cancel their own requests, report a problem
+ * with one. Everything administrative stays closed; widening it is a
+ * deliberate act by an administrator on that position.
+ */
+export function buildStandardInumaUserAccess(
+  usesReservations = true
+): position_accesses {
+  return {
+    organizations: { create: false, view: false, update: false, delete: false },
+    units: { create: false, view: false, update: false, delete: false },
+    positions: { create: false, view: false, update: false, delete: false, assignUser: false },
+    users: { create: false, view: false, update: false, delete: false },
+    vehicleModels: { create: false, view: false, viewSingle: false, update: false, delete: false },
+    vehicles: { create: false, view: false, viewSingle: false, update: false, delete: false },
+    reservations: {
+      create: usesReservations,
+      view: false,
+      update: false,
+      delete: false,
+      cancel: usesReservations,
+      approve: false,
+      assignVehicle: false,
+      odometerFuel: false,
+      start: false,
+      complete: false,
+      viewOwn: usesReservations,
+      viewAssigned: false,
+      updateReason: usesReservations,
+    },
+    vehicleIssues: { report: true, view: false, update: false, delete: false },
+    // A driver raises their own requisition and signs for what they
+    // collect. Every approving signature stays closed.
+    fuel: {
+      request: true,
+      view: false,
+      viewOwn: true,
+      recommend: false,
+      confirmFunding: false,
+      issue: false,
+      receive: true,
+      replenish: false,
+      viewReport: false,
+      manageGenerators: false,
+    },
+  };
+}
+
+/**
+ * Whether a position still carries the old sign-in-limited template verbatim —
+ * everything closed except seeing one's own reservations.
+ *
+ * Used to tell "nobody has ever configured this position" apart from "an
+ * administrator deliberately set it this way", so an upgrade never overwrites
+ * someone's decision. Compared flag by flag rather than by deep equality,
+ * because the stored JSON's key order is not guaranteed and the shape grows
+ * over time.
+ */
+export function isLimitedInumaSignInAccess(access: unknown): boolean {
+  if (!access || typeof access !== 'object') return false;
+
+  const granted: string[] = [];
+  const walk = (value: unknown, path: string) => {
+    if (typeof value === 'boolean') {
+      if (value) granted.push(path);
+      return;
+    }
+    if (value && typeof value === 'object') {
+      for (const [key, child] of Object.entries(value)) {
+        walk(child, path ? `${path}.${key}` : key);
+      }
+    }
+  };
+  walk(access, '');
+
+  return granted.length === 1 && granted[0] === 'reservations.viewOwn';
 }

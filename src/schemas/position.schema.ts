@@ -61,6 +61,28 @@ export const positionAccessSchema = z.object({
     update: z.boolean(),
     delete: z.boolean(),
   }),
+  // One flag per section of the fuel requisition form.
+  //
+  // Optional, and every flag within it optional, because positions saved
+  // before this module existed carry no `fuel` key. Note that a module
+  // missing from this schema is not rejected — zod strips unknown keys
+  // silently — so a new module must be added here or it will never reach
+  // the database, however carefully it was ticked in the UI.
+  fuel: z
+    .object({
+      request: z.boolean(),
+      view: z.boolean(),
+      viewOwn: z.boolean(),
+      recommend: z.boolean(),
+      confirmFunding: z.boolean(),
+      issue: z.boolean(),
+      receive: z.boolean(),
+      replenish: z.boolean(),
+      viewReport: z.boolean(),
+      manageGenerators: z.boolean(),
+    })
+    .partial()
+    .optional(),
 });
 
 

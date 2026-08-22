@@ -13,6 +13,9 @@
     "dev": "nodemon index.ts",
     "seed": "ts-node prisma/seed.ts",
     "seed:vehicle-models": "ts-node prisma/seed-vehicle-models.ts",
+    "units:audit": "ts-node prisma/scripts/audit-cross-org-units.ts",
+    "leader:audit": "ts-node prisma/scripts/backfill-org-leader-accounts.ts",
+    "leader:fix": "ts-node prisma/scripts/backfill-org-leader-accounts.ts --fix",
     "db:wipe": "ts-node prisma/reset-db.ts",
     "db:reset": "ts-node prisma/reset-db.ts --yes && ts-node prisma/seed.ts",
     "prisma:status": "prisma migrate status",
@@ -73,6 +76,7 @@
     "nodemailer": "^7.0.3",
     "nodemon": "^3.1.10",
     "prisma": "^6.11.1",
+    "qrcode": "^1.5.4",
     "swagger-jsdoc": "^6.2.8",
     "swagger-ui-express": "^5.0.1",
     "zod": "^4.0.5"

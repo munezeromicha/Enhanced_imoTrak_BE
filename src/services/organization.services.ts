@@ -10,8 +10,13 @@ import {
 } from '../utils/userPositions';
 import { AuthenticatedUser, position_accesses } from '../types/access';
 import { clampPositionAccess, isPositionAccessSubset } from '../utils/positionAccessUtils';
-import { INUMA_APPROVER_IMOTRAK_POSITION, INUMA_APPROVER_UNIT_NAMES, normalizeCatalogName } from '../constants/inuma';
+import { INUMA_APPROVER_IMOTRAK_POSITION, normalizeCatalogName } from '../constants/inuma';
 import { assertUnitInScope } from '../utils/campusScope';
+import jwt from 'jsonwebtoken';
+import {
+  sendInvitationEmail,
+  sendLeaderLoginMovedEmail,
+} from '../utils/sendCredentials';
 const prisma = new PrismaClient();
 
 interface CreateOrgPayload {
@@ -186,6 +191,18 @@ function buildLeaderPositionAccess(usesReservations: boolean): position_accesses
     vehicles: { create: true, view: true, viewSingle: true, update: true, delete: true },
     reservations: usesReservations ? fullReservations : noReservations,
     vehicleIssues: { report: true, view: true, update: true, delete: true },
+    fuel: {
+      request: true,
+      view: true,
+      viewOwn: true,
+      recommend: true,
+      confirmFunding: true,
+      issue: true,
+      receive: true,
+      replenish: true,
+      viewReport: true,
+      manageGenerators: true,
+    },
   };
 }
 
@@ -281,14 +298,36 @@ export async function softDeletePositionService(positionId: string, userId: stri
     throw new AppError('Position is already inactive', 400);
   }
 
-  await prisma.tbl_position.update({
+  const assignmentCount = await prisma.tbl_user_position_assignments.count({
     where: { position_id: positionId },
-    data: {
-      position_status: 'INACTIVE',
-    },
   });
 
-  return { message: 'Position deleted (soft) successfully' };
+  await prisma.$transaction(async (tx) => {
+    await tx.tbl_position.update({
+      where: { position_id: positionId },
+      data: {
+        position_status: 'INACTIVE',
+      },
+    });
+
+    // Releasing the holders is part of deleting the position. Leaving the
+    // assignments behind kept deleted positions attached to their unit and let
+    // users carry a position that no longer exists.
+    await tx.tbl_user_position_assignments.deleteMany({
+      where: { position_id: positionId },
+    });
+
+    await tx.tbl_auth.updateMany({
+      where: { matched_position_id: positionId },
+      data: { matched_position_id: null },
+    });
+  }, WRITE_TX_OPTIONS);
+
+  return {
+    message: 'Position deleted (soft) successfully',
+    position_id: positionId,
+    users_unassigned: assignmentCount,
+  };
 }
 
 export async function getPositionsInUnitService({
@@ -522,6 +561,284 @@ export const getSingleOrganizationService = async ({ organization_id, user }: Ge
   return organization;
 };
 
+export type LeaderAccountSync =
+  | { action: 'unchanged' }
+  | { action: 'login_moved'; email: string; previous_email: string | null }
+  | { action: 'leader_invited'; email: string };
+
+/** Placeholder for the unique columns on a provisioned leader profile. */
+function leaderPlaceholder(organizationId: string, prefix: string): string {
+  const compact = organizationId.replace(/[^a-zA-Z0-9]/g, '').slice(0, 20) || 'org';
+  return `${prefix}${compact}`;
+}
+
+/**
+ * Resolve the position that represents leadership of an organization.
+ *
+ * Organizations created by `createOrganizationService` always carry
+ * `leader_position_id`. Older rows may not, so fall back to any active
+ * `is_org_leader` position inside the organization, and create the unit and
+ * position if the organization has neither.
+ */
+/**
+ * Read-only lookup of the position representing leadership of an organization.
+ *
+ * Organizations created by `createOrganizationService` always carry
+ * `leader_position_id`. Older rows may not, so fall back to any active
+ * `is_org_leader` position inside the organization. Returns null when the
+ * organization has neither — `createLeaderPosition` builds one.
+ */
+async function findLeaderPosition(organization: tbl_organizations) {
+  if (organization.leader_position_id) {
+    const position = await prisma.tbl_position.findUnique({
+      where: { position_id: organization.leader_position_id },
+      include: { unit: true },
+    });
+    if (position) return position;
+  }
+
+  return prisma.tbl_position.findFirst({
+    where: {
+      is_org_leader: true,
+      position_status: 'ACTIVE',
+      unit: { organization_id: organization.organization_id },
+    },
+    include: { unit: true },
+  });
+}
+
+/** Build the leader unit and position for a legacy organization that has none. */
+async function createLeaderPosition(
+  tx: Prisma.TransactionClient,
+  organization: tbl_organizations,
+  existingPrimaryUnitId: string | null
+) {
+  const leaderUnitId =
+    existingPrimaryUnitId ??
+    (
+      await tx.tbl_unit.create({
+        data: {
+          unit_name: 'Headquarters',
+          organization_id: organization.organization_id,
+          is_primary: true,
+          status: 'ACTIVE',
+        },
+      })
+    ).unit_id;
+
+  const leaderPosition = await tx.tbl_position.create({
+    data: {
+      position_name: 'Organization Leader',
+      position_description: 'Primary organization leader with elevated access',
+      unit_id: leaderUnitId,
+      is_org_leader: true,
+      position_access: buildLeaderPositionAccess(
+        organization.uses_reservations ?? true
+      ) as unknown as Prisma.InputJsonValue,
+      position_status: 'ACTIVE',
+    },
+  });
+
+  await tx.tbl_organizations.update({
+    where: { organization_id: organization.organization_id },
+    data: {
+      leader_unit_id: leaderUnitId,
+      leader_position_id: leaderPosition.position_id,
+    },
+  });
+
+  return leaderPosition;
+}
+
+/**
+ * Keep the organization's leader login in step with its email address.
+ *
+ * `organization_email` used to be a contact field with no relationship to any
+ * login, so changing it left the new address unable to sign in ("Account not
+ * found") while the old one silently kept working. This closes that gap:
+ *
+ *  - a leader account already exists → its login email moves to the new
+ *    address, keeping the existing password so the leader can sign in at once.
+ *    The old address stops working immediately.
+ *  - no leader account exists yet → one is provisioned against the
+ *    organization's leader position and invited to set a password.
+ *
+ * The new address must be free; handing an organization an email that already
+ * belongs to somebody else would hijack that person's account.
+ */
+/**
+ * A decided sync, ready to execute.
+ *
+ * Every lookup the decision needs happens before the transaction opens.
+ * Postgres closes an interactive transaction after 5s by default, and on a
+ * pooled/serverless database each round trip is slow enough that doing the
+ * reads inside the transaction expired it before the writes ran.
+ */
+type LeaderSyncPlan =
+  | { kind: 'unchanged' }
+  | { kind: 'move'; authId: string; email: string; previousEmail: string | null }
+  | {
+      kind: 'provision';
+      email: string;
+      leaderPositionId: string | null;
+      primaryUnitId: string | null;
+    };
+
+/** All reads for a leader sync — safe to run outside a transaction. */
+async function planLeaderAccountSync(
+  organization: tbl_organizations,
+  newEmail: string
+): Promise<LeaderSyncPlan> {
+  const email = newEmail.trim().toLowerCase();
+
+  const leaderPosition = await findLeaderPosition(organization);
+
+  const assignment = leaderPosition
+    ? await prisma.tbl_user_position_assignments.findFirst({
+        where: { position_id: leaderPosition.position_id },
+        include: { user: { include: { auth: true } } },
+        orderBy: { assignment_id: 'asc' },
+      })
+    : null;
+  const currentAuth = assignment?.user?.auth ?? null;
+
+  const emailOwner = await prisma.tbl_auth.findUnique({ where: { email } });
+  if (emailOwner && emailOwner.auth_id !== currentAuth?.auth_id) {
+    throw new AppError(
+      `${email} is already used by another ImoTrak account. Use an address that is not yet registered, or reassign that account first.`,
+      409
+    );
+  }
+
+  // The leader already signs in — move the login to the new address.
+  if (currentAuth) {
+    if (currentAuth.email?.toLowerCase() === email) {
+      return { kind: 'unchanged' };
+    }
+    return {
+      kind: 'move',
+      authId: currentAuth.auth_id,
+      email,
+      previousEmail: currentAuth.email,
+    };
+  }
+
+  // Nobody holds the leader position yet — provision the account. Look up the
+  // primary unit now so the transaction never has to.
+  const primaryUnit = leaderPosition
+    ? null
+    : await prisma.tbl_unit.findFirst({
+        where: { organization_id: organization.organization_id, is_primary: true },
+        select: { unit_id: true },
+      });
+
+  return {
+    kind: 'provision',
+    email,
+    leaderPositionId: leaderPosition?.position_id ?? null,
+    primaryUnitId: primaryUnit?.unit_id ?? null,
+  };
+}
+
+/** All writes for a leader sync — runs inside the caller's transaction. */
+async function applyLeaderAccountSync(
+  tx: Prisma.TransactionClient,
+  organization: tbl_organizations,
+  plan: LeaderSyncPlan
+): Promise<LeaderAccountSync> {
+  if (plan.kind === 'unchanged') {
+    return { action: 'unchanged' };
+  }
+
+  if (plan.kind === 'move') {
+    await tx.tbl_auth.update({
+      where: { auth_id: plan.authId },
+      data: { email: plan.email, updated_at: new Date() },
+    });
+    return {
+      action: 'login_moved',
+      email: plan.email,
+      previous_email: plan.previousEmail,
+    };
+  }
+
+  const leaderPositionId =
+    plan.leaderPositionId ??
+    (await createLeaderPosition(tx, organization, plan.primaryUnitId)).position_id;
+
+  const auth = await tx.tbl_auth.create({
+    data: {
+      email: plan.email,
+      password: null,
+      user_status: 'ACTIVE',
+      is_verified: false,
+    },
+  });
+
+  const user = await tx.tbl_users.create({
+    data: {
+      first_name: organization.organization_name.slice(0, 40) || 'Organization',
+      last_name: 'Leader',
+      user_nid: leaderPlaceholder(organization.organization_id, 'org-'),
+      user_phone: leaderPlaceholder(organization.organization_id, 'org+'),
+      user_gender: 'MALE',
+      user_dob: new Date('2000-01-01T00:00:00.000Z'),
+      auth_id: auth.auth_id,
+    },
+  });
+
+  await createUserPositionAssignment(tx, user.user_id, leaderPositionId);
+
+  return { action: 'leader_invited', email: plan.email };
+}
+
+/**
+ * Interactive transactions carrying several writes need more than the 5s
+ * default when the database is pooled or serverless.
+ */
+const WRITE_TX_OPTIONS = { timeout: 30_000, maxWait: 15_000 } as const;
+
+/** Invite a freshly provisioned org leader to set their password. */
+async function sendOrganizationLeaderInvitation(
+  organization: tbl_organizations,
+  email: string
+) {
+  const jwtSecret = process.env.JWT_SECRET as string;
+  if (!jwtSecret) {
+    throw new Error('JWT secret is not defined');
+  }
+  const expiresIn = (process.env.VERIFY_LINK_EXPIRES_IN ||
+    '1h') as jwt.SignOptions['expiresIn'];
+
+  const leaderPosition = organization.leader_position_id
+    ? await prisma.tbl_position.findUnique({
+        where: { position_id: organization.leader_position_id },
+        include: { unit: true },
+      })
+    : null;
+
+  await sendInvitationEmail(
+    email,
+    jwt.sign({ email }, jwtSecret, { expiresIn }),
+    leaderPosition?.position_name ?? 'Organization Leader',
+    leaderPosition?.unit.unit_name ?? 'Headquarters',
+    organization.organization_name
+  );
+}
+
+/** Tell the old and new addresses that the leader login has moved. */
+async function notifyLeaderLoginMoved(
+  organization: tbl_organizations,
+  newEmail: string,
+  previousEmail: string | null
+) {
+  await sendLeaderLoginMovedEmail({
+    newEmail,
+    previousEmail,
+    organizationName: organization.organization_name,
+  });
+}
+
 export const updateOrganizationService = async ({
   organization_id,
   updates
@@ -542,13 +859,101 @@ export const updateOrganizationService = async ({
     delete updates.status;
   }
 
-  const updatedOrg = await prisma.tbl_organizations.update({
+  const requestedEmail =
+    typeof updates.organization_email === 'string'
+      ? updates.organization_email.trim().toLowerCase()
+      : undefined;
+  const emailChanged =
+    !!requestedEmail &&
+    requestedEmail !== organization.organization_email?.trim().toLowerCase();
+
+  // Decide before opening the transaction, so it carries writes only.
+  const plan: LeaderSyncPlan = emailChanged
+    ? await planLeaderAccountSync(organization, requestedEmail!)
+    : { kind: 'unchanged' };
+
+  const { updatedOrg, leaderSync } = await prisma.$transaction(async (tx) => {
+    const leaderSync = await applyLeaderAccountSync(tx, organization, plan);
+
+    const updatedOrg = await tx.tbl_organizations.update({
+      where: { organization_id },
+      data: {
+        ...updates,
+        ...(requestedEmail ? { organization_email: requestedEmail } : {}),
+      },
+    });
+
+    return { updatedOrg, leaderSync };
+  }, WRITE_TX_OPTIONS);
+
+  await announceLeaderAccountSync(updatedOrg, leaderSync);
+
+  return { ...updatedOrg, leader_account: leaderSync };
+};
+
+/**
+ * Email delivery is best-effort: the login change is already committed, and
+ * failing the request here would hide a successful update.
+ */
+async function announceLeaderAccountSync(
+  organization: tbl_organizations,
+  leaderSync: LeaderAccountSync
+) {
+  if (leaderSync.action === 'leader_invited') {
+    try {
+      await sendOrganizationLeaderInvitation(organization, leaderSync.email);
+    } catch (error) {
+      console.error('Failed to send organization leader invitation:', error);
+    }
+  } else if (leaderSync.action === 'login_moved') {
+    try {
+      await notifyLeaderLoginMoved(
+        organization,
+        leaderSync.email,
+        leaderSync.previous_email
+      );
+    } catch (error) {
+      console.error('Failed to send leader login change notice:', error);
+    }
+  }
+}
+
+/**
+ * Bring one organization's leader login in line with its current email without
+ * changing the email itself.
+ *
+ * Repairs organizations whose address was edited before the sync existed — the
+ * new address was written to the organization but no account was ever created
+ * for it, so signing in reported "Account not found".
+ */
+export async function ensureOrganizationLeaderAccount(
+  organization_id: string
+): Promise<LeaderAccountSync> {
+  const organization = await prisma.tbl_organizations.findUnique({
     where: { organization_id },
-    data: updates
   });
 
-  return updatedOrg;
-};
+  if (!organization) {
+    throw new AppError('Organization not found', 404);
+  }
+  if (!organization.organization_email?.trim()) {
+    throw new AppError('Organization has no email address to sync', 400);
+  }
+
+  const plan = await planLeaderAccountSync(
+    organization,
+    organization.organization_email
+  );
+
+  const leaderSync = await prisma.$transaction(
+    (tx) => applyLeaderAccountSync(tx, organization, plan),
+    WRITE_TX_OPTIONS
+  );
+
+  await announceLeaderAccountSync(organization, leaderSync);
+
+  return leaderSync;
+}
 
 export const deleteOrganizationService = async ({
   organization_id,
@@ -992,33 +1397,86 @@ export const deleteUnitService = async ({ unit_id, user }: DeleteUnitParams) => 
     throw new AppError('You can only delete units within your organization', 403);
   }
 
-  if (INUMA_APPROVER_UNIT_NAMES.some(
-    (name) => normalizeCatalogName(name) === normalizeCatalogName(unit.unit_name)
-  )) {
-    throw new AppError('The UR-Fleet unit cannot be deleted', 403);
-  }
-
   if (unit.status === 'INACTIVE') {
     throw new AppError('Unit is already inactive', 400);
   }
 
+  // UR-Fleet used to be blocked by name because deleting it left Inuma users
+  // pointing at a dead unit. Deletion now clears those pointers, so the name
+  // no longer needs protecting — only genuinely structural units do.
+  if (unit.organization.leader_unit_id === unit_id) {
+    throw new AppError(
+      'This unit holds the organization leader position. Move the leader to another unit before deleting it.',
+      409
+    );
+  }
+
+  const activeUnitCount = await prisma.tbl_unit.count({
+    where: { organization_id: unit.organization_id, status: 'ACTIVE' },
+  });
+  if (activeUnitCount <= 1) {
+    throw new AppError(
+      'This is the only active unit in the organization. Create another unit before deleting this one.',
+      409
+    );
+  }
+
   // Fetch positions under this unit
   const positions = await prisma.tbl_position.findMany({
-    where: { unit_id }
+    where: { unit_id },
+    select: { position_id: true, position_status: true },
   });
 
   const positionIds = positions.map(pos => pos.position_id);
+  const activePositionCount = positions.filter(
+    (pos) => pos.position_status === 'ACTIVE'
+  ).length;
 
-  await prisma.$transaction([
-    prisma.tbl_unit.update({
+  const assignmentCount = positionIds.length
+    ? await prisma.tbl_user_position_assignments.count({
+        where: { position_id: { in: positionIds } },
+      })
+    : 0;
+
+  await prisma.$transaction(async (tx) => {
+    await tx.tbl_unit.update({
       where: { unit_id },
-      data: { status: 'INACTIVE' }
-    }),
-    prisma.tbl_position.updateMany({
+      data: { status: 'INACTIVE' },
+    });
+
+    await tx.tbl_position.updateMany({
       where: { unit_id },
-      data: { position_status: 'INACTIVE' }
-    })
-  ]);
+      data: { position_status: 'INACTIVE' },
+    });
+
+    if (positionIds.length > 0) {
+      // Deactivating a position must also release the people holding it,
+      // otherwise users keep an assignment to a position that no longer exists
+      // and the unit still reports them as members.
+      await tx.tbl_user_position_assignments.deleteMany({
+        where: { position_id: { in: positionIds } },
+      });
+
+      // Inuma users cached this unit at sign-in. Clearing the pointers makes
+      // the next sign-in re-map them to a surviving unit instead of stranding
+      // them on a deleted one.
+      await tx.tbl_auth.updateMany({
+        where: { matched_unit_id: unit_id },
+        data: { matched_unit_id: null },
+      });
+      await tx.tbl_auth.updateMany({
+        where: { matched_position_id: { in: positionIds } },
+        data: { matched_position_id: null },
+      });
+    }
+  }, WRITE_TX_OPTIONS);
+
+  return {
+    message: 'Unit deactivated successfully',
+    unit_id,
+    positions_deactivated: activePositionCount,
+    users_unassigned: assignmentCount,
+  };
 };
 
 export const getSinglePositionService = async ({ position_id, user }: GetSinglePositionParams) => {

@@ -115,6 +115,23 @@ const options: swaggerJSDoc.Options = {
               },
               required: ['report', 'view', 'update', 'delete'],
             },
+            fuel: {
+              type: 'object',
+              description:
+                'Fuel management. One flag per section of the requisition form. Absent on positions saved before the module existed, which reads as no access.',
+              properties: {
+                request: { type: 'boolean' },
+                view: { type: 'boolean' },
+                viewOwn: { type: 'boolean' },
+                recommend: { type: 'boolean' },
+                confirmFunding: { type: 'boolean' },
+                issue: { type: 'boolean' },
+                receive: { type: 'boolean' },
+                replenish: { type: 'boolean' },
+                viewReport: { type: 'boolean' },
+                manageGenerators: { type: 'boolean' },
+              },
+            },
           },
         },
         Reservation: {

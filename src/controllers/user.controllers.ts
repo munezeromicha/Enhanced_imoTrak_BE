@@ -4,6 +4,8 @@ import { AppError } from '../utils/Error';
 import { uploadToCloudinary } from '../utils/cloudinary';
 import { position_accesses } from '../types/access';
 import { resolveCampusScope } from '../utils/campusScope';
+import { isOrgLeader, isSuperAdmin } from '../utils/orgLeader';
+import { changeUserPositionService, updateMySignatureService } from '../services/user.services';
 
 interface AuthenticatedRequest extends Request {
   user?: {
@@ -11,6 +13,7 @@ interface AuthenticatedRequest extends Request {
     email: string;
     position_access: position_accesses
     organization_id: string;
+    position_id: string;
     // Attached by attachPositionAccess — see utils/campusScope.
     unit_id?: string | null;
     inuma_position?: string | null;
@@ -315,3 +318,87 @@ export const getSingleUnverifiedUserController = async (
   }
 };
 
+
+/**
+ * Move a user to another unit and position.
+ *
+ * Restricted to hub SuperAdmins and organization leaders. `users.update` is
+ * deliberately not sufficient: changing someone's unit changes the scope of
+ * everything they can see, so it sits above ordinary profile editing.
+ */
+export const changeUserPositionController = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    if (!req.user) {
+      throw new AppError('Authentication required', 401);
+    }
+
+    const actor = req.user as typeof req.user & { position_id: string };
+    const superAdmin = isSuperAdmin(actor);
+    const orgLeader = superAdmin ? false : await isOrgLeader(actor);
+
+    if (!superAdmin && !orgLeader) {
+      throw new AppError(
+        'Only organization leaders and SuperAdmins can change a user’s unit and position',
+        403
+      );
+    }
+
+    const { user_id } = req.params;
+    const { position_id } = req.body ?? {};
+
+    if (typeof position_id !== 'string' || !position_id.trim()) {
+      throw new AppError('position_id is required', 400);
+    }
+
+    const result = await changeUserPositionService({
+      target_user_id: user_id,
+      position_id: position_id.trim(),
+      actor: {
+        user_id: actor.user_id,
+        organization_id: actor.organization_id,
+        position_id: actor.position_id,
+        position_access: actor.position_access,
+      },
+      actorIsSuperAdmin: superAdmin,
+    });
+
+    res.status(200).json({
+      message: 'User position updated successfully',
+      data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Upload or replace the signed-in user's signature image.
+ *
+ * Kept separate from the profile update because multer takes one field name
+ * per route, and because a signature is not an ordinary profile edit — it is
+ * what gets stamped on documents this person signs.
+ */
+export const updateMySignatureController = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    if (!req.user) throw new AppError('Authentication required', 401);
+    if (!req.file) throw new AppError('Attach a signature image', 400);
+
+    const signature_url = await uploadToCloudinary(
+      req.file.buffer,
+      'Imotrak/users/signatures'
+    );
+    const data = await updateMySignatureService(req.user.user_id, signature_url);
+
+    res.status(200).json({ message: 'Signature saved successfully', data });
+  } catch (error) {
+    next(error);
+  }
+};
