@@ -97,6 +97,18 @@ async function main() {
       update: false,
       delete: false,
     },
+    fuel: {
+      request: true,
+      view: true,
+      viewOwn: true,
+      recommend: true,
+      confirmFunding: true,
+      issue: true,
+      receive: true,
+      replenish: true,
+      viewReport: true,
+      manageGenerators: true,
+    },
   };
 
   const fleetManagerAccess = {
@@ -125,6 +137,18 @@ async function main() {
       view: true,
       update: true,
       delete: true,
+    },
+    fuel: {
+      request: true,
+      view: true,
+      viewOwn: true,
+      recommend: true,
+      confirmFunding: true,
+      issue: true,
+      receive: true,
+      replenish: true,
+      viewReport: true,
+      manageGenerators: true,
     },
   };
 
@@ -365,6 +389,18 @@ async function main() {
     updateReason: true,
     assignVehicle: false
   },
+    fuel: {
+      request: true,
+      view: false,
+      viewOwn: true,
+      recommend: false,
+      confirmFunding: false,
+      issue: false,
+      receive: true,
+      replenish: false,
+      viewReport: false,
+      manageGenerators: false,
+    },
   };
 
   const reservationUnit = await prisma.tbl_unit.upsert({
@@ -495,6 +531,18 @@ async function main() {
       odometerFuel: false,
       updateReason: true,
       assignVehicle: false
+    },
+    fuel: {
+      request: true,
+      view: false,
+      viewOwn: true,
+      recommend: false,
+      confirmFunding: false,
+      issue: false,
+      receive: true,
+      replenish: false,
+      viewReport: false,
+      manageGenerators: false,
     },
   };
 

@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { forgotPasswordService, loginUser, loginWithPosition, logoutUser, resendInvitationService, setPasswordAndVerifyService, updatePasswordService, verifyUserByEmailService } from '../services/auth.services';
+import { forgotPasswordService, getCurrentSession, loginUser, loginWithPosition, logoutUser, resendInvitationService, setPasswordAndVerifyService, updatePasswordService, verifyUserByEmailService } from '../services/auth.services';
 import { loginWithSso, loginWithSsoPosition } from '../services/sso.services';
 import { bodyHasSsoTokens, loginSchema, ssoTokenSchema } from '../schemas/auth.schema';
 import { AppError } from '../utils/Error';
@@ -119,6 +119,39 @@ export async function loginWithPositionController(req: Request, res: Response, n
     res.status(200).json({
       message: 'Sign in successful',
       data: result
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * The caller's session, re-read from the database.
+ *
+ * Permissions live on the position, not in the token, so a grant made after
+ * sign-in never reaches a client holding the copy it cached at login. This
+ * hands back a current one without disturbing the token.
+ */
+export async function currentSessionController(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+) {
+  try {
+    const user = req.user;
+    if (!user?.user_id || !user.position_id) {
+      throw new AppError('Not authenticated', 401);
+    }
+
+    const session = await getCurrentSession(
+      user.user_id,
+      user.email,
+      user.position_id
+    );
+
+    res.status(200).json({
+      message: 'Session refreshed',
+      data: session,
     });
   } catch (error) {
     next(error);

@@ -5,7 +5,8 @@ import { AppError } from '../utils/Error';
 import { signToken, verifyToken } from '../utils/jwt'
 import { generateRandomPassword } from '../utils/password';
 import { sendForgotPasswordEmail, sendInvitationEmail } from '../utils/sendCredentials';
-import { AuthenticatedUser } from '../types/access';
+import { AuthenticatedUser, position_accesses } from '../types/access';
+import { normalizePositionAccess } from '../utils/positionAccessUtils';
 import {
   mapAssignmentsToPositions,
   userHasPositionAssignment,
@@ -64,7 +65,15 @@ export async function loginUser(email: string, password: string) {
   return positionsData
 }
 
-export async function issuePositionSession(
+/**
+ * The signed-in context for one user in one position, read fresh.
+ *
+ * `position_access` is stored JSON that an administrator can change at any
+ * time, so the copy handed out at sign-in goes stale the moment a permission
+ * is granted. Splitting this out from token issuance lets a live session pull
+ * an up-to-date copy without asking the user to sign in again.
+ */
+export async function buildPositionSession(
   user_id: string,
   email: string,
   position_id: string
@@ -105,17 +114,10 @@ export async function issuePositionSession(
     throw new AppError('User profile not found', 500);
   }
 
-  const token = signToken({
-    user_id,
-    email,
-    position_id,
-    organization_id: position.unit.organization.organization_id
-  });
-
   const {unit, ...positionOut} = position
   const {organization, ...unitOut} = unit
   return {
-    token,
+    organization_id: organization.organization_id,
     organization: {
       ...organization,
       uses_reservations: organization.uses_reservations ?? true,
@@ -126,10 +128,56 @@ export async function issuePositionSession(
     },
     position: {
       ...positionOut,
+      // Filled out to the full permission shape so a module added after this
+      // position was last saved reads as explicitly closed rather than absent.
+      position_access: normalizePositionAccess(
+        positionOut.position_access as unknown as position_accesses
+      ),
       is_org_leader: position.is_org_leader ?? false,
     },
     unit: unitOut,
   }
+}
+
+export async function issuePositionSession(
+  user_id: string,
+  email: string,
+  position_id: string
+) {
+  const { organization_id, ...session } = await buildPositionSession(
+    user_id,
+    email,
+    position_id
+  );
+
+  const token = signToken({
+    user_id,
+    email,
+    position_id,
+    organization_id,
+  });
+
+  return { token, ...session };
+}
+
+/**
+ * The caller's own session, re-read from the database.
+ *
+ * Backs the refresh the dashboard performs on load: permissions granted since
+ * sign-in take effect without the user having to sign out and back in.
+ */
+export async function getCurrentSession(
+  user_id: string,
+  email: string,
+  position_id: string
+) {
+  const { organization_id, ...session } = await buildPositionSession(
+    user_id,
+    email,
+    position_id
+  );
+  void organization_id;
+  return session;
 }
 
 export async function loginWithPosition(email: string, password: string, position_id: string) {

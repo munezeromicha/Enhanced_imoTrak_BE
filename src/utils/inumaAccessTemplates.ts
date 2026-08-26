@@ -69,6 +69,21 @@ export function buildLimitedInumaSignInAccess(): position_accesses {
       updateReason: false,
     },
     vehicleIssues: { report: false, view: false, update: false, delete: false },
+    // Written out even though every flag is closed. A module left absent reads
+    // as "not granted" to the clamp but as "unknown" to the permission editor,
+    // and that gap is what made fuel impossible to delegate once before.
+    fuel: {
+      request: false,
+      view: false,
+      viewOwn: false,
+      recommend: false,
+      confirmFunding: false,
+      issue: false,
+      receive: false,
+      replenish: false,
+      viewReport: false,
+      manageGenerators: false,
+    },
   };
 }
 

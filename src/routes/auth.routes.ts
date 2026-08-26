@@ -1,6 +1,6 @@
 // auth.routes.ts
 import { Router } from 'express';
-import { forgotPasswordController, loginController, loginWithPositionController, logoutController, resendInvitationController, setPasswordAndVerifyController, ssoLoginController, ssoLoginWithPositionController, updatePasswordController, verifyUserByEmailController } from '../controllers/auth.controllers';
+import { currentSessionController, forgotPasswordController, loginController, loginWithPositionController, logoutController, resendInvitationController, setPasswordAndVerifyController, ssoLoginController, ssoLoginWithPositionController, updatePasswordController, verifyUserByEmailController } from '../controllers/auth.controllers';
 import { authenticateToken, authenticateVerifyToken } from '../middlewares/auth.middleware';
 import { validateBody } from '../middlewares/bodyValidator';
 import { setPasswordAndVerifySchema, updatePasswordSchema } from '../schemas/auth.schema';
@@ -318,6 +318,32 @@ authRoutes.post('/sso/:position_id', ssoLoginWithPositionController);
  *           type: string
  */
 authRoutes.post('/logout', authenticateToken, logoutController);
+
+/**
+ * @swagger
+ * /v2/auth/session:
+ *   get:
+ *     summary: The caller's session, re-read from the database
+ *     tags:
+ *       - Auth
+ *     description: >
+ *       Returns the same user, position, unit and organization the sign-in
+ *       response carries, but read fresh. Permissions live on the position
+ *       rather than in the token, so a client that cached the sign-in response
+ *       calls this to pick up access granted since — a module assigned to the
+ *       position takes effect without signing out and back in. No new token is
+ *       issued; the existing one keeps its original expiry.
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Current session
+ *       401:
+ *         description: Not authenticated
+ *       403:
+ *         description: The position is no longer active or no longer assigned
+ */
+authRoutes.get('/session', authenticateToken, currentSessionController);
 
 /**
  * @swagger
