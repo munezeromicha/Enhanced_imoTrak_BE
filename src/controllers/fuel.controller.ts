@@ -239,6 +239,51 @@ export const listVehicles = async (
   }
 };
 
+/**
+ * Fuel already issued for a vehicle and not yet sent out on a trip.
+ *
+ * Read by the reservation screen when a vehicle is assigned, so the litres the
+ * fuel desk recorded are the litres the trip starts with. The guard is
+ * deliberately not `requirePermission`: the person assigning a vehicle holds a
+ * reservations permission and often no fuel permission at all, and refusing
+ * them here would simply put the manual figure back.
+ */
+export const vehicleFuelAvailability = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const user = req.user;
+    if (!user) throw new AppError('Authentication required', 401);
+
+    const fuel = user.position_access?.fuel;
+    const reservations = user.position_access?.reservations;
+    const mayRead =
+      reservations?.assignVehicle ||
+      reservations?.odometerFuel ||
+      fuel?.view ||
+      fuel?.viewOwn ||
+      fuel?.issue ||
+      fuel?.viewReport;
+
+    if (!mayRead) {
+      throw new AppError(
+        'Access denied. Your position does not allow you to read fuel records.',
+        403
+      );
+    }
+
+    const data = await fuelService.getVehicleFuelAvailability(
+      req.params.vehicle_id,
+      user as Parameters<typeof fuelService.getVehicleFuelAvailability>[1]
+    );
+    res.status(200).json({ message: 'Vehicle fuel availability', data });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const listGenerators = async (
   req: AuthenticatedRequest,
   res: Response,

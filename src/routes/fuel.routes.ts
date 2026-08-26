@@ -325,6 +325,42 @@ fuelRoutes.get('/vehicles', authenticateToken, attachPositionAccess, controller.
 
 /**
  * @swagger
+ * /v2/fuel/vehicles/{vehicle_id}/availability:
+ *   get:
+ *     summary: Fuel issued for a vehicle and not yet sent out on a trip
+ *     tags:
+ *       - Fuel
+ *     description: >
+ *       Litres signed for on completed requisitions for this vehicle, less the
+ *       litres already handed to trips through reservations. The reservation
+ *       screen reads this when a vehicle is assigned so the trip starts with
+ *       the figure the fuel desk recorded rather than one keyed in by hand.
+ *       Readable by a position that may assign vehicles or read fuel records.
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: vehicle_id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Availability for this vehicle
+ *       403:
+ *         description: Not allowed to read fuel records
+ *       404:
+ *         description: Vehicle not found
+ */
+fuelRoutes.get(
+  '/vehicles/:vehicle_id/availability',
+  authenticateToken,
+  attachPositionAccess,
+  controller.vehicleFuelAvailability
+);
+
+/**
+ * @swagger
  * /v2/fuel/generators:
  *   get:
  *     summary: Generators in scope

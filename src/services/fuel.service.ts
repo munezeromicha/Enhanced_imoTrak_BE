@@ -82,6 +82,51 @@ async function resolveSignatory(actor: Actor): Promise<SignatureIdentity> {
  * users already behave. `viewOwn` without `view` narrows it to the actor's own
  * forms, which is what an ordinary driver gets.
  */
+/**
+ * The units whose vehicles and generators a requester may raise fuel against.
+ *
+ * `undefined` means no restriction — the requester reads organization-wide.
+ *
+ * A campus does not usually own the vehicles it runs: the fleet is held
+ * centrally and lent out. Pinning the asset list to the requester's own unit
+ * therefore left campuses with an empty dropdown and no way to fuel the car
+ * parked outside. The pool is the organization's primary and leader units,
+ * plus any asset not assigned to a unit at all.
+ *
+ * Requisition *records* stay pinned to the raising unit — this widens only
+ * which assets can be picked, never whose paperwork you can read.
+ */
+async function resolveAssetUnitIds(actor: Actor): Promise<string[] | undefined> {
+  const scope = resolveCampusScope(actor);
+  if (!scope.campusUnitId) return undefined;
+
+  const [pooled, organization] = await Promise.all([
+    prisma.tbl_unit.findMany({
+      where: { organization_id: actor.organization_id, is_primary: true },
+      select: { unit_id: true },
+    }),
+    prisma.tbl_organizations.findUnique({
+      where: { organization_id: actor.organization_id },
+      select: { leader_unit_id: true },
+    }),
+  ]);
+
+  const ids = new Set<string>([scope.campusUnitId]);
+  for (const unit of pooled) ids.add(unit.unit_id);
+  if (organization?.leader_unit_id) ids.add(organization.leader_unit_id);
+
+  return [...ids];
+}
+
+/** Where-clause fragment matching assets in scope, unassigned ones included. */
+async function assetUnitWhere(
+  actor: Actor
+): Promise<{ OR: { unit_id: string | { in: string[] } | null }[] } | Record<string, never>> {
+  const unitIds = await resolveAssetUnitIds(actor);
+  if (!unitIds) return {};
+  return { OR: [{ unit_id: { in: unitIds } }, { unit_id: null }] };
+}
+
 function buildScopeFilter(actor: Actor): Prisma.tbl_fuel_requisitionsWhereInput {
   const scope = resolveCampusScope(actor);
   const access = actor.position_access?.fuel;
@@ -140,6 +185,14 @@ export async function createFuelRequisition(
 ) {
   const signatory = await resolveSignatory(actor);
   const scope = resolveCampusScope(actor);
+  const assetUnitIds = await resolveAssetUnitIds(actor);
+
+  /** Refuse an asset the requester could not have picked from their own list. */
+  const assertAssetInScope = (assetUnitId: string | null, noun: string) => {
+    if (!assetUnitIds) return;
+    if (assetUnitId === null || assetUnitIds.includes(assetUnitId)) return;
+    throw new AppError(`That ${noun} belongs to another unit`, 403);
+  };
 
   let assetLabel: string;
   let unitId: string | null = scope.campusUnitId ?? actor.unit_id ?? null;
@@ -158,6 +211,7 @@ export async function createFuelRequisition(
     if (vehicle.organization_id !== actor.organization_id) {
       throw new AppError('That vehicle belongs to another organization', 403);
     }
+    assertAssetInScope(vehicle.unit_id, 'vehicle');
 
     // The logbook only ever counts up. Catching this here keeps a typo out of
     // the consumption report, where the km column is used to work out usage.
@@ -185,6 +239,7 @@ export async function createFuelRequisition(
     if (generator.organization_id !== actor.organization_id) {
       throw new AppError('That generator belongs to another organization', 403);
     }
+    assertAssetInScope(generator.unit_id, 'generator');
     if (generator.status !== 'ACTIVE') {
       throw new AppError('That generator is inactive', 400);
     }
@@ -536,11 +591,10 @@ export async function cancelFuelRequisition(id: string, actor: Actor) {
 // --- Generators -------------------------------------------------------------
 
 export async function listGenerators(actor: Actor) {
-  const scope = resolveCampusScope(actor);
   return prisma.tbl_generators.findMany({
     where: {
       organization_id: actor.organization_id,
-      ...(scope.campusUnitId ? { unit_id: scope.campusUnitId } : {}),
+      ...(await assetUnitWhere(actor)),
     },
     include: { unit: { select: { unit_id: true, unit_name: true } } },
     orderBy: { generator_name: 'asc' },
@@ -705,23 +759,41 @@ export async function getFuelConsumptionReport(
           fuel_indicator_percent: true,
           request_type: true,
           purpose: true,
+          unit_id: true,
         },
       },
     },
     orderBy: [{ occurred_on: 'asc' }, { created_at: 'asc' }],
   });
 
+  // The ledger is organization-wide because the fuel account is, but a campus
+  // has no business reading another campus's consumption. Issues are shown
+  // only for the requester's own unit; replenishments carry no requisition and
+  // fund the shared account, so they stay visible to everyone who may read the
+  // report at all.
+  //
+  // The running balance is still accumulated over every transaction, so the
+  // figure against each row is the true account balance at that moment rather
+  // than a total of the rows above it.
+  const reportScope = resolveCampusScope(actor);
+  const inScope = (unitId: string | null | undefined) =>
+    !reportScope.campusUnitId || !unitId || unitId === reportScope.campusUnitId;
+
   let running = openingBalance;
   let totalIssued = 0;
   let totalReplenished = 0;
   let totalLitres = 0;
 
-  const rows: FuelReportRow[] = transactions.map((transaction) => {
+  const rows: FuelReportRow[] = [];
+
+  for (const transaction of transactions) {
     const amount = Number(transaction.amount_rwf);
     running += amount;
 
     const requisition = transaction.requisition;
     const isIssue = transaction.type === 'ISSUE';
+
+    if (!inScope(requisition?.unit_id)) continue;
 
     if (isIssue) totalIssued += Math.abs(amount);
     if (transaction.type === 'REPLENISHMENT') totalReplenished += amount;
@@ -741,7 +813,7 @@ export async function getFuelConsumptionReport(
       reading = `${requisition.fuel_indicator_percent}%`;
     }
 
-    return {
+    rows.push({
       date: transaction.occurred_on,
       description: transaction.description,
       plate_number:
@@ -752,8 +824,8 @@ export async function getFuelConsumptionReport(
       amount: isIssue ? Math.abs(amount) : null,
       replenishment: transaction.type === 'ISSUE' ? null : amount,
       balance: running,
-    };
-  });
+    });
+  }
 
   return {
     opening_balance: openingBalance,
@@ -773,12 +845,10 @@ export async function getFuelConsumptionReport(
  * odometer instead of guessing it.
  */
 export async function listFuellableVehicles(actor: Actor) {
-  const scope = resolveCampusScope(actor);
-
   const vehicles = await prisma.tbl_vehicles.findMany({
     where: {
       organization_id: actor.organization_id,
-      ...(scope.campusUnitId ? { unit_id: scope.campusUnitId } : {}),
+      ...(await assetUnitWhere(actor)),
       vehicle_status: { not: 'OUT_OF_SERVICE' },
     },
     select: {
@@ -814,6 +884,72 @@ export async function listFuellableVehicles(actor: Actor) {
     latest_odometer:
       highestByVehicle.get(vehicle.vehicle_id) ?? vehicle.current_odometer,
   }));
+}
+
+export type VehicleFuelAvailability = {
+  vehicle_id: string;
+  plate_number: string;
+  /** Litres signed for since this vehicle last went out on a trip. */
+  available_litres: number;
+  /** How many completed requisitions that came from. */
+  fills: number;
+  /** When the vehicle was last assigned to a reservation, if ever. */
+  last_trip_at: Date | null;
+};
+
+/**
+ * Fuel issued for this vehicle that has not been sent out on a trip yet.
+ *
+ * The requisition is where fuel enters a vehicle and a reservation is where it
+ * leaves, so the two have to agree: whoever assigns the vehicle should not be
+ * keying in a number the fuel desk already recorded.
+ *
+ * Measured as "issued since the vehicle last went out" rather than as a
+ * lifetime issued-minus-used balance. A running balance sounds more precise but
+ * cannot survive the data that already exists — `fuel_provided` was typed by
+ * hand for years before this module existed, and some rows hold readings in the
+ * thousands. Subtracting those would peg every vehicle at zero forever. Dating
+ * from the last trip needs no historical figure to be correct.
+ *
+ * Only requisitions posted to the asset count, the same rule
+ * `getAssetFuelHistory` applies: a form still going round for signature has not
+ * been collected.
+ */
+export async function getVehicleFuelAvailability(
+  vehicleId: string,
+  actor: Actor
+): Promise<VehicleFuelAvailability> {
+  const vehicle = await prisma.tbl_vehicles.findFirst({
+    where: { vehicle_id: vehicleId, organization_id: actor.organization_id },
+    select: { vehicle_id: true, plate_number: true },
+  });
+  if (!vehicle) throw new AppError('Vehicle not found', 404);
+
+  const lastTrip = await prisma.tbl_reserved_vehicles.findFirst({
+    where: { vehicle_id: vehicleId },
+    orderBy: { created_at: 'desc' },
+    select: { created_at: true },
+  });
+
+  const issued = await prisma.tbl_fuel_requisitions.aggregate({
+    where: {
+      vehicle_id: vehicleId,
+      organization_id: actor.organization_id,
+      recorded_on_asset_at: lastTrip
+        ? { gt: lastTrip.created_at }
+        : { not: null },
+    },
+    _sum: { quantity_supplied_litres: true },
+    _count: true,
+  });
+
+  return {
+    vehicle_id: vehicle.vehicle_id,
+    plate_number: vehicle.plate_number,
+    available_litres: Number(issued._sum.quantity_supplied_litres ?? 0),
+    fills: issued._count,
+    last_trip_at: lastTrip?.created_at ?? null,
+  };
 }
 
 // --- Approval chain -------------------------------------------------------
