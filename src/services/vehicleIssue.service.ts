@@ -7,13 +7,20 @@ import { assertDriverNotOnAnotherVehicleInReservation } from '../utils/driverAss
 
 const prisma = new PrismaClient();
 
-export const getAllIssues = async (user: AuthenticatedUser) => {
+export const getAllIssues = async (user: AuthenticatedUser, unitIds?: string[]) => {
   const { organization_id } = user;
   const issues = await prisma.tbl_vehicle_issues.findMany({
     where: {
       reserved_vehicle: {
         vehicle: {
           organization_id: organization_id,
+          // Issues have no unit of their own; they inherit the vehicle's, which
+          // is a real relation the database can filter on. `unit_id: null`
+          // stays visible so vehicles yet to be assigned to a unit do not make
+          // their issues disappear.
+          ...(unitIds
+            ? { OR: [{ unit_id: { in: unitIds } }, { unit_id: null }] }
+            : {}),
         },
       },
     },
@@ -77,7 +84,11 @@ export const getAllIssues = async (user: AuthenticatedUser) => {
   return issues;
 };
 
-export const getIssueById = async (id: string, user: AuthenticatedUser) => {
+export const getIssueById = async (
+  id: string,
+  user: AuthenticatedUser,
+  unitIds?: string[]
+) => {
   const issue = await prisma.tbl_vehicle_issues.findUnique({
     where: { issue_id: id },
     include: {
@@ -156,6 +167,13 @@ export const getIssueById = async (id: string, user: AuthenticatedUser) => {
 
   if (issue.reserved_vehicle.vehicle.organization_id !== user.organization_id)
     throw new AppError('Unauthorized', 403);
+
+  // Unit check on the vehicle the issue was raised against. 404 rather than
+  // 403: confirming a record exists in another unit is itself a disclosure.
+  const issueUnitId = issue.reserved_vehicle.vehicle.unit_id;
+  if (unitIds && issueUnitId && !unitIds.includes(issueUnitId)) {
+    throw new AppError('No vehicle issue found', 404);
+  }
 
   return issue;
 };

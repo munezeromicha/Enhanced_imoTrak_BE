@@ -10,6 +10,8 @@ import { authenticateToken } from '../middlewares/auth.middleware';
 import { validateBody } from '../middlewares/bodyValidator';
 import { createNotificationSchema } from '../schemas/notification.schema';
 import { AuthenticatedRequest } from '../types/access';
+import { attachPositionAccess } from '../middlewares/attachPositionAccess';
+import { requirePermission } from '../middlewares/requirePermission';
 
 
 function withAuthUser(handler: (req: AuthenticatedRequest, res: Response, next: NextFunction) => any): RequestHandler {
@@ -82,6 +84,13 @@ router.delete('/:id', authenticateToken, withAuthUser(deleteNotification));
  *       201:
  *         description: Notification sent
  */
-router.post('/', authenticateToken, validateBody(createNotificationSchema), withAuthUser(sendNotification));
+router.post(
+  '/',
+  authenticateToken,
+  attachPositionAccess,
+  requirePermission('users.view'),
+  validateBody(createNotificationSchema),
+  withAuthUser(sendNotification)
+);
 
 export default router; 

@@ -9,7 +9,7 @@
     "prisma:generate": "prisma generate",
     "build": "prisma generate && tsc",
     "build:tsc": "tsc",
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "vitest run",
     "dev": "nodemon index.ts",
     "seed": "ts-node prisma/seed.ts",
     "seed:vehicle-models": "ts-node prisma/seed-vehicle-models.ts",
@@ -28,7 +28,8 @@
     "start:pm2": "pm2 start ecosystem.config.cjs --env production",
     "restart:pm2": "pm2 restart imotrak-api --update-env",
     "start:prod": "npm run migrate:deploy && node dist/index.js",
-    "deploy": "docker build . -t ghcr.io/programmerdatch/imotrack-backend:latest && docker push ghcr.io/programmerdatch/imotrack-backend:latest"
+    "deploy": "docker build . -t ghcr.io/programmerdatch/imotrack-backend:latest && docker push ghcr.io/programmerdatch/imotrack-backend:latest",
+    "test:watch": "vitest"
   },
   "repository": {
     "type": "git",
@@ -56,7 +57,8 @@
     "@types/swagger-jsdoc": "^6.0.4",
     "@types/swagger-ui-express": "^4.1.8",
     "ts-node": "^10.9.2",
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "vitest": "^4.1.11"
   },
   "dependencies": {
     "@prisma/client": "^6.11.1",

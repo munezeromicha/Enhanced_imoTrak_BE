@@ -22,6 +22,8 @@ import {
 } from '../controllers/vehicle.controllers';
 import { authenticateQueryToken, authenticateToken } from '../middlewares/auth.middleware';
 import { attachPositionAccess } from '../middlewares/attachPositionAccess';
+import { authenticateDevice } from '../middlewares/deviceAuth';
+import { requirePermission, attachAuthContext } from '../middlewares/requirePermission';
 import { validateBody } from '../middlewares/bodyValidator';
 import { upload } from '../middlewares/multer';
 import {
@@ -488,26 +490,29 @@ router.put('/vehicle-models/:id', authenticateToken, attachPositionAccess, valid
 router.delete('/vehicle-models/:id', authenticateToken, attachPositionAccess, deleteVehicleModelController);
 
 // Vehicles CRUD
-router.post('/vehicles', authenticateToken, attachPositionAccess, upload.single('vehicle_photo'), createVehicleController);
-router.get('/vehicles', authenticateToken, attachPositionAccess, getAllVehiclesController);
+router.post('/vehicles', authenticateToken, attachPositionAccess, requirePermission('vehicles.create'), upload.single('vehicle_photo'), createVehicleController);
+router.get('/vehicles', authenticateToken, attachPositionAccess, requirePermission('vehicles.view'), getAllVehiclesController);
 
 // Location routes before /vehicles/:id so paths with extra segments are not shadowed.
 router.get('/vehicles/:id/locations/stream', authenticateQueryToken, attachPositionAccess, streamVehicleLocationController);
 router.get('/vehicles/:id/tracking', authenticateToken, attachPositionAccess, getVehicleTrackingContextController);
 router.get('/vehicles/:id/next-odometer', authenticateToken, attachPositionAccess, getNextOdometerController);
 router.get('/vehicles/:id/locations', authenticateToken, attachPositionAccess, getVehicleLocationHistoryController);
-router.post('/vehicles/:id/locations', validateBody(locationUpdateSchema), updateVehicleLocationsController);
+// Trackers authenticate with a device key rather than a user token: the
+// hardware has no login. Previously this route had no authentication at all.
+router.post('/vehicles/:id/locations', authenticateDevice, validateBody(locationUpdateSchema), updateVehicleLocationsController);
 
-router.get('/vehicles/:id', authenticateToken, attachPositionAccess, getVehicleByIdController);
+router.get('/vehicles/:id', authenticateToken, attachPositionAccess, attachAuthContext(), getVehicleByIdController);
 router.put(
   '/vehicles/:id',
   authenticateToken,
   attachPositionAccess,
+  requirePermission('vehicles.update'),
   upload.single('vehicle_photo'),
   validateBody(vehicleUpdateSchema),
   updateVehicleController,
 );
-router.delete('/vehicles/:id', authenticateToken, attachPositionAccess, deleteVehicleController);
+router.delete('/vehicles/:id', authenticateToken, attachPositionAccess, attachAuthContext(), deleteVehicleController);
 
 // Vehicle locations
 

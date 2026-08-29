@@ -4,6 +4,7 @@ import { authenticateToken } from '../middlewares/auth.middleware';
 import { attachPositionAccess } from '../middlewares/attachPositionAccess';
 import { validateBody } from '../middlewares/bodyValidator';
 import { updateVehicleIssueMessageSchema } from '../schemas/vehicleIssue.schema';
+import { requirePermission } from '../middlewares/requirePermission';
 
 const issueRoutes = Router();
 
@@ -176,7 +177,7 @@ const issueRoutes = Router();
  *         description: Internal server error
  */
 
-issueRoutes.get('/', authenticateToken, attachPositionAccess, controller.getAll);
+issueRoutes.get('/', authenticateToken, attachPositionAccess, requirePermission('vehicleIssues.view'), controller.getAll);
 
 /**
  * @swagger
@@ -315,7 +316,7 @@ issueRoutes.get('/', authenticateToken, attachPositionAccess, controller.getAll)
  *         description: Issue not found
  */
 
-issueRoutes.get('/:id', authenticateToken, attachPositionAccess, controller.getById);
+issueRoutes.get('/:id', authenticateToken, attachPositionAccess, requirePermission('vehicleIssues.view'), controller.getById);
 
 /**
  * @swagger
@@ -460,7 +461,7 @@ issueRoutes.get('/:id', authenticateToken, attachPositionAccess, controller.getB
  *                           type: string
  */
 
-issueRoutes.post('/', authenticateToken, attachPositionAccess, controller.create);
+issueRoutes.post('/', authenticateToken, attachPositionAccess, requirePermission('vehicleIssues.report'), controller.create);
 
 /**
  * @swagger
@@ -501,7 +502,7 @@ issueRoutes.post('/', authenticateToken, attachPositionAccess, controller.create
  *       404:
  *         description: Issue not found
  */
-issueRoutes.put('/:id', authenticateToken, attachPositionAccess, controller.update);
+issueRoutes.put('/:id', authenticateToken, attachPositionAccess, requirePermission('vehicleIssues.update'), controller.update);
 
 /**
  * @swagger
@@ -524,7 +525,7 @@ issueRoutes.put('/:id', authenticateToken, attachPositionAccess, controller.upda
  *       404:
  *         description: Issue not found
  */
-issueRoutes.delete('/:id', authenticateToken, attachPositionAccess, controller.remove);
+issueRoutes.delete('/:id', authenticateToken, attachPositionAccess, requirePermission('vehicleIssues.delete'), controller.remove);
 
 /**
  * @swagger

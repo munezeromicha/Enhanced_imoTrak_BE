@@ -44,8 +44,19 @@ export function buildAssetsServicesApproverAccess(): position_accesses {
   };
 }
 
-/** Minimal access granted immediately after first Inuma sign-in. */
-export function buildLimitedInumaSignInAccess(): position_accesses {
+/**
+ * Every permission the system knows about, switched off.
+ *
+ * This is what a new account gets. Signing in proves who someone is; it does
+ * not decide what they may do. Until an administrator grants something on their
+ * position, every protected feature refuses them.
+ *
+ * It replaces a template that granted reservations, issue reporting and three
+ * fuel permissions — including signing for fuel received — to anyone who
+ * completed an SSO sign-in, with no administrator involved. That was the direct
+ * cause of people seeing features nobody had given them.
+ */
+export function buildNoAccess(): position_accesses {
   return {
     organizations: { create: false, view: false, update: false, delete: false },
     units: { create: false, view: false, update: false, delete: false },
@@ -64,14 +75,11 @@ export function buildLimitedInumaSignInAccess(): position_accesses {
       odometerFuel: false,
       start: false,
       complete: false,
-      viewOwn: true,
+      viewOwn: false,
       viewAssigned: false,
       updateReason: false,
     },
     vehicleIssues: { report: false, view: false, update: false, delete: false },
-    // Written out even though every flag is closed. A module left absent reads
-    // as "not granted" to the clamp but as "unknown" to the permission editor,
-    // and that gap is what made fuel impossible to delegate once before.
     fuel: {
       request: false,
       view: false,
@@ -87,61 +95,42 @@ export function buildLimitedInumaSignInAccess(): position_accesses {
   };
 }
 
+/** Minimal access granted immediately after first Inuma sign-in. */
+export function buildLimitedInumaSignInAccess(): position_accesses {
+  return buildNoAccess();
+}
+
 /**
- * Access granted to an ordinary Inuma user the moment they sign in.
+ * The position an ordinary Inuma user lands in on first sign-in.
  *
- * Signing in through Inuma is the registration: the person is a member of
- * their campus unit straight away, with what a staff member actually needs —
- * request a vehicle, follow and cancel their own requests, report a problem
- * with one. Everything administrative stays closed; widening it is a
- * deliberate act by an administrator on that position.
+ * Signing in through Inuma is still the registration — the person becomes a
+ * member of their campus unit straight away — but membership no longer carries
+ * permissions. It used to grant reservations, issue reporting and three fuel
+ * permissions immediately, which meant people held access nobody had decided to
+ * give them. Everything is now closed until an administrator opens it on the
+ * position.
+ *
+ * Kept as a named function rather than folded into `buildNoAccess` so the two
+ * callers reading "what does a new Inuma user get?" still have somewhere
+ * obvious to look.
  */
 export function buildStandardInumaUserAccess(
   usesReservations = true
 ): position_accesses {
-  return {
-    organizations: { create: false, view: false, update: false, delete: false },
-    units: { create: false, view: false, update: false, delete: false },
-    positions: { create: false, view: false, update: false, delete: false, assignUser: false },
-    users: { create: false, view: false, update: false, delete: false },
-    vehicleModels: { create: false, view: false, viewSingle: false, update: false, delete: false },
-    vehicles: { create: false, view: false, viewSingle: false, update: false, delete: false },
-    reservations: {
-      create: usesReservations,
-      view: false,
-      update: false,
-      delete: false,
-      cancel: usesReservations,
-      approve: false,
-      assignVehicle: false,
-      odometerFuel: false,
-      start: false,
-      complete: false,
-      viewOwn: usesReservations,
-      viewAssigned: false,
-      updateReason: usesReservations,
-    },
-    vehicleIssues: { report: true, view: false, update: false, delete: false },
-    // A driver raises their own requisition and signs for what they
-    // collect. Every approving signature stays closed.
-    fuel: {
-      request: true,
-      view: false,
-      viewOwn: true,
-      recommend: false,
-      confirmFunding: false,
-      issue: false,
-      receive: true,
-      replenish: false,
-      viewReport: false,
-      manageGenerators: false,
-    },
-  };
+  // Deliberately unused: the template no longer varies by whether the
+  // organization runs reservations, because it no longer grants any.
+  void usesReservations;
+
+  return buildNoAccess();
 }
 
 /**
  * Whether a position still carries the old sign-in-limited template verbatim —
  * everything closed except seeing one's own reservations.
+ *
+ * Retained for the historical shape only: new positions are created fully
+ * closed, so nothing produces this pattern any more. It no longer gates any
+ * rewrite — an existing position's permissions are never overwritten.
  *
  * Used to tell "nobody has ever configured this position" apart from "an
  * administrator deliberately set it this way", so an upgrade never overwrites

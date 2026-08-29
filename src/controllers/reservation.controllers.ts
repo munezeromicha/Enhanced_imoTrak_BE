@@ -12,6 +12,8 @@ import {
 import { z } from 'zod';
 import { RequestStatus } from '@prisma/client';
 import { AuthenticatedRequest } from '../types/access';
+import { authOf, type AuthorizedRequest } from '../middlewares/requirePermission';
+import { readableUnitIds } from '../utils/authContext';
 
 function checkPermission(req: AuthenticatedRequest, action: keyof AuthenticatedRequest['user']['position_access']['reservations']) {
   if (!req.user?.position_access?.reservations?.[action]) {
@@ -44,7 +46,13 @@ export const createReservation = async (req: AuthenticatedRequest, res: Response
         throw new Error('Return date must be after departure date');
       }
     }
-    const reservation = await reservationService.createReservation({ ...body, user_id });
+    // Unit comes from the authorization context, never from the request body.
+    const ctx = authOf(req as unknown as AuthorizedRequest);
+    const reservation = await reservationService.createReservation({
+      ...body,
+      user_id,
+      unit_id: ctx.unitId,
+    });
     res.status(201).json({ message: 'Reservation created', data: reservation });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
@@ -253,7 +261,11 @@ export const getReservationById = async (req: AuthenticatedRequest, res: Respons
     
     const reservationId = req.params.id;
     const organizationId = req.user.organization_id;
-    const reservation = await reservationService.getReservationById(reservationId, organizationId);
+    const reservation = await reservationService.getReservationById(
+      reservationId,
+      organizationId,
+      readableUnitIds(authOf(req as unknown as AuthorizedRequest))
+    );
     
     if (!reservation) {
       return res.status(404).json({ message: 'Reservation not found' });

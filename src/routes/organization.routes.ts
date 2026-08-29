@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { addPositionsToUnitController, assignUserToPositionController, createOrganizationController, createPositionController, createUnitController, deleteOrganizationController, deleteOrganizationPermanentlyController, deletePositionController, deleteUnitController, getOrganizationsController, getPositionsController, getPositionsInUnitController, getSingleOrganizationController, getSinglePositionController, getSingleUnitController, getUnitsController, getUnitsInOrganization, updateOrganizationController, updatePositionController, updateUnitController } from '../controllers/organization.controllers';
 import { authenticateToken } from '../middlewares/auth.middleware';
 import { attachPositionAccess } from '../middlewares/attachPositionAccess';
+import { requirePermission, attachAuthContext } from '../middlewares/requirePermission';
 import { validateBody } from '../middlewares/bodyValidator';
 import { createPositionSchema, createUnitSchema, organizationSchema, updateOrganizationSchema, updateUnitSchema } from '../schemas/organization.schema';
 import { upload } from '../middlewares/multer';
@@ -203,6 +204,7 @@ organizationRoutes.post(
   '/units',
   authenticateToken,
   attachPositionAccess,
+  requirePermission('units.create'),
   validateBody(createUnitSchema),
   createUnitController
 );
@@ -377,6 +379,7 @@ organizationRoutes.post(
   '/units/:unit_id/positions',
   authenticateToken,
   attachPositionAccess,
+  requirePermission('positions.create'),
   addPositionsToUnitController
 );
 
@@ -434,6 +437,7 @@ organizationRoutes.post(
   '/positions',
   authenticateToken,
   attachPositionAccess,
+  requirePermission('positions.create'),
   validateBody(createPositionSchema),
   createPositionController
 );

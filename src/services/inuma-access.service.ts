@@ -11,7 +11,6 @@ import { SsoIdentity } from '../utils/sso-jwks';
 import {
   buildAssetsServicesApproverAccess,
   buildStandardInumaUserAccess,
-  isLimitedInumaSignInAccess,
 } from '../utils/inumaAccessTemplates';
 import { userPositionAssignmentsInclude, UserWithPositionAssignments } from '../utils/userPositions';
 import {
@@ -152,6 +151,21 @@ async function resolveUnitForInumaUser(
   return findFallbackUnit(organizationId);
 }
 
+/**
+ * The administrator position Inuma approvers land in.
+ *
+ * This is the one remaining automatic grant, and it exists to solve the
+ * bootstrap problem: if nothing were granted automatically, no one could grant
+ * anything to anyone. It is deliberately limited to *creating* the position
+ * that does not exist yet.
+ *
+ * The update branch no longer rewrites `position_access`. It used to reapply
+ * the full template on every sign-in by a matching Inuma approver, which meant
+ * an administrator could narrow this position and have it silently restored —
+ * an automatic privilege grant driven by a display string from an external
+ * identity provider. An existing position now keeps whatever it was configured
+ * with, and is only reactivated.
+ */
 async function ensureApproverPosition(unitId: string) {
   const access = buildAssetsServicesApproverAccess();
   return prisma.tbl_position.upsert({
@@ -162,7 +176,6 @@ async function ensureApproverPosition(unitId: string) {
       },
     },
     update: {
-      position_access: access as unknown as Prisma.InputJsonValue,
       position_status: 'ACTIVE',
     },
     create: {
@@ -211,18 +224,17 @@ async function ensureInumaStaffPosition(
   );
 
   if (existing) {
-    const neverConfigured = isLimitedInumaSignInAccess(existing.position_access);
+    // An existing position keeps its permissions, always.
+    //
+    // This used to overwrite positions still carrying the old sign-in template,
+    // which was safe while the template granted more than they had. Now that a
+    // new position starts closed, the same branch would quietly strip working
+    // access from people who have been using it — so the position is only
+    // reactivated, never rewritten. Widening or narrowing an existing position
+    // is an administrator's deliberate act.
     return prisma.tbl_position.update({
       where: { position_id: existing.position_id },
-      data: {
-        position_status: 'ACTIVE',
-        ...(neverConfigured
-          ? {
-              position_access: access as unknown as Prisma.InputJsonValue,
-              position_description: description,
-            }
-          : {}),
-      },
+      data: { position_status: 'ACTIVE' },
     });
   }
 

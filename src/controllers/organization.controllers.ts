@@ -28,6 +28,8 @@ import { updateUnitSchema } from '../schemas/organization.schema';
 import { updatePositionSchema } from '../schemas/position.schema';
 import { position_accesses } from '../types/access';
 import { clampPositionAccess, isPositionAccessSubset } from '../utils/positionAccessUtils';
+import { authOf, type AuthorizedRequest } from '../middlewares/requirePermission';
+import { resolveWriteOrganizationId } from '../utils/scopeGuards';
 import { resolveCampusScope } from '../utils/campusScope';
 
 const prisma = new PrismaClient();
@@ -139,7 +141,16 @@ export const createUnitController = async (
 
     const { unit_name, organization_id } = req.body;
 
-    const newUnit = await createUnitService({ unit_name, organization_id });
+    // Derived from the session, not the body. Accepting the client's
+    // organization here let any holder of units.create place a unit inside
+    // another tenant; a hub SuperAdmin may still name one deliberately.
+    const ctx = authOf(req as unknown as AuthorizedRequest);
+    const targetOrganizationId = resolveWriteOrganizationId(ctx, organization_id);
+
+    const newUnit = await createUnitService({
+      unit_name,
+      organization_id: targetOrganizationId,
+    });
 
     res.status(201).json({
       message: 'Unit created successfully',

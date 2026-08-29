@@ -5,6 +5,8 @@ import { uploadToCloudinary } from '../utils/cloudinary';
 import { AuthenticatedRequest } from '../types/access';
 import { AppError } from '../utils/Error';
 import { assertVehicleLocationAccess, assertVehicleUnitScope, assertVehicleUnitScopeById, clampVehicleUnitIdForUser } from '../utils/vehicle-access';
+import { authOf, type AuthorizedRequest } from '../middlewares/requirePermission';
+import { resolveWriteOrganizationId } from '../utils/scopeGuards';
 import { resolveUnitScopeForUser, isOrgLeader } from '../utils/orgLeader';
 import { ServerResponse } from 'http';
 import { vehicleModelSchema, vehicleModelUpdateSchema, createVehicleTypeSchema } from '../schemas/vehicle.schema';
@@ -121,8 +123,15 @@ export async function createVehicleController(req: Request, res: Response, next:
       }
     }
 
+    // The organization is taken from the session, never from the body. The
+    // previous code spread req.body straight through, and the service only
+    // checked the named organization *existed* — not that it was the caller's.
+    const ctx = authOf(req as unknown as AuthorizedRequest);
+    const organizationId = resolveWriteOrganizationId(ctx, req.body.organization_id);
+
     const parsedBody = {
       ...req.body,
+      organization_id: organizationId,
       vehicle_photo: vehiclePhotoUrl,
       vehicle_year: Number(req.body.vehicle_year),
       // Multipart sends numbers as strings; coerce the odometer to an Int.
@@ -234,7 +243,16 @@ export async function updateVehicleController(req: Request, res: Response, next:
       payload.vehicle_year = Number(body.vehicle_year);
     }
     if (body.energy_type !== undefined) payload.energy_type = String(body.energy_type);
-    if (body.organization_id) payload.organization_id = String(body.organization_id);
+    // Deliberately NOT copied from the body. Allowing it here let an existing
+    // vehicle — with its trips, issues and fuel history — be moved into another
+    // organization. Relocation, if ever needed, belongs in its own privileged
+    // endpoint rather than as a side effect of an edit.
+    if (body.organization_id) {
+      resolveWriteOrganizationId(
+        authOf(req as unknown as AuthorizedRequest),
+        String(body.organization_id)
+      );
+    }
     if (body.vehicle_status !== undefined) {
       payload.vehicle_status = String(body.vehicle_status) as typeof payload.vehicle_status;
     }
@@ -278,10 +296,11 @@ export async function updateVehicleController(req: Request, res: Response, next:
 export async function deleteVehicleController(req: Request, res: Response, next: NextFunction) {
   try {
     const authReq = req as AuthenticatedRequest;
-    const orgLeader = await isOrgLeader(authReq.user);
-    if (!orgLeader) {
-      checkVehiclePermission(authReq, 'delete');
-    }
+    // The org-leader exemption that used to sit here let a leader delete
+    // vehicles without holding vehicles.delete, so the permission screen
+    // misrepresented what they could do. Privilege now comes from the
+    // permission, the same as for everyone else.
+    checkVehiclePermission(authReq, 'delete');
     await assertVehicleUnitScopeById(authReq.user, req.params.id);
     await vehicleService.deleteVehicle(req.params.id);
     res.json({ message: 'Vehicle deleted' });

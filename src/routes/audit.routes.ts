@@ -1,6 +1,8 @@
 import { Router } from 'express';
 import { fetchAuditLogs, createAuditLog } from '../controllers/auditController';
 import { authenticateToken } from '../middlewares/auth.middleware';
+import { attachPositionAccess } from '../middlewares/attachPositionAccess';
+import { requirePermission } from '../middlewares/requirePermission';
 
 const historyRoutes = Router();
 
@@ -97,8 +99,22 @@ const historyRoutes = Router();
  *       200:
  *         description: Successfully retrieved audit logs
  */
-historyRoutes.get('/history', authenticateToken, fetchAuditLogs);
-historyRoutes.post('/history', authenticateToken, createAuditLog);
+// Reading the activity log is an administrative act: it requires the users
+// module's view permission, and the service pins it to the caller's tenant.
+historyRoutes.get(
+  '/history',
+  authenticateToken,
+  attachPositionAccess,
+  requirePermission('users.view'),
+  fetchAuditLogs
+);
+historyRoutes.post(
+  '/history',
+  authenticateToken,
+  attachPositionAccess,
+  requirePermission('users.update'),
+  createAuditLog
+);
 
 
 export default historyRoutes;

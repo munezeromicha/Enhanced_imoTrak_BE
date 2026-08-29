@@ -126,6 +126,13 @@ model tbl_reservations {
   reviewed_at             DateTime?
   rejection_comment       String?
   user_id                 String
+  /// The requesting unit, captured when the reservation is raised.
+  ///
+  /// A reservation has no vehicle until it is approved, so this is the only
+  /// unit signal available at creation. Null on rows that predate the column,
+  /// or whose requester held positions in more than one unit; null reads as
+  /// organization-level rather than hidden.
+  unit_id                 String?
   description             String                  @default("")
   passengers              Int                     @default(0)
   approved_at             DateTime?
@@ -135,12 +142,15 @@ model tbl_reservations {
   completed_at            DateTime?
   completed_by            String?
   reviewed_by             String?
+  unit                    tbl_unit?               @relation(fields: [unit_id], references: [unit_id])
   approver                tbl_users?              @relation("ReservationApprover", fields: [approved_by], references: [user_id])
   canceler                tbl_users?              @relation("ReservationCanceler", fields: [canceled_by], references: [user_id])
   completer               tbl_users?              @relation("ReservationCompleter", fields: [completed_by], references: [user_id])
   reviewer                tbl_users?              @relation("ReservationReviewer", fields: [reviewed_by], references: [user_id])
   user                    tbl_users               @relation("ReservationUser", fields: [user_id], references: [user_id])
   reserved_vehicles       tbl_reserved_vehicles[]
+
+  @@index([unit_id])
 }
 
 model tbl_vehicle_models {
@@ -244,6 +254,7 @@ model tbl_unit {
   organization      tbl_organizations       @relation(fields: [organization_id], references: [organization_id])
   generators        tbl_generators[]
   fuel_requisitions tbl_fuel_requisitions[]
+  reservations      tbl_reservations[]
 
   @@unique([unit_name, organization_id])
 }

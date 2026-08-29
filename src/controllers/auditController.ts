@@ -1,6 +1,8 @@
 import { Request, Response } from 'express';
 import { position_accesses } from '../types/access';
 import { getAuditLogs, updateUserService } from '../services/auditService';
+import { authOf, type AuthorizedRequest } from '../middlewares/requirePermission';
+import { isHubSuperAdmin } from '../utils/authContext';
 
 interface AuthenticatedRequest extends Request {
   user?: {
@@ -15,12 +17,20 @@ interface AuthenticatedRequest extends Request {
 // Fetch audit logs with filters and pagination
 export async function fetchAuditLogs(req: Request, res: Response) {
   try {
+    const ctx = authOf(req as AuthorizedRequest);
     const { name, email, organization, startDate, endDate, page, limit } = req.query;
+
+    // The organization is derived from the session, never from the query
+    // string. A hub SuperAdmin may narrow to a named tenant; anyone else is
+    // pinned to their own regardless of what they send.
+    const organizationId = isHubSuperAdmin(ctx)
+      ? (organization ? String(organization) : null)
+      : ctx.organizationId;
 
     const result = await getAuditLogs({
       name: name ? String(name) : undefined,
       email: email ? String(email) : undefined,
-      organization: organization ? String(organization) : undefined,
+      organizationId,
       startDate: startDate ? new Date(String(startDate)) : undefined,
       endDate: endDate ? new Date(String(endDate)) : undefined,
       page: page ? parseInt(String(page), 10) : 1,

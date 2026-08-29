@@ -32,6 +32,7 @@ import { authenticateToken } from '../middlewares/auth.middleware';
 import { attachPositionAccess } from '../middlewares/attachPositionAccess';
 import { NextFunction, Request, Response, RequestHandler } from 'express';
 import { AuthenticatedRequest } from '../types/access';
+import { requirePermission, attachAuthContext } from '../middlewares/requirePermission';
 
 function withAuthUser(handler: (req: AuthenticatedRequest, res: Response, next: NextFunction) => any): RequestHandler {
   return (req, res, next) => handler(req as AuthenticatedRequest, res, next);
@@ -85,7 +86,7 @@ const router = Router();
  *       400:
  *         description: Bad request
  */
-router.post('/', authenticateToken, attachPositionAccess, validateBody(createReservationSchema), withAuthUser(createReservation));
+router.post('/', authenticateToken, attachPositionAccess, requirePermission('reservations.create'), validateBody(createReservationSchema), withAuthUser(createReservation));
 
 /**
  * @openapi
@@ -859,7 +860,7 @@ router.post('/:id/remove-vehicle', authenticateToken, attachPositionAccess, vali
  *       403:
  *         description: Forbidden - insufficient permissions
  */
-router.get('/:id', authenticateToken, attachPositionAccess, withAuthUser(getReservationById));
+router.get('/:id', authenticateToken, attachPositionAccess, requirePermission(['reservations.view', 'reservations.viewOwn', 'reservations.viewAssigned']), withAuthUser(getReservationById));
 
 /**
  * @openapi

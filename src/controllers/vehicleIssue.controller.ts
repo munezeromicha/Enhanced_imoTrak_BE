@@ -5,6 +5,8 @@ import { AppError } from '../utils/Error';
 import { updateVehicleIssueMessageSchema } from '../schemas/vehicleIssue.schema';
 import { approveReplacementSchema } from '../schemas/driver.schema';
 import { assertOrganizationDriverManagement } from '../utils/driverAccess';
+import { authOf, type AuthorizedRequest } from '../middlewares/requirePermission';
+import { readableUnitIds } from '../utils/authContext';
 
 interface AuthenticatedRequest extends Request {
   user?: {
@@ -22,7 +24,7 @@ export const getAll = async (req: AuthenticatedRequest, res: Response, next: Nex
       throw new AppError('Access denied. You are not allowed to view vehicle issues.', 403);
     }
 
-    const issues = await issueService.getAllIssues(req.user);
+    const issues = await issueService.getAllIssues(req.user, readableUnitIds(authOf(req as unknown as AuthorizedRequest)));
 
     res.status(200).json({
       message: 'Vehicle issues retrieved successfully.',
@@ -38,7 +40,7 @@ export const getById = async (req: AuthenticatedRequest, res: Response, next: Ne
     if (!req.user?.position_access?.vehicleIssues?.view) {
       throw new AppError('Access denied. You are not allowed to view this vehicle issue.', 403);
     }
-    const issue = await issueService.getIssueById(req.params.id, req.user);
+    const issue = await issueService.getIssueById(req.params.id, req.user, readableUnitIds(authOf(req as unknown as AuthorizedRequest)));
     
     if (!issue) return res.status(404).json({ message: 'Issue not found' });
     res.json({
@@ -71,7 +73,7 @@ export const update = async (req: AuthenticatedRequest, res: Response, next: Nex
     if (!req.user?.position_access?.vehicleIssues?.update) {
       throw new AppError('Access denied. You are not allowed to edit vehicle issues.', 403);
     }
-    const issue = await issueService.getIssueById(req.params.id, req.user);
+    const issue = await issueService.getIssueById(req.params.id, req.user, readableUnitIds(authOf(req as unknown as AuthorizedRequest)));
 
     if (issue?.issue_status === 'CLOSED') {
       throw new AppError('Cannot update a closed issue.', 400);

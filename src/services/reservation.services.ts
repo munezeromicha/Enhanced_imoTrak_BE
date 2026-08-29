@@ -176,6 +176,8 @@ export async function createReservation(data: {
   description: string;
   passengers: number;
   user_id: string;
+  /** The requesting unit, derived from the session by the controller. */
+  unit_id?: string | null;
 }) {
   const user = await prisma.tbl_users.findUnique({
     where: { user_id: data.user_id },
@@ -205,6 +207,13 @@ export async function createReservation(data: {
       description: data.description,
       passengers: data.passengers,
       user_id: data.user_id,
+      // Stamped at creation: this is the only point where the requesting unit
+      // is known, since no vehicle is assigned yet. Falls back to the
+      // requester's position unit when the caller did not supply one.
+      unit_id:
+        data.unit_id ??
+        user?.position_assignments?.[0]?.position?.unit_id ??
+        null,
       reservation_status: RequestStatus.UNDER_REVIEW,
     },
   });
@@ -1356,10 +1365,20 @@ export async function getReservationsByUserId(userId: string) {
   });
 }
 
-export async function getReservationById(reservationId: string, organizationId: string) {
-  return prisma.tbl_reservations.findUnique({
-    where: { 
+export async function getReservationById(
+  reservationId: string,
+  organizationId: string,
+  unitIds?: string[]
+) {
+  return prisma.tbl_reservations.findFirst({
+    where: {
       reservation_id: reservationId,
+      // Unit filter applied in the query rather than after the fetch, so an
+      // out-of-scope reservation is simply not found. Rows predating the
+      // unit column are null and stay readable at organization level.
+      ...(unitIds
+        ? { OR: [{ unit_id: { in: unitIds } }, { unit_id: null }] }
+        : {}),
       user: {
         position_assignments: {
           some: {
