@@ -79,3 +79,24 @@ export async function reverseGeocodeController(req: Request, res: Response, next
     next(error);
   }
 }
+
+export async function searchGeocodeController(req: Request, res: Response, next: NextFunction) {
+  try {
+    const q = typeof req.query.q === 'string' ? req.query.q.trim() : '';
+    if (q.length < 2) {
+      return res.status(400).json({ message: 'q query parameter must be at least 2 characters' });
+    }
+    const country =
+      typeof req.query.country === 'string' && req.query.country.trim()
+        ? req.query.country.trim()
+        : 'rw';
+    const data = await trackingService.searchGeocodeForUser(
+      (req as AuthenticatedRequest).user,
+      q,
+      country
+    );
+    res.json({ message: 'Location search results', data });
+  } catch (error) {
+    next(error);
+  }
+}

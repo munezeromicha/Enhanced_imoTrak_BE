@@ -7,6 +7,7 @@ import {
   getVehicleTrackHistoryController,
   getTrackingDashboardController,
   reverseGeocodeController,
+  searchGeocodeController,
 } from '../controllers/tracking.controller';
 
 const trackingRoutes = Router();
@@ -16,6 +17,7 @@ trackingRoutes.use(authenticateToken, attachPositionAccess);
 trackingRoutes.get('/fleet', getFleetOverviewController);
 trackingRoutes.get('/dashboard', getTrackingDashboardController);
 trackingRoutes.get('/geocode/reverse', reverseGeocodeController);
+trackingRoutes.get('/geocode/search', searchGeocodeController);
 trackingRoutes.get('/vehicles/:vehicleId', getVehicleTrackingDetailController);
 trackingRoutes.get('/vehicles/:vehicleId/tracks', getVehicleTrackHistoryController);
 

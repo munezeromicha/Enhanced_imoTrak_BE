@@ -6,7 +6,7 @@ import {
   getVehicleTrackingContext,
   parseStoredCoords,
 } from './vehicle.services';
-import { reverseGeocode } from '../utils/geocoding';
+import { reverseGeocode, searchLocations } from '../utils/geocoding';
 import type { AuthenticatedUser } from '../types/access';
 import { canViewOrgUnitCount, isSuperAdmin as isHubSuperAdmin, resolveUnitScopeForUser } from '../utils/orgLeader';
 
@@ -329,6 +329,14 @@ export async function getTrackingDashboardStats(user: AuthenticatedUser) {
     },
     top_mileage: mileageByVehicle.sort((a, b) => b.mileage_km - a.mileage_km).slice(0, 10),
   };
+}
+
+export async function searchGeocodeForUser(
+  _user: AuthenticatedUser,
+  query: string,
+  countryCodes?: string
+) {
+  return searchLocations(query, { countryCodes: countryCodes || 'rw' });
 }
 
 export async function reverseGeocodeForUser(
