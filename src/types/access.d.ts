@@ -58,6 +58,7 @@ export interface position_accesses {
   vehicleIssues: {
     report: boolean;
     view: boolean;
+    viewOwn: boolean;
     update: boolean;
     delete: boolean;
   };

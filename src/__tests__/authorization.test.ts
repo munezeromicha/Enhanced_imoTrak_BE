@@ -88,6 +88,7 @@ describe('a new user has zero permissions', () => {
       'reservations.create',
       'reservations.viewOwn',
       'vehicleIssues.report',
+      'vehicleIssues.viewOwn',
       'fuel.request',
       'fuel.receive',
       'vehicles.view',

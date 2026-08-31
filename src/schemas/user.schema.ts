@@ -20,7 +20,10 @@ export const updateUserSchema = z.object({
   first_name: z.string().optional(),
   last_name: z.string().optional(),
   user_nid: z.string().optional(),
-  user_phone: z.string().min(10).max(15).optional(),
+  user_phone: z.preprocess(
+    (value) => (typeof value === 'string' && value.trim() === '' ? undefined : value),
+    z.string().min(10).max(15).optional()
+  ),
   user_gender: z.enum(['MALE', 'FEMALE']).optional(),
   user_dob: z.coerce.date().optional(),
   street_address: z.string().nullable().optional(),

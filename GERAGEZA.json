@@ -15,7 +15,7 @@
         "odometerFuel": false, "start": false, "complete": false,
         "viewOwn": false, "updateReason": false
       },
-      "vehicleIssues": { "report": false, "view": false, "update": false, "delete": false }
+      "vehicleIssues": { "report": false, "view": false, "viewOwn": false, "update": false, "delete": false }
     },
 
     "fleetManagerAccess": {
@@ -32,7 +32,7 @@
         "odometerFuel": true, "start": true, "complete": true,
         "viewOwn": true, "updateReason": true
       },
-      "vehicleIssues": { "report": true, "view": true, "update": true, "delete": true }
+      "vehicleIssues": { "report": true, "view": true, "viewOwn": true, "update": true, "delete": true }
     },
 
     "reservationUserAccess": {
@@ -49,7 +49,7 @@
         "odometerFuel": false, "start": false, "complete": false,
         "viewOwn": true, "updateReason": true
       },
-      "vehicleIssues": { "report": false, "view": false, "update": false, "delete": false }
+      "vehicleIssues": { "report": false, "view": false, "viewOwn": false, "update": false, "delete": false }
     },
 
     "fleetReservationUserAccess": {
@@ -66,7 +66,7 @@
         "odometerFuel": false, "start": false, "complete": false,
         "viewOwn": true, "updateReason": true
       },
-      "vehicleIssues": { "report": false, "view": false, "update": false, "delete": false }
+      "vehicleIssues": { "report": false, "view": false, "viewOwn": false, "update": false, "delete": false }
     }
   }
 }

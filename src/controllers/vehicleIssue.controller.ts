@@ -20,7 +20,11 @@ interface AuthenticatedRequest extends Request {
 
 export const getAll = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
-    if (!req.user?.position_access?.vehicleIssues?.view) {
+    if (!req.user) {
+      throw new AppError('Authentication required', 401);
+    }
+    const access = req.user.position_access?.vehicleIssues;
+    if (!access?.view && !access?.viewOwn) {
       throw new AppError('Access denied. You are not allowed to view vehicle issues.', 403);
     }
 
@@ -37,7 +41,11 @@ export const getAll = async (req: AuthenticatedRequest, res: Response, next: Nex
 
 export const getById = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
-    if (!req.user?.position_access?.vehicleIssues?.view) {
+    if (!req.user) {
+      throw new AppError('Authentication required', 401);
+    }
+    const access = req.user.position_access?.vehicleIssues;
+    if (!access?.view && !access?.viewOwn) {
       throw new AppError('Access denied. You are not allowed to view this vehicle issue.', 403);
     }
     const issue = await issueService.getIssueById(req.params.id, req.user, readableUnitIds(authOf(req as unknown as AuthorizedRequest)));

@@ -9,6 +9,7 @@ const prisma = new PrismaClient();
 
 export const getAllIssues = async (user: AuthenticatedUser, unitIds?: string[]) => {
   const { organization_id } = user;
+  const canViewAll = !!user.position_access?.vehicleIssues?.view;
   const issues = await prisma.tbl_vehicle_issues.findMany({
     where: {
       reserved_vehicle: {
@@ -23,6 +24,14 @@ export const getAllIssues = async (user: AuthenticatedUser, unitIds?: string[]) 
             : {}),
         },
       },
+      ...(!canViewAll
+        ? {
+            OR: [
+              { reported_by_user_id: user.user_id },
+              { reported_by_driver: { user_id: user.user_id } },
+            ],
+          }
+        : {}),
     },
     include: {
       reported_by_user: true,
@@ -172,6 +181,15 @@ export const getIssueById = async (
   // 403: confirming a record exists in another unit is itself a disclosure.
   const issueUnitId = issue.reserved_vehicle.vehicle.unit_id;
   if (unitIds && issueUnitId && !unitIds.includes(issueUnitId)) {
+    throw new AppError('No vehicle issue found', 404);
+  }
+
+  const canViewAll = !!user.position_access?.vehicleIssues?.view;
+  const canViewOwn = !!user.position_access?.vehicleIssues?.viewOwn;
+  const isOwnIssue =
+    issue.reported_by_user_id === user.user_id ||
+    issue.reported_by_driver?.user_id === user.user_id;
+  if (!canViewAll && canViewOwn && !isOwnIssue) {
     throw new AppError('No vehicle issue found', 404);
   }
 

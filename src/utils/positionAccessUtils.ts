@@ -37,7 +37,7 @@ export function createEmptyPositionAccess(): position_accesses {
       viewAssigned: false,
       updateReason: false,
     },
-    vehicleIssues: { report: false, view: false, update: false, delete: false },
+    vehicleIssues: { report: false, view: false, viewOwn: false, update: false, delete: false },
     fuel: {
       request: false,
       view: false,

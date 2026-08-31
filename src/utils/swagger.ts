@@ -110,10 +110,11 @@ const options: swaggerJSDoc.Options = {
               properties: {
                 report: { type: 'boolean' },
                 view: { type: 'boolean' },
+                viewOwn: { type: 'boolean' },
                 update: { type: 'boolean' },
                 delete: { type: 'boolean' },
               },
-              required: ['report', 'view', 'update', 'delete'],
+              required: ['report', 'view', 'viewOwn', 'update', 'delete'],
             },
             fuel: {
               type: 'object',
@@ -225,6 +226,7 @@ const options: swaggerJSDoc.Options = {
           properties: {
             report: { type: 'boolean' },
             view: { type: 'boolean' },
+            viewOwn: { type: 'boolean' },
             update: { type: 'boolean' },
             delete: { type: 'boolean' },
           },

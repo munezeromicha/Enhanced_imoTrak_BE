@@ -58,6 +58,7 @@ export const positionAccessSchema = z.object({
   vehicleIssues: z.object({
     report: z.boolean(),
     view: z.boolean(),
+    viewOwn: z.boolean().optional().default(false),
     update: z.boolean(),
     delete: z.boolean(),
   }),

@@ -190,7 +190,7 @@ function buildLeaderPositionAccess(usesReservations: boolean): position_accesses
     vehicleModels: { create: false, view: true, viewSingle: true, update: false, delete: false },
     vehicles: { create: true, view: true, viewSingle: true, update: true, delete: true },
     reservations: usesReservations ? fullReservations : noReservations,
-    vehicleIssues: { report: true, view: true, update: true, delete: true },
+    vehicleIssues: { report: true, view: true, viewOwn: true, update: true, delete: true },
     fuel: {
       request: true,
       view: true,

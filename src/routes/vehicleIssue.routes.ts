@@ -177,7 +177,7 @@ const issueRoutes = Router();
  *         description: Internal server error
  */
 
-issueRoutes.get('/', authenticateToken, attachPositionAccess, requirePermission('vehicleIssues.view'), controller.getAll);
+issueRoutes.get('/', authenticateToken, attachPositionAccess, requirePermission(['vehicleIssues.view', 'vehicleIssues.viewOwn']), controller.getAll);
 
 /**
  * @swagger
@@ -316,7 +316,7 @@ issueRoutes.get('/', authenticateToken, attachPositionAccess, requirePermission(
  *         description: Issue not found
  */
 
-issueRoutes.get('/:id', authenticateToken, attachPositionAccess, requirePermission('vehicleIssues.view'), controller.getById);
+issueRoutes.get('/:id', authenticateToken, attachPositionAccess, requirePermission(['vehicleIssues.view', 'vehicleIssues.viewOwn']), controller.getById);
 
 /**
  * @swagger

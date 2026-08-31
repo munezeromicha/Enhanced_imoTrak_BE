@@ -94,6 +94,7 @@ async function main() {
     vehicleIssues: {
       report: false,
       view: false,
+      viewOwn: false,
       update: false,
       delete: false,
     },
@@ -135,6 +136,7 @@ async function main() {
     vehicleIssues: {
       report: true,
       view: true,
+      viewOwn: true,
       update: true,
       delete: true,
     },

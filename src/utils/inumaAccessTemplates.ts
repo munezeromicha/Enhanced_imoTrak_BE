@@ -26,7 +26,7 @@ export function buildAssetsServicesApproverAccess(): position_accesses {
     vehicleModels: { create: true, view: true, viewSingle: true, update: true, delete: true },
     vehicles: { create: true, view: true, viewSingle: true, update: true, delete: true },
     reservations: fullReservations,
-    vehicleIssues: { report: true, view: true, update: true, delete: true },
+    vehicleIssues: { report: true, view: true, viewOwn: true, update: true, delete: true },
     // Section II of the fuel form is theirs. Funding is Finance's and
     // issuing is the logistics desk's, so neither is granted here.
     fuel: {
@@ -79,7 +79,7 @@ export function buildNoAccess(): position_accesses {
       viewAssigned: false,
       updateReason: false,
     },
-    vehicleIssues: { report: false, view: false, update: false, delete: false },
+    vehicleIssues: { report: false, view: false, viewOwn: false, update: false, delete: false },
     fuel: {
       request: false,
       view: false,
