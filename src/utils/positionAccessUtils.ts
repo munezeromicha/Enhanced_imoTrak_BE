@@ -150,3 +150,48 @@ export function assertPositionAccessSubsetOrThrow(
     throw new Error(message);
   }
 }
+
+/**
+ * Keep only flags that are true. Empty modules are dropped so stored overrides
+ * stay a sparse delta rather than a second full copy of the position.
+ */
+export function compactAccessOverride(
+  access: position_accesses | null | undefined
+): Record<string, Record<string, boolean>> {
+  const result: AccessRecord = {};
+  if (!access || typeof access !== 'object') return result;
+
+  for (const [moduleKey, perms] of Object.entries(access as unknown as AccessRecord)) {
+    if (!perms || typeof perms !== 'object') continue;
+    const kept: Record<string, boolean> = {};
+    for (const [perm, granted] of Object.entries(perms)) {
+      if (granted) kept[perm] = true;
+    }
+    if (Object.keys(kept).length > 0) result[moduleKey] = kept;
+  }
+  return result;
+}
+
+/**
+ * Effective access = position baseline OR per-user extras.
+ * Extras only add; they never turn off a flag the position already grants.
+ */
+export function mergePositionAccessWithOverride(
+  base: position_accesses | null | undefined,
+  override: position_accesses | null | undefined
+): position_accesses {
+  const merged = normalizePositionAccess(base) as unknown as AccessRecord;
+  if (!override || typeof override !== 'object') {
+    return merged as unknown as position_accesses;
+  }
+
+  const extra = override as unknown as AccessRecord;
+  for (const [moduleKey, perms] of Object.entries(extra)) {
+    if (!perms || typeof perms !== 'object') continue;
+    merged[moduleKey] = { ...(merged[moduleKey] ?? {}) };
+    for (const [perm, granted] of Object.entries(perms)) {
+      if (granted) merged[moduleKey][perm] = true;
+    }
+  }
+  return merged as unknown as position_accesses;
+}

@@ -2,8 +2,8 @@ import { Router } from 'express';
 import { authenticateToken } from '../middlewares/auth.middleware';
 import { attachPositionAccess } from '../middlewares/attachPositionAccess';
 import { validateBody } from '../middlewares/bodyValidator';
-import { createUserSchema, updateUserSchema } from '../schemas/user.schema';
-import { changeUserPositionController, createUserController, deleteUserController, getAllUnverifiedUsersController, getSingleUnverifiedUserController, getSingleUserWithPositionsController, getUsersWithPositionsController, updateMyProfileController, updateMySignatureController, updateUserController } from '../controllers/user.controllers';
+import { createUserSchema, updateUserSchema, updateUserAccessOverrideSchema } from '../schemas/user.schema';
+import { changeUserPositionController, createUserController, deleteUserController, getAllUnverifiedUsersController, getSingleUnverifiedUserController, getSingleUserWithPositionsController, getUsersWithPositionsController, updateMyProfileController, updateMySignatureController, updateUserController, updateUserAccessOverrideController } from '../controllers/user.controllers';
 import { upload } from '../middlewares/multer';
 
 const usersRoutes = Router();
@@ -680,6 +680,14 @@ usersRoutes.patch(
   authenticateToken,
   attachPositionAccess,
   changeUserPositionController
+);
+
+usersRoutes.patch(
+  '/:user_id/access-override',
+  authenticateToken,
+  attachPositionAccess,
+  validateBody(updateUserAccessOverrideSchema),
+  updateUserAccessOverrideController
 );
 
 export default usersRoutes;

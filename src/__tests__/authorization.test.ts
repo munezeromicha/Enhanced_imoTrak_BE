@@ -41,7 +41,7 @@ const {
   resolveWriteUnitId,
 } = await import('../utils/scopeGuards');
 
-const { normalizePositionAccess } = await import('../utils/positionAccessUtils');
+const { normalizePositionAccess, mergePositionAccessWithOverride } = await import('../utils/positionAccessUtils');
 
 const ORG_A = 'org-a';
 const ORG_B = 'org-b';
@@ -130,6 +130,25 @@ describe('permission checks', () => {
     const ctx = await contextFor({ access: accessWith({ reservations: { viewOwn: true } }) });
     expect(hasAny(ctx, ['reservations.view', 'reservations.viewOwn'])).toBe(true);
     expect(hasAny(ctx, ['reservations.view', 'reservations.approve'])).toBe(false);
+  });
+});
+
+describe('per-user extra access', () => {
+  it('adds personal extras on top of the position without removing shared flags', () => {
+    const position = accessWith({ reservations: { create: true, viewOwn: true } });
+    const extra = { vehicleIssues: { viewOwn: true } } as unknown as position_accesses;
+    const effective = mergePositionAccessWithOverride(position, extra);
+    expect(effective.reservations.create).toBe(true);
+    expect(effective.reservations.viewOwn).toBe(true);
+    expect(effective.vehicleIssues.viewOwn).toBe(true);
+    expect(effective.vehicleIssues.view).toBe(false);
+  });
+
+  it('cannot turn off a permission the position already grants', () => {
+    const position = accessWith({ reservations: { create: true } });
+    const extra = { reservations: { create: false } } as unknown as position_accesses;
+    const effective = mergePositionAccessWithOverride(position, extra);
+    expect(effective.reservations.create).toBe(true);
   });
 });
 

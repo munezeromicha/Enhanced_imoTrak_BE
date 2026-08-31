@@ -29,3 +29,7 @@ export const updateUserSchema = z.object({
   street_address: z.string().nullable().optional(),
   user_photo: z.string().nullable().optional(),
 });
+
+export const updateUserAccessOverrideSchema = z.object({
+  user_access_override: z.record(z.string(), z.record(z.string(), z.boolean())),
+});

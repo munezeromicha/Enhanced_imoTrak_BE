@@ -6,7 +6,7 @@ import { signToken, verifyToken } from '../utils/jwt'
 import { generateRandomPassword } from '../utils/password';
 import { sendForgotPasswordEmail, sendInvitationEmail } from '../utils/sendCredentials';
 import { AuthenticatedUser, position_accesses } from '../types/access';
-import { normalizePositionAccess } from '../utils/positionAccessUtils';
+import { mergePositionAccessWithOverride } from '../utils/positionAccessUtils';
 import {
   mapAssignmentsToPositions,
   userHasPositionAssignment,
@@ -130,8 +130,9 @@ export async function buildPositionSession(
       ...positionOut,
       // Filled out to the full permission shape so a module added after this
       // position was last saved reads as explicitly closed rather than absent.
-      position_access: normalizePositionAccess(
-        positionOut.position_access as unknown as position_accesses
+      position_access: mergePositionAccessWithOverride(
+        positionOut.position_access as unknown as position_accesses,
+        user.user_access_override as unknown as position_accesses | null
       ),
       is_org_leader: position.is_org_leader ?? false,
     },

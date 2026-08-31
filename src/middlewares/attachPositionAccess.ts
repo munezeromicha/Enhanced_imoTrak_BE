@@ -2,6 +2,8 @@
 import { Request, Response, NextFunction } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { AppError } from '../utils/Error';
+import { mergePositionAccessWithOverride } from '../utils/positionAccessUtils';
+import type { position_accesses } from '../types/access';
 
 const prisma = new PrismaClient();
 
@@ -70,9 +72,13 @@ export const attachPositionAccess = async (
       throw new AppError('Position ID missing in token payload', 403);
     }
 
-    const [position, inuma] = await Promise.all([
+    const [position, inuma, profile] = await Promise.all([
       fetchPositionWithRetry(req.user.position_id),
       fetchInumaContext(req.user.user_id),
+      prisma.tbl_users.findUnique({
+        where: { user_id: req.user.user_id },
+        select: { user_access_override: true },
+      }),
     ]);
 
     if (!position) {
@@ -95,7 +101,10 @@ export const attachPositionAccess = async (
       );
     }
 
-    req.user.position_access = position.position_access;
+    req.user.position_access = mergePositionAccessWithOverride(
+      position.position_access as unknown as position_accesses,
+      profile?.user_access_override as unknown as position_accesses | null
+    );
     req.user.unit_id = position.unit_id;
     req.user.inuma_position = inuma?.inuma_position ?? null;
     req.user.inuma_unit = inuma?.inuma_unit ?? null;

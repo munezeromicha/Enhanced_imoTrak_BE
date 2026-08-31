@@ -11,7 +11,11 @@ import {
   userPositionAssignmentsInclude,
 } from '../utils/userPositions';
 import type { position_accesses } from '../types/access';
-import { isPositionAccessSubset } from '../utils/positionAccessUtils';
+import {
+  clampPositionAccess,
+  compactAccessOverride,
+  isPositionAccessSubset,
+} from '../utils/positionAccessUtils';
 
 dotenv.config();
 
@@ -555,6 +559,67 @@ export const updateMyProfileService = async (
     street_address: updated.street_address,
   };
 };
+
+export async function updateUserAccessOverrideService(params: {
+  targetUserId: string;
+  proposed: position_accesses;
+  actor: {
+    user_id: string;
+    organization_id: string;
+    position_access?: position_accesses;
+  };
+}) {
+  const { targetUserId, proposed, actor } = params;
+
+  const canManage =
+    !!actor.position_access?.organizations?.create ||
+    !!actor.position_access?.positions?.update ||
+    !!actor.position_access?.users?.update;
+  if (!canManage) {
+    throw new AppError('You do not have permission to grant extra access', 403);
+  }
+
+  const target = await prisma.tbl_users.findUnique({
+    where: { user_id: targetUserId },
+    include: {
+      position_assignments: {
+        include: {
+          position: {
+            include: {
+              unit: { select: { organization_id: true } },
+            },
+          },
+        },
+      },
+    },
+  });
+
+  if (!target) {
+    throw new AppError('User not found', 404);
+  }
+
+  const targetOrgIds = new Set(
+    target.position_assignments.map((row) => row.position.unit.organization_id)
+  );
+  const isGlobal = !!actor.position_access?.organizations?.create;
+  if (!isGlobal && !targetOrgIds.has(actor.organization_id)) {
+    throw new AppError('You can only grant extra access to users in your organization', 403);
+  }
+
+  const clamped = clampPositionAccess(actor.position_access, proposed);
+  const compact = compactAccessOverride(clamped);
+
+  return prisma.tbl_users.update({
+    where: { user_id: targetUserId },
+    data: { user_access_override: compact as Prisma.InputJsonValue },
+    select: {
+      user_id: true,
+      first_name: true,
+      last_name: true,
+      user_access_override: true,
+    },
+  });
+}
 
 /**
  * Permanently removes a user and dependent rows. Intended for hub SuperAdmin

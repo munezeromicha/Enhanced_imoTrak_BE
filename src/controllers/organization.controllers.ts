@@ -423,8 +423,8 @@ export const deleteOrganizationController = async (
     await deleteOrganizationService({ organization_id });
 
     res.status(200).json({
-      message: 'Organization deleted successfully',
-      data:null
+      message: 'Organization archived successfully',
+      data: null
     });
   } catch (error) {
     next(error);
@@ -533,7 +533,7 @@ export const deleteUnitController = async (
 
     const result = await deleteUnitService({ unit_id, user: req.user });
 
-    res.status(200).json({ message: 'Unit deleted successfully', data: result });
+    res.status(200).json({ message: 'Unit archived successfully', data: result });
   } catch (error) {
     next(error);
   }

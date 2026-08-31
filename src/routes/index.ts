@@ -13,6 +13,7 @@ import trackingRoutes from "./tracking.routes";
 import maintenanceRoutes from "./maintenance.routes";
 import inumaAccessRoutes from "./inuma-access.routes";
 import fuelRoutes from "./fuel.routes";
+import archiveRoutes from "./archive.routes";
 
 const routes = Router();
 
@@ -30,5 +31,6 @@ routes.use('/drivers', driverRoutes);
 routes.use('/tracking', trackingRoutes);
 routes.use('/maintenance', maintenanceRoutes);
 routes.use('/fuel', fuelRoutes);
+routes.use('/archive', archiveRoutes);
 
 export default routes;

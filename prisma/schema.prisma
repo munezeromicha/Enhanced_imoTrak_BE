@@ -40,6 +40,9 @@ model tbl_users {
   created_at                 DateTime                              @default(now())
   user_dob                   DateTime
   user_photo                 String?
+  /// Extra permission grants for this person only. OR-merged on top of the
+  /// position's shared `position_access` at auth time — never replaces it.
+  user_access_override       Json?
   /// Scanned or drawn signature, stamped onto documents this person signs.
   signature_url              String?
   user_gender                Gender

@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { createUserService, deleteUserPermanentlyService, getSingleUserWithPositionsService, getUnverifiedUsersService, getUsersWithPositionsService, getSingleUnverifiedUserService, updateUserService, updateMyProfileService } from '../services/user.services';
+import { createUserService, deleteUserPermanentlyService, getSingleUserWithPositionsService, getUnverifiedUsersService, getUsersWithPositionsService, getSingleUnverifiedUserService, updateUserService, updateMyProfileService, updateUserAccessOverrideService } from '../services/user.services';
 import { AppError } from '../utils/Error';
 import { uploadToCloudinary } from '../utils/cloudinary';
 import { position_accesses } from '../types/access';
@@ -398,6 +398,29 @@ export const updateMySignatureController = async (
     const data = await updateMySignatureService(req.user.user_id, signature_url);
 
     res.status(200).json({ message: 'Signature saved successfully', data });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const updateUserAccessOverrideController = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    if (!req.user) throw new AppError('Authentication required', 401);
+
+    const data = await updateUserAccessOverrideService({
+      targetUserId: req.params.user_id,
+      proposed: req.body.user_access_override,
+      actor: req.user,
+    });
+
+    res.status(200).json({
+      message: 'Extra access updated for this user only. Other people on the same position are unchanged.',
+      data,
+    });
   } catch (error) {
     next(error);
   }

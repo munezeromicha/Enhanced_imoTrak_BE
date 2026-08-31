@@ -274,11 +274,11 @@ export async function softDeletePositionService(positionId: string, userId: stri
   }
 
   if (isProtectedSuperAdminPosition(position.position_name)) {
-    throw new AppError('The SuperAdmin position cannot be deactivated or deleted', 403);
+    throw new AppError('The SuperAdmin position cannot be archived or deleted', 403);
   }
 
   if (normalizeCatalogName(position.position_name) === normalizeCatalogName(INUMA_APPROVER_IMOTRAK_POSITION)) {
-    throw new AppError('The Assets & Services Administrator position cannot be deleted', 403);
+    throw new AppError('The Assets & Services Administrator position cannot be archived', 403);
   }
 
   // Get the requesting user's organization
@@ -289,13 +289,14 @@ export async function softDeletePositionService(positionId: string, userId: stri
 
   const userPositions = user ? mapAssignmentsToPositions(user) : [];
   const userOrgId = userPositions[0]?.unit?.organization_id;
+  const isHubSuperAdmin = !!userAccess?.organizations?.create;
 
-  if (position.unit.organization_id !== userOrgId) {
-    throw new AppError('You are not allowed to delete positions from another organization', 403);
+  if (!isHubSuperAdmin && position.unit.organization_id !== userOrgId) {
+    throw new AppError('You are not allowed to archive positions from another organization', 403);
   }
 
   if (position.position_status === 'INACTIVE') {
-    throw new AppError('Position is already inactive', 400);
+    throw new AppError('Position is already archived', 400);
   }
 
   const assignmentCount = await prisma.tbl_user_position_assignments.count({
@@ -324,7 +325,7 @@ export async function softDeletePositionService(positionId: string, userId: stri
   }, WRITE_TX_OPTIONS);
 
   return {
-    message: 'Position deleted (soft) successfully',
+    message: 'Position archived successfully',
     position_id: positionId,
     users_unassigned: assignmentCount,
   };
@@ -532,11 +533,16 @@ export async function addExistingPositionsToUnitService({
   };
 }
 
-export async function getUnitsService(organization_id?: string, campusUnitId?: string) {
+export async function getUnitsService(
+  organization_id?: string,
+  campusUnitId?: string,
+  status: OrgStatus = 'ACTIVE'
+) {
   const units = await prisma.tbl_unit.findMany({
     where: {
       ...(organization_id ? { organization_id } : {}),
       ...(campusUnitId ? { unit_id: campusUnitId } : {}),
+      ...(status ? { status } : {}),
     },
     include: {
       positions: true,
@@ -966,6 +972,10 @@ export const deleteOrganizationService = async ({
 
   if (!organization) {
     throw new AppError('Organization not found', 404);
+  }
+
+  if (organization.organization_status === 'INACTIVE') {
+    throw new AppError('Organization is already archived', 400);
   }
 
   // Get all unit_ids for the organization
@@ -1398,7 +1408,7 @@ export const deleteUnitService = async ({ unit_id, user }: DeleteUnitParams) => 
   }
 
   if (unit.status === 'INACTIVE') {
-    throw new AppError('Unit is already inactive', 400);
+    throw new AppError('Unit is already archived', 400);
   }
 
   // UR-Fleet used to be blocked by name because deleting it left Inuma users
@@ -1472,9 +1482,9 @@ export const deleteUnitService = async ({ unit_id, user }: DeleteUnitParams) => 
   }, WRITE_TX_OPTIONS);
 
   return {
-    message: 'Unit deactivated successfully',
+    message: 'Unit archived successfully',
     unit_id,
-    positions_deactivated: activePositionCount,
+    positions_archived: activePositionCount,
     users_unassigned: assignmentCount,
   };
 };
