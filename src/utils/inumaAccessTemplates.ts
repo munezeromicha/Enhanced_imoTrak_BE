@@ -41,6 +41,14 @@ export function buildAssetsServicesApproverAccess(): position_accesses {
       viewReport: true,
       manageGenerators: true,
     },
+    archive: {
+      view: true,
+      restore: true,
+      delete: true,
+      organizations: false,
+      units: true,
+      positions: true,
+    },
   };
 }
 
@@ -91,6 +99,14 @@ export function buildNoAccess(): position_accesses {
       replenish: false,
       viewReport: false,
       manageGenerators: false,
+    },
+    archive: {
+      view: false,
+      restore: false,
+      delete: false,
+      organizations: false,
+      units: false,
+      positions: false,
     },
   };
 }

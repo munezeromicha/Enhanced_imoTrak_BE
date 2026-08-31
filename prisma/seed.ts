@@ -110,6 +110,14 @@ async function main() {
       viewReport: true,
       manageGenerators: true,
     },
+    archive: {
+      view: true,
+      restore: true,
+      delete: true,
+      organizations: true,
+      units: true,
+      positions: true,
+    },
   };
 
   const fleetManagerAccess = {

@@ -1,7 +1,7 @@
 import { Response, NextFunction } from 'express';
-import { AppError } from '../utils/Error';
-import { type AuthorizedRequest } from '../middlewares/requirePermission';
+import { authOf, type AuthorizedRequest } from '../middlewares/requirePermission';
 import {
+  archiveGrantsFrom,
   listArchivedItemsService,
   permanentlyDeleteArchivedOrganizationService,
   permanentlyDeleteArchivedPositionService,
@@ -10,6 +10,7 @@ import {
   restorePositionService,
   restoreUnitService,
 } from '../services/archive.service';
+import { AppError } from '../utils/Error';
 
 function actorId(req: AuthorizedRequest): string {
   if (!req.user?.user_id) {
@@ -18,13 +19,21 @@ function actorId(req: AuthorizedRequest): string {
   return req.user.user_id;
 }
 
+function grantsOf(req: AuthorizedRequest) {
+  return archiveGrantsFrom(authOf(req));
+}
+
 export async function listArchiveController(
   req: AuthorizedRequest,
   res: Response,
   next: NextFunction
 ) {
   try {
-    const data = await listArchivedItemsService();
+    const grants = grantsOf(req);
+    if (!grants.view) {
+      throw new AppError('You do not have permission to access the archive', 403);
+    }
+    const data = await listArchivedItemsService(grants);
     res.status(200).json({
       message: 'Archived items retrieved successfully',
       data,
@@ -40,7 +49,7 @@ export async function restoreOrganizationController(
   next: NextFunction
 ) {
   try {
-    const result = await restoreOrganizationService(req.params.id);
+    const result = await restoreOrganizationService(req.params.id, grantsOf(req));
     res.status(200).json({
       message: 'Organization restored successfully',
       data: result,
@@ -56,7 +65,7 @@ export async function restoreUnitController(
   next: NextFunction
 ) {
   try {
-    const result = await restoreUnitService(req.params.id);
+    const result = await restoreUnitService(req.params.id, grantsOf(req));
     res.status(200).json({
       message: 'Unit restored successfully',
       data: result,
@@ -72,7 +81,7 @@ export async function restorePositionController(
   next: NextFunction
 ) {
   try {
-    const result = await restorePositionService(req.params.id);
+    const result = await restorePositionService(req.params.id, grantsOf(req));
     res.status(200).json({
       message: 'Position restored successfully',
       data: result,
@@ -91,6 +100,7 @@ export async function permanentlyDeleteOrganizationController(
     const result = await permanentlyDeleteArchivedOrganizationService({
       organization_id: req.params.id,
       actorUserId: actorId(req),
+      grants: grantsOf(req),
     });
     res.status(200).json({
       message: 'Organization deleted permanently',
@@ -107,7 +117,7 @@ export async function permanentlyDeleteUnitController(
   next: NextFunction
 ) {
   try {
-    const result = await permanentlyDeleteArchivedUnitService(req.params.id);
+    const result = await permanentlyDeleteArchivedUnitService(req.params.id, grantsOf(req));
     res.status(200).json({
       message: 'Unit deleted permanently',
       data: result,
@@ -123,7 +133,7 @@ export async function permanentlyDeletePositionController(
   next: NextFunction
 ) {
   try {
-    const result = await permanentlyDeleteArchivedPositionService(req.params.id);
+    const result = await permanentlyDeleteArchivedPositionService(req.params.id, grantsOf(req));
     res.status(200).json({
       message: 'Position deleted permanently',
       data: result,

@@ -84,6 +84,17 @@ export const positionAccessSchema = z.object({
     })
     .partial()
     .optional(),
+  archive: z
+    .object({
+      view: z.boolean(),
+      restore: z.boolean(),
+      delete: z.boolean(),
+      organizations: z.boolean(),
+      units: z.boolean(),
+      positions: z.boolean(),
+    })
+    .partial()
+    .optional(),
 });
 
 

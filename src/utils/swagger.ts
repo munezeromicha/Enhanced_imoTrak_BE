@@ -133,6 +133,19 @@ const options: swaggerJSDoc.Options = {
                 manageGenerators: { type: 'boolean' },
               },
             },
+            archive: {
+              type: 'object',
+              description:
+                'Archive of organizations, units and positions. Hub SuperAdmins hold the full set at auth time. Absent on older positions, which reads as no access.',
+              properties: {
+                view: { type: 'boolean' },
+                restore: { type: 'boolean' },
+                delete: { type: 'boolean' },
+                organizations: { type: 'boolean' },
+                units: { type: 'boolean' },
+                positions: { type: 'boolean' },
+              },
+            },
           },
         },
         Reservation: {

@@ -15,7 +15,8 @@
         "odometerFuel": false, "start": false, "complete": false,
         "viewOwn": false, "updateReason": false
       },
-      "vehicleIssues": { "report": false, "view": false, "viewOwn": false, "update": false, "delete": false }
+      "vehicleIssues": { "report": false, "view": false, "viewOwn": false, "update": false, "delete": false },
+      "archive": { "view": true, "restore": true, "delete": true, "organizations": true, "units": true, "positions": true }
     },
 
     "fleetManagerAccess": {

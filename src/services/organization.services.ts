@@ -203,6 +203,14 @@ function buildLeaderPositionAccess(usesReservations: boolean): position_accesses
       viewReport: true,
       manageGenerators: true,
     },
+    archive: {
+      view: true,
+      restore: true,
+      delete: true,
+      organizations: false,
+      units: true,
+      positions: true,
+    },
   };
 }
 
@@ -1076,12 +1084,13 @@ export async function deleteOrganizationPermanentlyService({
   });
   const vehicleIds = vehicles.map((vehicle) => vehicle.vehicle_id);
 
-  // Reservations reachable from this organization: booked by a departing member
-  // or made against one of its vehicles.
+  // Reservations reachable from this organization: booked by a departing member,
+  // raised from one of its units, or made against one of its vehicles.
   const reservations = await prisma.tbl_reservations.findMany({
     where: {
       OR: [
         ...(userIds.length ? [{ user_id: { in: userIds } }] : []),
+        ...(unitIds.length ? [{ unit_id: { in: unitIds } }] : []),
         ...(vehicleIds.length
           ? [{ reserved_vehicles: { some: { vehicle_id: { in: vehicleIds } } } }]
           : []),
@@ -1261,8 +1270,15 @@ export async function deleteOrganizationPermanentlyService({
           });
         }
 
-        // 7) Vehicles (gps devices cascade) and organization vehicle types.
+        await tx.tbl_fuel_transactions.deleteMany({ where: { organization_id } });
+        await tx.tbl_fuel_requisitions.deleteMany({ where: { organization_id } });
+        await tx.tbl_generators.deleteMany({ where: { organization_id } });
+
+        // 7) Vehicles (GPS devices first — some databases still Restrict) and types.
         if (vehicleIds.length) {
+          await tx.tbl_gps_devices.deleteMany({
+            where: { vehicle_id: { in: vehicleIds } },
+          });
           await tx.tbl_vehicles.deleteMany({
             where: { vehicle_id: { in: vehicleIds } },
           });

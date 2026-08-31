@@ -93,6 +93,8 @@ describe('a new user has zero permissions', () => {
       'fuel.receive',
       'vehicles.view',
       'users.view',
+      'archive.view',
+      'archive.units',
     ]) {
       expect(has(ctx, permission), `${permission} must be denied`).toBe(false);
     }
@@ -130,6 +132,27 @@ describe('permission checks', () => {
     const ctx = await contextFor({ access: accessWith({ reservations: { viewOwn: true } }) });
     expect(hasAny(ctx, ['reservations.view', 'reservations.viewOwn'])).toBe(true);
     expect(hasAny(ctx, ['reservations.view', 'reservations.approve'])).toBe(false);
+  });
+
+  it('gives hub SuperAdmin the full archive module even when it was never stored', async () => {
+    const ctx = await contextFor({ access: accessWith({ organizations: { create: true } }) });
+    expect(has(ctx, 'archive.view')).toBe(true);
+    expect(has(ctx, 'archive.restore')).toBe(true);
+    expect(has(ctx, 'archive.delete')).toBe(true);
+    expect(has(ctx, 'archive.organizations')).toBe(true);
+    expect(has(ctx, 'archive.units')).toBe(true);
+    expect(has(ctx, 'archive.positions')).toBe(true);
+  });
+
+  it('grants only the archive flags that were assigned', async () => {
+    const ctx = await contextFor({
+      access: accessWith({ archive: { view: true, units: true, restore: true } }),
+    });
+    expect(has(ctx, 'archive.view')).toBe(true);
+    expect(has(ctx, 'archive.units')).toBe(true);
+    expect(has(ctx, 'archive.restore')).toBe(true);
+    expect(has(ctx, 'archive.organizations')).toBe(false);
+    expect(has(ctx, 'archive.delete')).toBe(false);
   });
 });
 

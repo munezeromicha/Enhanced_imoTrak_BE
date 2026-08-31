@@ -50,6 +50,14 @@ export function createEmptyPositionAccess(): position_accesses {
       viewReport: false,
       manageGenerators: false,
     },
+    archive: {
+      view: false,
+      restore: false,
+      delete: false,
+      organizations: false,
+      units: false,
+      positions: false,
+    },
   };
 }
 
@@ -72,6 +80,20 @@ export function normalizePositionAccess(
     if (!perms || typeof perms !== 'object') continue;
     base[module] = { ...(base[module] ?? {}), ...perms };
   }
+
+  // Hub SuperAdmin always holds the full archive module, even on positions
+  // saved before archive existed.
+  if (base.organizations?.create) {
+    base.archive = {
+      view: true,
+      restore: true,
+      delete: true,
+      organizations: true,
+      units: true,
+      positions: true,
+    };
+  }
+
   return base as unknown as position_accesses;
 }
 

@@ -92,6 +92,20 @@ export interface position_accesses {
     /** Register and maintain generators. */
     manageGenerators: boolean;
   };
+  /**
+   * Archive of organizations, units and positions. Hub SuperAdmins always
+   * hold the full set (applied at auth time). Everyone else is granted
+   * flags explicitly, and listed items stay inside their tenant/unit.
+   */
+  archive?: {
+    /** Open the Archive page. Implied when any entity flag is on. */
+    view: boolean;
+    restore: boolean;
+    delete: boolean;
+    organizations: boolean;
+    units: boolean;
+    positions: boolean;
+  };
 }
 
 export interface AuthenticatedUser {
