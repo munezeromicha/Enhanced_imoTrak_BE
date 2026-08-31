@@ -94,7 +94,8 @@ async function resolveSignatory(actor: Actor): Promise<SignatureIdentity> {
  * plus any asset not assigned to a unit at all.
  *
  * Requisition *records* stay pinned to the raising unit — this widens only
- * which assets can be picked, never whose paperwork you can read.
+ * which vehicles can be picked, never whose paperwork you can read. Generators
+ * are not part of that pool; they stay on the requester's own unit.
  */
 async function resolveAssetUnitIds(actor: Actor): Promise<string[] | undefined> {
   const scope = resolveCampusScope(actor);
@@ -125,6 +126,35 @@ async function assetUnitWhere(
   const unitIds = await resolveAssetUnitIds(actor);
   if (!unitIds) return {};
   return { OR: [{ unit_id: { in: unitIds } }, { unit_id: null }] };
+}
+
+/**
+ * Generators sit on a campus. Unlike the vehicle pool they are not lent out
+ * from headquarters, so a Gako user must not see UR Head Quarter's plant.
+ *
+ * Organization-wide listing is only for hub SuperAdmins and positions that
+ * already read across units (`units.view`). Everyone else is pinned to their
+ * campus, or to the unit on their position when they have no campus.
+ */
+function ownGeneratorUnitId(actor: Actor): string | undefined {
+  const scope = resolveCampusScope(actor);
+  if (scope.isSuperAdmin) return undefined;
+  if (scope.campusUnitId) return scope.campusUnitId;
+  if (actor.position_access?.units?.view) return undefined;
+  return actor.unit_id ?? undefined;
+}
+
+function generatorUnitWhere(actor: Actor): { unit_id: string } | Record<string, never> {
+  const unitId = ownGeneratorUnitId(actor);
+  if (!unitId) return {};
+  return { unit_id: unitId };
+}
+
+function assertGeneratorInOwnUnit(generatorUnitId: string | null, actor: Actor) {
+  const unitId = ownGeneratorUnitId(actor);
+  if (!unitId) return;
+  if (generatorUnitId === unitId) return;
+  throw new AppError('That generator belongs to another unit', 403);
 }
 
 function buildScopeFilter(actor: Actor): Prisma.tbl_fuel_requisitionsWhereInput {
@@ -239,7 +269,7 @@ export async function createFuelRequisition(
     if (generator.organization_id !== actor.organization_id) {
       throw new AppError('That generator belongs to another organization', 403);
     }
-    assertAssetInScope(generator.unit_id, 'generator');
+    assertGeneratorInOwnUnit(generator.unit_id, actor);
     if (generator.status !== 'ACTIVE') {
       throw new AppError('That generator is inactive', 400);
     }
@@ -594,7 +624,7 @@ export async function listGenerators(actor: Actor) {
   return prisma.tbl_generators.findMany({
     where: {
       organization_id: actor.organization_id,
-      ...(await assetUnitWhere(actor)),
+      ...generatorUnitWhere(actor),
     },
     include: { unit: { select: { unit_id: true, unit_name: true } } },
     orderBy: { generator_name: 'asc' },
@@ -602,8 +632,11 @@ export async function listGenerators(actor: Actor) {
 }
 
 export async function createGenerator(input: CreateGeneratorInput, actor: Actor) {
-  const scope = resolveCampusScope(actor);
-  const unitId = input.unit_id ?? scope.campusUnitId ?? actor.unit_id ?? null;
+  const forcedUnitId = ownGeneratorUnitId(actor);
+  if (forcedUnitId && input.unit_id && input.unit_id !== forcedUnitId) {
+    throw new AppError('You can only register generators in your own unit', 403);
+  }
+  const unitId = forcedUnitId ?? input.unit_id ?? actor.unit_id ?? null;
 
   if (unitId) {
     const unit = await prisma.tbl_unit.findFirst({
@@ -643,10 +676,19 @@ export async function updateGenerator(
   actor: Actor
 ) {
   const existing = await prisma.tbl_generators.findFirst({
-    where: { generator_id: id, organization_id: actor.organization_id },
+    where: {
+      generator_id: id,
+      organization_id: actor.organization_id,
+      ...generatorUnitWhere(actor),
+    },
     select: { generator_id: true },
   });
   if (!existing) throw new AppError('Generator not found', 404);
+
+  const forcedUnitId = ownGeneratorUnitId(actor);
+  if (forcedUnitId && input.unit_id && input.unit_id !== forcedUnitId) {
+    throw new AppError('You can only keep generators in your own unit', 403);
+  }
 
   return prisma.tbl_generators.update({
     where: { generator_id: id },
@@ -1218,7 +1260,11 @@ export async function getAssetFuelHistory(
     latestReading = vehicle.current_odometer;
   } else {
     const generator = await prisma.tbl_generators.findFirst({
-      where: { generator_id: assetId, organization_id: actor.organization_id },
+      where: {
+        generator_id: assetId,
+        organization_id: actor.organization_id,
+        ...generatorUnitWhere(actor),
+      },
       select: { generator_name: true, fuel_level_percent: true },
     });
     if (!generator) throw new AppError('Generator not found', 404);
